@@ -2,7 +2,10 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabaseClient";
 
-const tabs = [{ label: "Dashboard", to: "/portal" }];
+const tabs = [
+  { label: "Dashboard", to: "/portal" },
+  { label: "Change Requests", to: "/portal/requests" },
+];
 
 export function PortalLayout() {
   const { profile } = useAuth();

@@ -114,3 +114,19 @@ CREATE POLICY change_requests_insert ON change_requests FOR INSERT WITH CHECK (i
 
 DROP POLICY IF EXISTS change_requests_update ON change_requests;
 CREATE POLICY change_requests_update ON change_requests FOR UPDATE USING (is_admin());
+
+-- Storage: change-request-screenshots bucket (private), path convention
+-- {customer_id}/{uuid}/{filename} so the customer_id segment can be policy-checked.
+DROP POLICY IF EXISTS change_request_screenshots_insert ON storage.objects;
+CREATE POLICY change_request_screenshots_insert ON storage.objects
+FOR INSERT WITH CHECK (
+  bucket_id = 'change-request-screenshots'
+  AND (storage.foldername(name))[1] = my_customer_id()::text
+);
+
+DROP POLICY IF EXISTS change_request_screenshots_select ON storage.objects;
+CREATE POLICY change_request_screenshots_select ON storage.objects
+FOR SELECT USING (
+  bucket_id = 'change-request-screenshots'
+  AND ((storage.foldername(name))[1] = my_customer_id()::text OR is_admin())
+);

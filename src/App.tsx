@@ -12,6 +12,7 @@ import { RequireAdmin, RequireCustomer } from "./lib/authGuard";
 import { PortalLogin } from "./portal/PortalLogin";
 import { PortalLayout } from "./portal/PortalLayout";
 import { PortalDashboard } from "./portal/PortalDashboard";
+import { PortalChangeRequests } from "./portal/PortalChangeRequests";
 import { AdminLayout } from "./admin/AdminLayout";
 import { AdminLeads } from "./admin/AdminLeads";
 import { AdminCustomers } from "./admin/AdminCustomers";
@@ -49,6 +50,7 @@ function App() {
             }
           >
             <Route index element={<PortalDashboard />} />
+            <Route path="requests" element={<PortalChangeRequests />} />
           </Route>
           <Route
             path="/admin"
