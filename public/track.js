@@ -40,16 +40,17 @@
       referrer: document.referrer || undefined,
     });
 
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(ENDPOINT, new Blob([payload], { type: "application/json" }));
-    } else {
-      fetch(ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-        keepalive: true,
-      }).catch(function () {});
-    }
+    // Deliberately not using navigator.sendBeacon here: cross-origin beacons
+    // with a JSON content-type require a CORS preflight, and several browsers
+    // silently drop the request in that case (sendBeacon still returns `true`,
+    // giving no indication of failure). fetch with keepalive:true gives the
+    // same "survives page unload" guarantee and correctly negotiates CORS.
+    fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      keepalive: true,
+    }).catch(function () {});
   }
 
   send("pageview");
