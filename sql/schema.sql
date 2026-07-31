@@ -15,3 +15,93 @@ CREATE TABLE IF NOT EXISTS leads (
   newsletter_opt_in BOOLEAN,
   raw_payload JSONB NOT NULL
 );
+
+-- Client portal: customers, auth role mapping, analytics, change requests
+
+CREATE TABLE IF NOT EXISTS customers (
+  id BIGSERIAL PRIMARY KEY,
+  business_name TEXT NOT NULL,
+  contact_name TEXT,
+  contact_email TEXT NOT NULL,
+  website_url TEXT,
+  tracking_site_key UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+  lead_id BIGINT REFERENCES leads(id),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('admin','customer')),
+  customer_id BIGINT REFERENCES customers(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION is_admin() RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin');
+$$;
+
+CREATE OR REPLACE FUNCTION my_customer_id() RETURNS BIGINT
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT customer_id FROM profiles WHERE id = auth.uid();
+$$;
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id BIGINT NOT NULL REFERENCES customers(id),
+  visitor_id UUID NOT NULL,
+  event_type TEXT NOT NULL CHECK (event_type IN ('pageview','heartbeat')),
+  page_path TEXT,
+  referrer TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS analytics_events_customer_created_idx ON analytics_events (customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS analytics_events_customer_visitor_created_idx ON analytics_events (customer_id, visitor_id, created_at DESC);
+-- No INSERT policy needed: api/track.ts writes via the privileged direct
+-- Postgres connection (api/_lib/db.ts), which bypasses RLS entirely.
+
+CREATE TABLE IF NOT EXISTS change_requests (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id BIGINT NOT NULL REFERENCES customers(id),
+  description TEXT NOT NULL,
+  screenshot_paths TEXT[] NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted','in_progress','done')),
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE change_requests ENABLE ROW LEVEL SECURITY;
+
+-- leads previously had no RLS policy at all, which (combined with Supabase's
+-- default anon/authenticated grants on public-schema tables) meant anyone
+-- with the public anon key could read every lead via the REST API. Only a
+-- risk once the anon key started shipping client-side for the portal, but
+-- fixed now regardless: admin-only reads, no client insert (api/leads.ts
+-- writes via the privileged direct Postgres connection, bypassing RLS).
+DROP POLICY IF EXISTS leads_select ON leads;
+CREATE POLICY leads_select ON leads FOR SELECT USING (is_admin());
+
+DROP POLICY IF EXISTS profiles_select ON profiles;
+CREATE POLICY profiles_select ON profiles FOR SELECT USING (id = auth.uid() OR is_admin());
+
+DROP POLICY IF EXISTS customers_select ON customers;
+CREATE POLICY customers_select ON customers FOR SELECT USING (is_admin() OR id = my_customer_id());
+
+DROP POLICY IF EXISTS analytics_select ON analytics_events;
+CREATE POLICY analytics_select ON analytics_events FOR SELECT USING (is_admin() OR customer_id = my_customer_id());
+
+DROP POLICY IF EXISTS change_requests_select ON change_requests;
+CREATE POLICY change_requests_select ON change_requests FOR SELECT USING (is_admin() OR customer_id = my_customer_id());
+
+DROP POLICY IF EXISTS change_requests_insert ON change_requests;
+CREATE POLICY change_requests_insert ON change_requests FOR INSERT WITH CHECK (is_admin() OR customer_id = my_customer_id());
+
+DROP POLICY IF EXISTS change_requests_update ON change_requests;
+CREATE POLICY change_requests_update ON change_requests FOR UPDATE USING (is_admin());

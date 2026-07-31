@@ -24,3 +24,20 @@ export type LeadPayload = z.infer<typeof leadPayloadSchema>;
 export type LeadApiSuccess = { ok: true; id?: number };
 export type LeadApiError = { ok: false; error: string; issues?: unknown };
 export type LeadApiResponse = LeadApiSuccess | LeadApiError;
+
+export type LeadRow = {
+  id: number;
+  created_at: string;
+  source: LeadSource;
+  name: string;
+  email: string;
+  phone: string | null;
+  service_type: string | null;
+  message: string | null;
+  description: string | null;
+  project_details: string | null;
+  start_date: string | null;
+  preferred_date: string | null;
+  company_name: string | null;
+  newsletter_opt_in: boolean | null;
+};
