@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import type { Customer, InviteCustomerApiResponse } from "../lib/customers";
 
@@ -166,7 +166,11 @@ export function AdminCustomers() {
               <tbody>
                 {customers.map((c) => (
                   <tr key={c.id} className="border-t border-border">
-                    <td className="px-4 py-3">{c.business_name}</td>
+                    <td className="px-4 py-3">
+                      <Link to={`/admin/customers/${c.id}`} className="text-primary hover:underline">
+                        {c.business_name}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3">{c.contact_email}</td>
                     <td className="px-4 py-3">{c.website_url || "—"}</td>
                     <td className="px-4 py-3">{c.status}</td>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
-import { STORAGE_BUCKET, type ChangeRequest, type ChangeRequestStatus } from "../../lib/changeRequests";
+import { supabase } from "../lib/supabaseClient";
+import { STORAGE_BUCKET, type ChangeRequest, type ChangeRequestStatus } from "../lib/changeRequests";
 
 const statusLabels: Record<ChangeRequestStatus, string> = {
   submitted: "Submitted",
@@ -14,24 +14,38 @@ const statusColors: Record<ChangeRequestStatus, string> = {
   done: "text-green-500",
 };
 
+type ChangeRequestWithCustomer = ChangeRequest & {
+  customers?: { business_name: string } | null;
+};
+
 type ChangeRequestListProps = {
   customerId?: number;
   canUpdateStatus?: boolean;
+  showBusinessName?: boolean;
   refreshKey?: number;
 };
 
-export function ChangeRequestList({ customerId, canUpdateStatus = false, refreshKey }: ChangeRequestListProps) {
-  const [requests, setRequests] = useState<ChangeRequest[]>([]);
+export function ChangeRequestList({
+  customerId,
+  canUpdateStatus = false,
+  showBusinessName = false,
+  refreshKey,
+}: ChangeRequestListProps) {
+  const [requests, setRequests] = useState<ChangeRequestWithCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      let query = supabase.from("change_requests").select("*").order("created_at", { ascending: false });
+      const selectClause = showBusinessName ? "*, customers(business_name)" : "*";
+      let query = supabase
+        .from("change_requests")
+        .select(selectClause)
+        .order("created_at", { ascending: false });
       if (customerId) query = query.eq("customer_id", customerId);
       const { data } = await query;
-      const rows = (data as ChangeRequest[]) ?? [];
+      const rows = (data as unknown as ChangeRequestWithCustomer[]) ?? [];
       setRequests(rows);
 
       const allPaths = rows.flatMap((r) => r.screenshot_paths);
@@ -60,6 +74,11 @@ export function ChangeRequestList({ customerId, canUpdateStatus = false, refresh
     <div className="space-y-4">
       {requests.map((req) => (
         <div key={req.id} className="rounded-lg border border-border bg-card p-6">
+          {showBusinessName && req.customers?.business_name && (
+            <p className="mb-2 font-mono text-xs uppercase tracking-wide text-primary">
+              {req.customers.business_name}
+            </p>
+          )}
           <div className="flex items-start justify-between gap-4">
             <p className="text-sm text-foreground">{req.description}</p>
             <span className={`shrink-0 text-xs font-semibold uppercase tracking-wide ${statusColors[req.status]}`}>

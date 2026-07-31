@@ -16,6 +16,8 @@ import { PortalChangeRequests } from "./portal/PortalChangeRequests";
 import { AdminLayout } from "./admin/AdminLayout";
 import { AdminLeads } from "./admin/AdminLeads";
 import { AdminCustomers } from "./admin/AdminCustomers";
+import { AdminCustomerDetail } from "./admin/AdminCustomerDetail";
+import { AdminChangeRequests } from "./admin/AdminChangeRequests";
 
 function MarketingSite() {
   return (
@@ -63,6 +65,8 @@ function App() {
             <Route index element={<Navigate to="customers" replace />} />
             <Route path="leads" element={<AdminLeads />} />
             <Route path="customers" element={<AdminCustomers />} />
+            <Route path="customers/:id" element={<AdminCustomerDetail />} />
+            <Route path="change-requests" element={<AdminChangeRequests />} />
           </Route>
           <Route path="/*" element={<MarketingSite />} />
         </Routes>

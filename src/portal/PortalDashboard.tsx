@@ -1,6 +1,6 @@
 import { useAuth } from "../lib/auth";
-import { LiveVisitorCount } from "./components/LiveVisitorCount";
-import { TrafficChart } from "./components/TrafficChart";
+import { LiveVisitorCount } from "../components/LiveVisitorCount";
+import { TrafficChart } from "../components/TrafficChart";
 
 export function PortalDashboard() {
   const { profile } = useAuth();

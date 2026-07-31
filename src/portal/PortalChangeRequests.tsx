@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../lib/auth";
 import { ChangeRequestForm } from "./components/ChangeRequestForm";
-import { ChangeRequestList } from "./components/ChangeRequestList";
+import { ChangeRequestList } from "../components/ChangeRequestList";
 
 export function PortalChangeRequests() {
   const { profile } = useAuth();

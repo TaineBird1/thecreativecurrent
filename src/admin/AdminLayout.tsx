@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 
 const tabs = [
   { label: "Customers", to: "/admin/customers" },
+  { label: "Change Requests", to: "/admin/change-requests" },
   { label: "Leads", to: "/admin/leads" },
 ];
 
