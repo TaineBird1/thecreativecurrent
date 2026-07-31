@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { buildMailto } from "../../../lib/mailto";
+import { useLeadSubmit } from "../../../hooks/useLeadSubmit";
 import { SubmissionSuccessConfirmation } from "./SubmissionSuccessConfirmation";
 
 const steps = ["Service", "Schedule", "Details", "Confirm"];
@@ -48,6 +48,7 @@ type FormState = {
   phone: string;
   company_name: string;
   project_details: string;
+  honeypot: string;
 };
 
 const initialState: FormState = {
@@ -58,6 +59,7 @@ const initialState: FormState = {
   phone: "",
   company_name: "",
   project_details: "",
+  honeypot: "",
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -66,7 +68,7 @@ const PHONE_PATTERN = /^[0-9+\s()-]{7,20}$/;
 export function Inquiry() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(initialState);
-  const [submitted, setSubmitted] = useState(false);
+  const { submit, isSubmitting, error, success } = useLeadSubmit();
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -92,14 +94,23 @@ export function Inquiry() {
     setStep((s) => Math.max(s - 1, 0));
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!step0Valid || !step2Valid) return;
-    window.location.href = buildMailto(`Project inquiry from ${form.name}`, form);
-    setSubmitted(true);
+    await submit({
+      source: "contact",
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      company_name: form.company_name,
+      project_details: form.project_details,
+      preferred_date: form.preferred_date,
+      service_type: form.service,
+      honeypot: form.honeypot,
+    });
   }
 
-  if (submitted) {
+  if (success) {
     return <SubmissionSuccessConfirmation />;
   }
 
@@ -118,6 +129,16 @@ export function Inquiry() {
         </div>
 
         <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-6">
+          <input
+            type="text"
+            name="honeypot"
+            value={form.honeypot}
+            onChange={handleChange}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            className="absolute left-[-9999px] h-0 w-0 opacity-0"
+          />
           <div className="mx-auto mb-16 flex w-full max-w-2xl items-center justify-between">
             {steps.map((label, i) => (
               <div key={label} className="flex flex-1 items-center last:flex-none">
@@ -317,6 +338,11 @@ export function Inquiry() {
                   {form.company_name && <p><span className="text-muted-foreground">Company:</span> {form.company_name}</p>}
                   <p><span className="text-muted-foreground">Details:</span> {form.project_details}</p>
                 </div>
+                {error && (
+                  <p className="mt-4 font-sans text-sm text-red-500" role="alert">
+                    {error}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -351,9 +377,10 @@ export function Inquiry() {
             ) : (
               <button
                 type="submit"
-                className="inline-flex h-11 items-center gap-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 px-8 text-sm font-medium text-primary-foreground shadow-xs transition-all hover:bg-primary/90"
+                disabled={isSubmitting}
+                className="inline-flex h-11 items-center gap-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 px-8 text-sm font-medium text-primary-foreground shadow-xs transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Submit
+                {isSubmitting ? "Submitting..." : "Submit"}
               </button>
             )}
           </div>

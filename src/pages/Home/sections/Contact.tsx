@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { buildMailto } from "../../../lib/mailto";
 import { siteInfo } from "../../../data/nav";
+import { useLeadSubmit } from "../../../hooks/useLeadSubmit";
 
 const nextSteps = [
   {
@@ -28,7 +28,9 @@ export function Contact() {
     service_type: "",
     start_date: "",
     description: "",
+    honeypot: "",
   });
+  const { submit, isSubmitting, error, success } = useLeadSubmit();
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -36,9 +38,9 @@ export function Contact() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    window.location.href = buildMailto(`Website inquiry from ${form.name || "website visitor"}`, form);
+    await submit({ source: "home", ...form });
   }
 
   return (
@@ -95,7 +97,25 @@ export function Contact() {
                 </div>
               </div>
 
+              {success ? (
+                <div className="space-y-2 p-10 text-center md:p-14">
+                  <p className="font-sans text-xl font-semibold text-white">Message received.</p>
+                  <p className="font-sans text-sm text-gray-400">
+                    Thanks — we'll be in touch within 24 hours.
+                  </p>
+                </div>
+              ) : (
               <form onSubmit={handleSubmit} className="space-y-6 p-6 md:p-8">
+                <input
+                  type="text"
+                  name="honeypot"
+                  value={form.honeypot}
+                  onChange={handleChange}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  className="absolute left-[-9999px] h-0 w-0 opacity-0"
+                />
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <div className="grid gap-2">
                     <label htmlFor="home-name" className="font-mono text-[0.7rem] uppercase tracking-[0.18em] text-gray-500">
@@ -222,12 +242,19 @@ export function Contact() {
                   />
                 </div>
 
+                {error && (
+                  <p className="font-mono text-xs text-red-400" role="alert">
+                    {error}
+                  </p>
+                )}
+
                 <div className="flex justify-end pt-2">
                   <button
                     type="submit"
-                    className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-600 px-7 py-4 font-sans text-sm font-bold uppercase tracking-[0.06em] text-white transition-all duration-150 hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]"
+                    disabled={isSubmitting}
+                    className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-600 px-7 py-4 font-sans text-sm font-bold uppercase tracking-[0.06em] text-white transition-all duration-150 hover:shadow-[0_0_20px_rgba(168,85,247,0.4)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Submit Request
+                    {isSubmitting ? "Sending..." : "Submit Request"}
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       width="24"
@@ -247,6 +274,7 @@ export function Contact() {
                   </button>
                 </div>
               </form>
+              )}
 
               <div className="border-t-2 border-white/10 bg-white/5 px-4 py-3 md:px-6">
                 <div className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-gray-400 md:text-xs">

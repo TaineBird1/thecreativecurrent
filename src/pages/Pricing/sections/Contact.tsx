@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { buildMailto } from "../../../lib/mailto";
+import { useLeadSubmit } from "../../../hooks/useLeadSubmit";
 
 export function Contact() {
   const [form, setForm] = useState({
@@ -8,8 +8,10 @@ export function Contact() {
     phone: "",
     service_type: "",
     message: "",
+    honeypot: "",
   });
   const [newsletter, setNewsletter] = useState(false);
+  const { submit, isSubmitting, error, success } = useLeadSubmit();
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -17,12 +19,9 @@ export function Contact() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    window.location.href = buildMailto(`Pricing inquiry from ${form.name || "website visitor"}`, {
-      ...form,
-      newsletter: newsletter ? "yes" : "no",
-    });
+    await submit({ source: "pricing", ...form, newsletter });
   }
 
   return (
@@ -54,7 +53,25 @@ export function Contact() {
         </div>
 
         <div className="mt-12 border border-white/5 bg-card p-7 shadow-xl md:p-14">
+          {success ? (
+            <div className="space-y-2 py-10 text-center">
+              <p className="font-sans text-xl font-semibold text-foreground">Message received.</p>
+              <p className="font-sans text-sm text-muted-foreground">
+                Thanks — we'll be in touch within 24 hours.
+              </p>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
+            <input
+              type="text"
+              name="honeypot"
+              value={form.honeypot}
+              onChange={handleChange}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              className="absolute left-[-9999px] h-0 w-0 opacity-0"
+            />
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="grid gap-2">
                 <label htmlFor="p-name" className="font-mono text-[0.7rem] uppercase tracking-[0.18em] text-muted-foreground">
@@ -155,11 +172,18 @@ export function Contact() {
               </span>
             </label>
 
+            {error && (
+              <p className="font-mono text-xs text-red-500" role="alert">
+                {error}
+              </p>
+            )}
+
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-chart-1 to-chart-4 py-6 font-mono text-sm uppercase tracking-[0.14em] text-black shadow-lg transition-all hover:opacity-90"
+              disabled={isSubmitting}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-chart-1 to-chart-4 py-6 font-mono text-sm uppercase tracking-[0.14em] text-black shadow-lg transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Send Request
+              {isSubmitting ? "Sending..." : "Send Request"}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"
@@ -178,6 +202,7 @@ export function Contact() {
               </svg>
             </button>
           </form>
+          )}
         </div>
 
         <p className="mt-6 text-center font-mono text-xs italic text-muted-foreground">
