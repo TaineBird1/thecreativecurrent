@@ -62,6 +62,15 @@ CREATE INDEX IF NOT EXISTS analytics_events_customer_visitor_created_idx ON anal
 -- No INSERT policy needed: api/track.ts writes via the privileged direct
 -- Postgres connection (api/_lib/db.ts), which bypasses RLS entirely.
 
+-- SECURITY INVOKER (the default -- no modifier needed): runs as the calling
+-- user, so the analytics_select RLS policy still applies underneath this
+-- count. An unauthorized caller just gets 0, not an error.
+CREATE OR REPLACE FUNCTION live_visitor_count(customer_id_param BIGINT) RETURNS INTEGER
+LANGUAGE sql STABLE AS $$
+  SELECT count(DISTINCT visitor_id)::integer FROM analytics_events
+  WHERE customer_id = customer_id_param AND created_at > now() - interval '90 seconds';
+$$;
+
 CREATE TABLE IF NOT EXISTS change_requests (
   id BIGSERIAL PRIMARY KEY,
   customer_id BIGINT NOT NULL REFERENCES customers(id),

@@ -11,6 +11,7 @@ import { AuthProvider } from "./lib/auth";
 import { RequireAdmin, RequireCustomer } from "./lib/authGuard";
 import { PortalLogin } from "./portal/PortalLogin";
 import { PortalLayout } from "./portal/PortalLayout";
+import { PortalDashboard } from "./portal/PortalDashboard";
 import { AdminLayout } from "./admin/AdminLayout";
 import { AdminLeads } from "./admin/AdminLeads";
 import { AdminCustomers } from "./admin/AdminCustomers";
@@ -40,13 +41,15 @@ function App() {
         <Routes>
           <Route path="/login" element={<PortalLogin />} />
           <Route
-            path="/portal/*"
+            path="/portal"
             element={
               <RequireCustomer>
                 <PortalLayout />
               </RequireCustomer>
             }
-          />
+          >
+            <Route index element={<PortalDashboard />} />
+          </Route>
           <Route
             path="/admin"
             element={
