@@ -7,116 +7,87 @@ The Creative Current — a web design and management agency based in Durban, KZN
 - Email: thecreativecurrent01@gmail.com
 - Phone: +27 61 478 5459
 - Location: Durban, KZN, South Africa
-- Live site (source of truth for this rebuild): https://thecreativecurrent.co.za/
+- Live site: https://www.thecreativecurrent.co.za/ (custom domain, pointed at Vercel via 10Web-managed DNS)
 
 ## Tech Stack
 
 - Frontend: React 19 + TypeScript, Tailwind CSS 4 (CSS-first `@theme` config, no `tailwind.config.js`)
 - Routing: react-router-dom (`BrowserRouter`)
-- No backend, no CMS. This is a **static clone** of the live WordPress/10Web site's design, copy, and images. There is no WooCommerce, no WordPress forms — everything is a static React SPA.
+- Backend: Vercel Serverless Functions (`api/*.ts`, Node runtime, `@vercel/node`) + **Supabase** (Postgres, Auth, Storage)
+- Email: Resend (`api/_lib/email.ts`)
+- Deployed on Vercel, auto-deploys on push to `master`. Repo: github.com/TaineBird1/thecreativecurrent
 
 ## How this project came to be
 
-The original live site runs on WordPress + WooCommerce (via 10Web), with an AI-generated "digital lab" design system (giant staggered gradient headlines, numbered/roman-numeral sections, a console-style intake form, a "Tony" chat widget). This project is a from-scratch React+Tailwind rebuild that matches that live site's actual content, copy, and layout as closely as reasonably achievable — built by inspecting the live DOM/computed styles directly (not from a spec doc). All real copy, pricing, and images were pulled from the live site with the user's permission.
+The original live site ran on WordPress + WooCommerce (via 10Web) with an AI-generated "digital lab" design system. This project is a from-scratch React+Tailwind rebuild matching that live site's actual content/copy/layout (inspected directly from the live DOM, not a spec doc), then extended with a real backend: a lead-capture API + database, and a client portal (analytics + change requests) for actual paying clients.
 
-## Architecture
+## Marketing Site
 
-- `src/data/nav.ts` — hardcoded nav links (header only shows Appointment Booking + Pricing, matching live site), footer link groups, site contact info, ticker items
-- `src/lib/mailto.ts` — builds a `mailto:` link from form field data — no backend, forms open the user's email client with a pre-filled subject/body
-- `src/components/WvcLogo.tsx` — renders the user-supplied logo image (`src/assets/logo.jpg`, a circular neon "C" design) — this intentionally **replaces** the live site's own inline SVG monogram logo, per explicit user instruction
-- `src/components/Accordion.tsx` — shared accordion (supports roman numerals + bullet lists) used by all 3 FAQ sections
-- `src/components/TonyWidget.tsx` — floating chat widget with canned quick-reply buttons (Website Design/Pricing/Time Frames/FAQs/Get Quote), matching the live site's "Tony AI Assistant" — this is scripted/canned responses, not a real LLM backend (the live site's version isn't either)
-- `src/hooks/useInViewport.ts` — IntersectionObserver hook for scroll-reveal effects (Process timeline, etc.)
-- Sections are composed per page (`src/pages/<Page>/sections/*.tsx`), with `Header` and `Footer` shared from `src/reusable_sections/`
-- Real product photos/renders live in `src/assets/site/` (downloaded from the live site with user permission)
-
-## File Structure
+Sections composed per page (`src/pages/<Page>/sections/*.tsx`), `Header`/`Footer` shared from `src/reusable_sections/`. Real product photos in `src/assets/site/`.
 
 ```
-src/
-├── pages/
-│   ├── Home/sections/
-│   │   ├── Evolution.tsx          # "01 — The Current" hero, staggered gradient headline, photo card
-│   │   ├── Expertise.tsx          # "Our Core Services" — 6 staggered numbered cards w/ real images
-│   │   ├── Process.tsx            # "Our Workflow" — 6-step alternating timeline, roman numerals I-VI
-│   │   ├── Current.tsx            # "Ignite your digital presence" CTA, chart-1/3/4 gradient text
-│   │   ├── Contact.tsx            # console-style "TCC.INTAKE" form + Process Next Steps sidebar
-│   │   ├── Calendarbooking.tsx    # "03 — Connect" bg-image CTA section
-│   │   └── FeaturedServices.tsx   # "Our Expertise" — real WooCommerce-empty-state message
-│   ├── AppointmentBooking/sections/
-│   │   ├── Appointment.tsx        # split-screen hero, "Digital Growth" headline
-│   │   ├── Booking.tsx            # Direct Line / Digital Inbox / Studio HQ cards
-│   │   └── Faq.tsx                # 7-item accordion, roman numerals I-VII (real answers)
-│   ├── Pricing/sections/
-│   │   ├── Pricing.tsx            # REAL tiers: Basic R6,000 / Advanced R8,000 / Premium R15,000 + monthly retainers
-│   │   ├── Faq.tsx                # 11-item, 4-category accordion (roman numerals I.-XI.)
-│   │   └── Contact.tsx            # "Let's connect" form w/ newsletter checkbox
-│   ├── Contact/sections/
-│   │   ├── Hero.tsx               # "№ 01 — Vision" giant stacked headline, circled "ambition"
-│   │   ├── Inquiry.tsx            # 4-step form: Service (card select) → Schedule → Details → Confirm
-│   │   └── SubmissionSuccessConfirmation.tsx
-│   └── AboutUs/sections/
-│       ├── AboutHero.tsx          # giant letter-by-letter "The Creative Current", filter tabs
-│       └── Mission.tsx            # "WE DON'T BUILD WE ENGINEER..." giant "03" watermark section
-├── reusable_sections/
-│   ├── Header.tsx     # h-24 header, user's logo + "Digital · Lab" wordmark, solid-cyan ticker bar
-│   └── Footer.tsx     # Explore/Practice/Connect columns + TonyWidget
-├── index.css           # Tailwind v4 @theme design tokens
-└── App.tsx             # BrowserRouter + routes
+src/pages/
+├── Home/sections/          # Evolution (hero), Expertise (6 services), Process (6-step timeline),
+│                           # Current (CTA), Contact (intake form), Calendarbooking, FeaturedServices
+├── AppointmentBooking/sections/   # Appointment (hero), Booking (contact cards), Faq (7-item)
+├── Pricing/sections/       # Pricing (real tiers: R6,000/R8,000/R15,000), Faq (11-item), Contact
+├── Contact/sections/       # Hero, Inquiry (4-step form), SubmissionSuccessConfirmation
+└── AboutUs/sections/        # AboutHero (letter reveal), Mission
 ```
 
-## Design System
+**Design tokens** (`src/index.css`, Tailwind v4 `@theme`): background `#000`, foreground `hsl(0 0% 95%)`, primary `#00D9FF`, accent `#D946EF`, chart-1/3/4 (cyan/pink/orange gradient). Fonts: Inter (substituted for the live site's "Google Sans", which isn't a real servable font), Georgia, JetBrains Mono.
 
-**Colors (dark mode):**
+**Hard constraints**: Tailwind utilities only, no custom CSS classes/`*.module.css`, no `@apply`, no fonts outside Inter/Georgia/JetBrains Mono.
 
-| Token | Value |
-|---|---|
-| Background | `#000000` |
-| Foreground | `hsl(0 0% 95%)` |
-| Primary | `#00D9FF` (cyan) — matches live site's confirmed `rgb(0,217,255)` button color |
-| Accent | `#D946EF` (magenta) |
-| Muted-foreground | `#9a9a9a` |
-| Card | `#0c0c0c` |
-| Border | `#262626` |
-| Chart-1 / Chart-3 / Chart-4 | cyan / pink / orange — used together as a gradient (`Current.tsx` "digital" text) |
+## Lead-Capture Backend
 
-**Typography:** Inter (sans, substituted for "Google Sans" — confirmed via the live site's own stylesheet that no real Google Sans font file is ever served, it silently falls back), Georgia (serif), JetBrains Mono (monospace, used for all-caps mono labels/eyebrows)
+All 3 marketing-site forms (Home/Pricing/Contact) POST to a single `POST /api/leads` endpoint (`api/leads.ts`) — **not** `mailto:` links.
 
-**Motifs consistent across pages:** numbered eyebrows (`01 —`, `§ 03 /`), roman numerals in FAQs, uppercase wide-tracking labels, giant clamp()-sized headlines, gradient cyan→purple accent text, corner-bracket decorated image cards.
+- `src/lib/leads.ts` — `leadPayloadSchema` (Zod), shared between the API handler and the 3 forms. Includes an honeypot field (`honeypot`) — non-empty submissions return `201 {ok:true}` but are silently dropped (no insert, no email).
+- `api/_lib/db.ts` — singleton `postgres` npm package client, reads `POSTGRES_URL` (Supabase's pooled/pgbouncer connection, `prepare: false` for pgbouncer compat). This connection is privileged — it bypasses RLS entirely, which is why `leads` and `analytics_events` don't need INSERT policies.
+- `api/_lib/email.ts` — wraps Resend, sends a notification to `LEADS_NOTIFICATION_EMAIL` on every valid submission (best-effort — a Resend failure is logged but doesn't fail the request, since the lead is already safely in the DB by that point).
+- `src/hooks/useLeadSubmit.ts` — shared submit/loading/error/success state hook used by all 3 forms.
+- `vercel.json` — SPA rewrite (`/(.*) → /index.html`) plus an explicit `/api/(.*) → /api/$1` pass-through so API routes aren't swallowed by the catch-all.
 
-## Hard Constraints — do not violate
+## Client Portal (Auth + Analytics + Change Requests)
 
-**Allowed:** Tailwind utilities only, CSS variables/theme tokens from `src/index.css`, existing component props/hooks.
+Once a lead becomes a paying client, the admin invites them to a portal where they see live traffic for their own separately-hosted website and submit change requests with screenshots. Full plan/design rationale: see git history (`git log --all --oneline | grep -i portal`) — the short version:
 
-**Not allowed:** custom CSS classes/`*.module.css` files, `@apply` with custom selectors, new fonts outside Inter/Georgia/JetBrains Mono.
+**Auth**: Supabase Auth. A `profiles` table (keyed by `auth.users.id`) holds `role` (`admin`/`customer`) + `customer_id`. Two `SECURITY DEFINER` SQL functions — `is_admin()` and `my_customer_id()` — are used in every RLS policy instead of inlining checks, avoiding policy self-recursion on `profiles`.
 
-## Forms
+- `src/lib/supabaseClient.ts` — browser Supabase client (`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` — **note the `VITE_` prefix**, not the `NEXT_PUBLIC_` ones the Vercel/Supabase integration originally injected; those are invisible to Vite and only the `VITE_*` copies were added manually).
+- `src/lib/auth.tsx` — `AuthProvider`/`useAuth()`, tracks session + profile + a `passwordRecovery` flag (set on Supabase's `PASSWORD_RECOVERY` auth event, so invite/recovery links show a "set your password" form instead of silently logging in with no way to set one).
+- `src/lib/authGuard.tsx` — `<RequireAdmin>`, `<RequireCustomer>` route guards.
+- Single admin (bootstrapped manually via `supabase.auth.admin.inviteUserByEmail` + a hand-inserted `profiles` row — there's no self-service "first admin" flow, and there shouldn't be for a single-admin system). Customers are **invite-only** — no public signup page exists.
 
-All 3 forms build a `mailto:thecreativecurrent01@gmail.com` link via `src/lib/mailto.ts` — no backend.
+**Data model** (`sql/schema.sql`, applied via `scripts/run-schema.mjs` against `POSTGRES_URL_NON_POOLING`):
+- `customers` — business_name, contact info, `website_url`, `tracking_site_key` (UUID, used by the tracking snippet), optional `lead_id` link back to the leads table.
+- `analytics_events` — pageview/heartbeat events per customer. No RLS INSERT policy (written via the privileged direct-Postgres connection in `api/track.ts`, same pattern as `api/leads.ts`).
+- `change_requests` — description, `screenshot_paths` (array, Supabase Storage paths), status (`submitted`/`in_progress`/`done`).
+- `live_visitor_count(customer_id)` SQL function — `SECURITY INVOKER` (the default), so RLS still gates it; an unauthorized caller just gets 0, not an error.
+- **`leads` also got RLS added** during this work — it previously had none, meaning anyone with the (now-public, since it ships in the portal's bundle) anon key could read every lead via Supabase's REST API. Fixed: admin-only reads.
 
-1. Home `Contact.tsx` (`get_in_touch_form_home` equivalent) — name, email, phone, service_type, start_date, description
-2. Pricing `Contact.tsx` (`get_in_touch_form_pricing` equivalent) — name, email, phone, service_type, message, newsletter
-3. Contact `Inquiry.tsx` (`appointment_form_appointment_booking` equivalent, 4-step) — service, preferred_date, name, email, phone, company_name, project_details
+**Tracking snippet**: `public/track.js` (plain vanilla JS, not bundled — Vite serves `public/` as-is) is what the agency embeds on a *client's own, separately-hosted* website: `<script src=".../track.js" data-site="{tracking_site_key}" async>`. Fires a pageview on load + a heartbeat every ~20s (paused when the tab is hidden), via `sendBeacon`/`fetch keepalive`. Posts to `api/track.ts` — the **only public, CORS-enabled** endpoint in the project (everything else is same-origin). Unknown/malformed payloads get a silent `204`, never an error, so the endpoint doesn't leak whether a site key is valid. "Live now" = distinct visitor IDs seen in the last 90 seconds.
 
-Validation: name/email/phone/service/description required where applicable; email/phone pattern-validated; name 2–80 chars. The live site's "Project Files" upload field is rendered but disabled — file attachments aren't possible through a `mailto:` link, so it just tells the user to mention files in their brief instead.
+**Screenshot uploads**: direct browser → Supabase Storage (bucket `change-request-screenshots`, private), no server proxy. Path convention `{customer_id}/{uuid}/{filename}`, RLS-checked via `storage.foldername(name)`. Rendered back via short-lived signed URLs.
 
-## Fixed vs. the live site (intentional deviations)
+**Routes** (`src/App.tsx`) — outside the marketing site's `Header`/`Footer`:
+- `/login` — shared login; also renders the password-set form when `passwordRecovery` is true.
+- `/portal` (customer, `RequireCustomer`) — `PortalDashboard` (live count + 7-day traffic chart), `/portal/requests` (`PortalChangeRequests` — submit form + own request list).
+- `/admin` (`RequireAdmin`) — `/admin/customers` (list + invite form), `/admin/customers/:id` (per-customer analytics + requests), `/admin/change-requests` (cross-customer checklist with mark-done, business-name joined in), `/admin/leads` (existing leads table + "convert to customer" prefill).
 
-The live site has a few real bugs/placeholders that were fixed rather than copied verbatim (per explicit user decision):
-- Footer email `href` (`mailto:hello@creativecurrent.com`) → fixed to the real `thecreativecurrent01@gmail.com`
-- Footer phone `href` (`tel:5551234567`) → fixed to the real `+27 61 478 5459`
-- Dead social icons (LinkedIn/Substack linking to `#`) → removed, kept only the real Instagram link
-- Appointment Booking contact cards had no `href` at all (decorative-only) → made them real `tel:`/`mailto:` links
-- Pricing tier CTA buttons had no `href` → linked to the pricing page's own contact form anchor
-- The "still curious? email us" FAQ link pointed back to its own page → fixed to a real `mailto:` link
-- Footer Privacy/Terms/Accessibility linked to `#` (no real pages exist) → rendered as plain non-clickable text instead of dead links
+**Shared components** (used by both admin and portal — moved to `src/components/` mid-build once that became clear): `LiveVisitorCount.tsx`, `TrafficChart.tsx` (dependency-free CSS bar chart), `ChangeRequestList.tsx` (takes optional `customerId`/`canUpdateStatus`/`showBusinessName` props to serve both the customer's own list and the admin's cross-customer checklist).
 
-## Explicitly deprioritized (documented, not silently dropped)
+**Only 2 serverless functions exist for the portal** (everything else is direct `supabase-js` from the browser, authorized by RLS):
+- `api/invite-customer.ts` — admin-only (checked via `profiles.role`), uses `SUPABASE_SERVICE_ROLE_KEY` to create the auth user + customer + profile rows. Service role key can never reach the browser, so this can't be done client-side.
+- `api/track.ts` — see above.
 
-- Decorative background flourishes on Contact page hero (hand-drawn botanical SVG, wavy bottom divider) and the diagonal rotated line overlays on the About Us Mission section — skipped for scope, the core layout/copy/imagery is intact
-- Per-word staggered slide-up reveal on the submission-success heading — simplified to a single fade-up
-- True scroll-linked parallax on hero images — approximated with a simpler treatment
+**`tsconfig.api.json` gotcha** (bit the project twice): `module: nodenext` requires explicit `.js` extensions on relative imports in `api/*.ts` files, even though the source is `.ts` (e.g. `from "./_lib/db.js"`).
 
-## Current Status
+## Known limitations / not yet done
 
-All 5 pages (Home, Appointment Booking, Pricing, Contact, About Us) rebuilt to match the live site's real content, copy, pricing, and images. `npx tsc --noEmit` and `npm run build` both pass clean. All images verified loading (no 404s). Page text content cross-checked directly against the live site for each route.
+- No real client has been invited yet — the full customer-side portal experience (their own live traffic, their own change requests) hasn't been exercised with a genuine client account, only with disposable test accounts created/torn down via the service-role key during development.
+- Resend is still on the unverified `onboarding@resend.dev` sender. Once needed, switch to a verified `@thecreativecurrent.co.za` sender (DNS + env var change).
+- Supabase's free-tier auth email rate limit is low (a handful per hour) — heavy testing of the invite flow can trip it; real customer invites should be fine under normal usage.
+- No automated test suite. Every backend piece (leads API, tracking, RLS policies, storage policies, invite flow, admin checklist) was verified via one-off Node scripts run directly against the real Supabase project and, for critical paths, the deployed production API — not via a persisted test framework.
+- Main JS bundle is ~570KB (Supabase SDK pulled the whole app over the 500KB warning threshold). Not yet code-split; `/portal` and `/admin` could be lazy-loaded since marketing-site visitors don't need that code.
