@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { StatusBadge } from "./StatusBadge";
 import { STORAGE_BUCKET, type ChangeRequest, type ChangeRequestStatus } from "../lib/changeRequests";
 
 const statusLabels: Record<ChangeRequestStatus, string> = {
@@ -8,10 +9,10 @@ const statusLabels: Record<ChangeRequestStatus, string> = {
   done: "Done",
 };
 
-const statusColors: Record<ChangeRequestStatus, string> = {
-  submitted: "text-muted-foreground",
-  in_progress: "text-primary",
-  done: "text-green-500",
+const statusTones: Record<ChangeRequestStatus, "neutral" | "primary" | "success"> = {
+  submitted: "neutral",
+  in_progress: "primary",
+  done: "success",
 };
 
 type ChangeRequestWithCustomer = ChangeRequest & {
@@ -81,8 +82,8 @@ export function ChangeRequestList({
           )}
           <div className="flex items-start justify-between gap-4">
             <p className="text-sm text-foreground">{req.description}</p>
-            <span className={`shrink-0 text-xs font-semibold uppercase tracking-wide ${statusColors[req.status]}`}>
-              {statusLabels[req.status]}
+            <span className="shrink-0">
+              <StatusBadge label={statusLabels[req.status]} tone={statusTones[req.status]} />
             </span>
           </div>
 

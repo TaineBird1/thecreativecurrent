@@ -1,0 +1,153 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
+import { StatCard } from "./components/StatCard";
+import { StatusBadge } from "../components/StatusBadge";
+import { IconUsers, IconClipboardList, IconInbox, IconActivity } from "./components/icons";
+import type { LeadRow } from "../lib/leads";
+import type { ChangeRequestStatus } from "../lib/changeRequests";
+
+type RecentChangeRequest = {
+  id: number;
+  description: string;
+  status: ChangeRequestStatus;
+  created_at: string;
+  customers: { business_name: string } | null;
+};
+
+const changeRequestTone: Record<ChangeRequestStatus, "neutral" | "primary" | "success"> = {
+  submitted: "neutral",
+  in_progress: "primary",
+  done: "success",
+};
+
+export function AdminOverview() {
+  const [customerCount, setCustomerCount] = useState<number | null>(null);
+  const [openRequestCount, setOpenRequestCount] = useState<number | null>(null);
+  const [leadCount, setLeadCount] = useState<number | null>(null);
+  const [newLeadCount, setNewLeadCount] = useState<number | null>(null);
+  const [recentLeads, setRecentLeads] = useState<LeadRow[]>([]);
+  const [recentRequests, setRecentRequests] = useState<RecentChangeRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+
+      const [
+        { count: customers },
+        { count: openRequests },
+        { count: leads },
+        { count: newLeads },
+        { data: leadRows },
+        { data: requestRows },
+      ] = await Promise.all([
+        supabase.from("customers").select("*", { count: "exact", head: true }),
+        supabase.from("change_requests").select("*", { count: "exact", head: true }).in("status", ["submitted", "in_progress"]),
+        supabase.from("leads").select("*", { count: "exact", head: true }),
+        supabase.from("leads").select("*", { count: "exact", head: true }).gte("created_at", weekAgo.toISOString()),
+        supabase.from("leads").select("*").order("created_at", { ascending: false }).limit(5),
+        supabase
+          .from("change_requests")
+          .select("id, description, status, created_at, customers(business_name)")
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ]);
+
+      setCustomerCount(customers ?? 0);
+      setOpenRequestCount(openRequests ?? 0);
+      setLeadCount(leads ?? 0);
+      setNewLeadCount(newLeads ?? 0);
+      setRecentLeads((leadRows as LeadRow[]) ?? []);
+      setRecentRequests((requestRows as unknown as RecentChangeRequest[]) ?? []);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  return (
+    <div className="space-y-10">
+      <div>
+        <h1 className="font-sans text-2xl font-bold">Overview</h1>
+        <p className="mt-1 text-sm text-muted-foreground">A snapshot of leads, clients, and open work.</p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Customers" value={loading ? "—" : (customerCount ?? 0)} icon={<IconUsers className="size-4" />} />
+        <StatCard
+          label="Open Requests"
+          value={loading ? "—" : (openRequestCount ?? 0)}
+          icon={<IconClipboardList className="size-4" />}
+          hint="Submitted or in progress"
+        />
+        <StatCard label="Total Leads" value={loading ? "—" : (leadCount ?? 0)} icon={<IconInbox className="size-4" />} />
+        <StatCard
+          label="New Leads"
+          value={loading ? "—" : (newLeadCount ?? 0)}
+          icon={<IconActivity className="size-4" />}
+          hint="Last 7 days"
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-lg border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border px-6 py-4">
+            <h2 className="font-sans text-sm font-semibold">Recent Leads</h2>
+            <Link to="/admin/leads" className="text-xs text-primary hover:underline">
+              View all
+            </Link>
+          </div>
+          <div className="divide-y divide-border">
+            {!loading && recentLeads.length === 0 && (
+              <p className="px-6 py-6 text-sm text-muted-foreground">No leads yet.</p>
+            )}
+            {recentLeads.map((lead) => (
+              <div key={lead.id} className="flex items-center justify-between px-6 py-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{lead.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{lead.email}</p>
+                </div>
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                  {new Date(lead.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border px-6 py-4">
+            <h2 className="font-sans text-sm font-semibold">Recent Change Requests</h2>
+            <Link to="/admin/change-requests" className="text-xs text-primary hover:underline">
+              View all
+            </Link>
+          </div>
+          <div className="divide-y divide-border">
+            {!loading && recentRequests.length === 0 && (
+              <p className="px-6 py-6 text-sm text-muted-foreground">No change requests yet.</p>
+            )}
+            {recentRequests.map((req) => (
+              <div key={req.id} className="px-6 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    {req.customers?.business_name && (
+                      <p className="font-mono text-[10px] uppercase tracking-wide text-primary">
+                        {req.customers.business_name}
+                      </p>
+                    )}
+                    <p className="mt-0.5 truncate text-sm text-foreground">{req.description}</p>
+                  </div>
+                  <StatusBadge
+                    label={req.status.replace("_", " ")}
+                    tone={changeRequestTone[req.status]}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

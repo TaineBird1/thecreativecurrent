@@ -33,48 +33,59 @@ export function AdminLeads() {
   }
 
   return (
-    <div>
-      <h2 className="font-sans text-lg font-semibold">Leads</h2>
-      {loading ? (
-        <p className="mt-4 text-sm text-muted-foreground">Loading…</p>
-      ) : leads.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">No leads yet.</p>
-      ) : (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-card text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Source</th>
-                <th className="px-4 py-3">Service</th>
-                <th className="px-4 py-3">Received</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {leads.map((lead) => (
-                <tr key={lead.id} className="border-t border-border">
-                  <td className="px-4 py-3">{lead.name}</td>
-                  <td className="px-4 py-3">{lead.email}</td>
-                  <td className="px-4 py-3 capitalize">{lead.source}</td>
-                  <td className="px-4 py-3">{lead.service_type || "—"}</td>
-                  <td className="px-4 py-3">{new Date(lead.created_at).toLocaleDateString()}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => convertToCustomer(lead)}
-                      className="rounded-lg border border-primary/50 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
-                    >
-                      Convert to Customer
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="space-y-10">
+      <div>
+        <h1 className="font-sans text-2xl font-bold">Leads</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Submissions from the site's contact forms.</p>
+      </div>
+
+      <section className="rounded-lg border border-border bg-card">
+        <div className="border-b border-border px-6 py-4">
+          <h2 className="font-sans text-sm font-semibold">All Leads</h2>
         </div>
-      )}
+        {loading ? (
+          <p className="px-6 py-6 text-sm text-muted-foreground">Loading…</p>
+        ) : leads.length === 0 ? (
+          <p className="px-6 py-6 text-sm text-muted-foreground">No leads yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="px-6 py-3 font-medium">Name</th>
+                  <th className="px-6 py-3 font-medium">Email</th>
+                  <th className="px-6 py-3 font-medium">Source</th>
+                  <th className="px-6 py-3 font-medium">Service</th>
+                  <th className="px-6 py-3 font-medium">Received</th>
+                  <th className="px-6 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {leads.map((lead) => (
+                  <tr key={lead.id} className="transition-colors hover:bg-white/[0.03]">
+                    <td className="px-6 py-4 font-medium text-foreground">{lead.name}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{lead.email}</td>
+                    <td className="px-6 py-4 capitalize text-muted-foreground">{lead.source}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{lead.service_type || "—"}</td>
+                    <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
+                      {new Date(lead.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={() => convertToCustomer(lead)}
+                        className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                      >
+                        Convert to Customer
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

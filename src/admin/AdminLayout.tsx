@@ -1,52 +1,68 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabaseClient";
+import { WvcLogo } from "../components/WvcLogo";
+import { IconDashboard, IconUsers, IconClipboardList, IconInbox, IconLogOut } from "./components/icons";
 
-const tabs = [
-  { label: "Customers", to: "/admin/customers" },
-  { label: "Change Requests", to: "/admin/change-requests" },
-  { label: "Leads", to: "/admin/leads" },
+const navItems = [
+  { label: "Overview", to: "/admin", icon: IconDashboard, end: true },
+  { label: "Customers", to: "/admin/customers", icon: IconUsers },
+  { label: "Change Requests", to: "/admin/change-requests", icon: IconClipboardList },
+  { label: "Leads", to: "/admin/leads", icon: IconInbox },
 ];
 
 export function AdminLayout() {
   const { profile } = useAuth();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="border-b border-border px-6 py-6">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
+    <div className="flex min-h-screen bg-background text-foreground">
+      <aside className="flex w-64 shrink-0 flex-col border-r border-border">
+        <div className="flex items-center gap-3 border-b border-border px-6 py-6">
+          <WvcLogo className="h-8 w-8 rounded-full" />
           <div>
-            <h1 className="font-sans text-2xl font-bold">Admin Dashboard</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Signed in as {profile?.email}</p>
+            <p className="font-sans text-sm font-bold leading-tight">The Creative Current</p>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Admin</p>
           </div>
-          <button
-            type="button"
-            onClick={() => supabase.auth.signOut()}
-            className="rounded-lg border border-border px-4 py-2 text-sm text-foreground transition-colors hover:border-primary hover:text-primary"
-          >
-            Sign Out
-          </button>
         </div>
-        <nav className="mx-auto mt-6 flex max-w-6xl gap-6">
-          {tabs.map((tab) => (
+
+        <nav className="flex-1 space-y-1 px-3 py-6">
+          {navItems.map((item) => (
             <NavLink
-              key={tab.to}
-              to={tab.to}
+              key={item.to}
+              to={item.to}
+              end={item.end}
               className={({ isActive }) =>
-                `border-b-2 pb-2 text-sm font-medium transition-colors ${
-                  isActive ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                 }`
               }
             >
-              {tab.label}
+              <item.icon className="size-4 shrink-0" />
+              {item.label}
             </NavLink>
           ))}
         </nav>
-      </div>
 
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <Outlet />
-      </div>
+        <div className="border-t border-border p-4">
+          <p className="truncate px-2 text-xs text-muted-foreground">{profile?.email}</p>
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+          >
+            <IconLogOut className="size-4 shrink-0" />
+            Sign Out
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-6xl px-8 py-10">
+          <Outlet />
+        </div>
+      </main>
     </div>
   );
 }

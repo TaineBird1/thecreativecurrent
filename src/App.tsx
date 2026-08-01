@@ -6,7 +6,6 @@ import { AppointmentBooking } from "./pages/AppointmentBooking/AppointmentBookin
 import { Pricing } from "./pages/Pricing/Pricing";
 import { Contact } from "./pages/Contact/Contact";
 import { AboutUs } from "./pages/AboutUs/AboutUs";
-import { Navigate } from "react-router-dom";
 import { AuthProvider } from "./lib/auth";
 import { RequireAdmin, RequireCustomer } from "./lib/authGuard";
 import { PortalLogin } from "./portal/PortalLogin";
@@ -14,6 +13,7 @@ import { PortalLayout } from "./portal/PortalLayout";
 import { PortalDashboard } from "./portal/PortalDashboard";
 import { PortalChangeRequests } from "./portal/PortalChangeRequests";
 import { AdminLayout } from "./admin/AdminLayout";
+import { AdminOverview } from "./admin/AdminOverview";
 import { AdminLeads } from "./admin/AdminLeads";
 import { AdminCustomers } from "./admin/AdminCustomers";
 import { AdminCustomerDetail } from "./admin/AdminCustomerDetail";
@@ -62,7 +62,7 @@ function App() {
               </RequireAdmin>
             }
           >
-            <Route index element={<Navigate to="customers" replace />} />
+            <Route index element={<AdminOverview />} />
             <Route path="leads" element={<AdminLeads />} />
             <Route path="customers" element={<AdminCustomers />} />
             <Route path="customers/:id" element={<AdminCustomerDetail />} />

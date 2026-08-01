@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { StatusBadge } from "../components/StatusBadge";
 import type { Customer, InviteCustomerApiResponse } from "../lib/customers";
 
 type PrefillState = {
@@ -82,11 +83,20 @@ export function AdminCustomers() {
 
   return (
     <div className="space-y-10">
-      <section>
-        <h2 className="font-sans text-lg font-semibold">Invite a Customer</h2>
-        <form onSubmit={handleSubmit} className="mt-4 grid gap-4 rounded-lg border border-border bg-card p-6 sm:grid-cols-2">
+      <div>
+        <h1 className="font-sans text-2xl font-bold">Customers</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Invite new clients and manage existing ones.</p>
+      </div>
+
+      <section className="rounded-lg border border-border bg-card">
+        <div className="border-b border-border px-6 py-4">
+          <h2 className="font-sans text-sm font-semibold">Invite a Customer</h2>
+        </div>
+        <form onSubmit={handleSubmit} className="grid gap-4 p-6 sm:grid-cols-2">
           <div className="grid gap-2">
-            <label htmlFor="c-business" className="text-sm text-muted-foreground">Business Name</label>
+            <label htmlFor="c-business" className="text-sm text-muted-foreground">
+              Business Name
+            </label>
             <input
               id="c-business"
               name="business_name"
@@ -97,7 +107,9 @@ export function AdminCustomers() {
             />
           </div>
           <div className="grid gap-2">
-            <label htmlFor="c-contact-name" className="text-sm text-muted-foreground">Contact Name</label>
+            <label htmlFor="c-contact-name" className="text-sm text-muted-foreground">
+              Contact Name
+            </label>
             <input
               id="c-contact-name"
               name="contact_name"
@@ -107,7 +119,9 @@ export function AdminCustomers() {
             />
           </div>
           <div className="grid gap-2">
-            <label htmlFor="c-email" className="text-sm text-muted-foreground">Contact Email</label>
+            <label htmlFor="c-email" className="text-sm text-muted-foreground">
+              Contact Email
+            </label>
             <input
               id="c-email"
               name="contact_email"
@@ -119,7 +133,9 @@ export function AdminCustomers() {
             />
           </div>
           <div className="grid gap-2">
-            <label htmlFor="c-website" className="text-sm text-muted-foreground">Website URL</label>
+            <label htmlFor="c-website" className="text-sm text-muted-foreground">
+              Website URL
+            </label>
             <input
               id="c-website"
               name="website_url"
@@ -130,14 +146,18 @@ export function AdminCustomers() {
             />
           </div>
 
-          {error && <p role="alert" className="text-sm text-red-500 sm:col-span-2">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-red-500 sm:col-span-2">
+              {error}
+            </p>
+          )}
           {success && <p className="text-sm text-primary sm:col-span-2">{success}</p>}
 
           <div className="sm:col-span-2">
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              className="rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-50"
             >
               {submitting ? "Inviting..." : "Invite Customer"}
             </button>
@@ -145,36 +165,42 @@ export function AdminCustomers() {
         </form>
       </section>
 
-      <section>
-        <h2 className="font-sans text-lg font-semibold">Customers</h2>
+      <section className="rounded-lg border border-border bg-card">
+        <div className="border-b border-border px-6 py-4">
+          <h2 className="font-sans text-sm font-semibold">All Customers</h2>
+        </div>
         {loading ? (
-          <p className="mt-4 text-sm text-muted-foreground">Loading…</p>
+          <p className="px-6 py-6 text-sm text-muted-foreground">Loading…</p>
         ) : customers.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">No customers yet.</p>
+          <p className="px-6 py-6 text-sm text-muted-foreground">No customers yet.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-card text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3">Business</th>
-                  <th className="px-4 py-3">Contact</th>
-                  <th className="px-4 py-3">Website</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Since</th>
+              <thead>
+                <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="px-6 py-3 font-medium">Business</th>
+                  <th className="px-6 py-3 font-medium">Contact</th>
+                  <th className="px-6 py-3 font-medium">Website</th>
+                  <th className="px-6 py-3 font-medium">Status</th>
+                  <th className="px-6 py-3 font-medium">Since</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border">
                 {customers.map((c) => (
-                  <tr key={c.id} className="border-t border-border">
-                    <td className="px-4 py-3">
-                      <Link to={`/admin/customers/${c.id}`} className="text-primary hover:underline">
+                  <tr key={c.id} className="transition-colors hover:bg-white/[0.03]">
+                    <td className="px-6 py-4">
+                      <Link to={`/admin/customers/${c.id}`} className="font-medium text-primary hover:underline">
                         {c.business_name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3">{c.contact_email}</td>
-                    <td className="px-4 py-3">{c.website_url || "—"}</td>
-                    <td className="px-4 py-3">{c.status}</td>
-                    <td className="px-4 py-3">{new Date(c.created_at).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{c.contact_email}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{c.website_url || "—"}</td>
+                    <td className="px-6 py-4">
+                      <StatusBadge label={c.status} tone={c.status === "active" ? "success" : "neutral"} />
+                    </td>
+                    <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
+                      {new Date(c.created_at).toLocaleDateString()}
+                    </td>
                   </tr>
                 ))}
               </tbody>

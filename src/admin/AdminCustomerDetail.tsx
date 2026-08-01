@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { LiveVisitorCount } from "../components/LiveVisitorCount";
 import { TrafficChart } from "../components/TrafficChart";
 import { ChangeRequestList } from "../components/ChangeRequestList";
+import { StatusBadge } from "../components/StatusBadge";
 import type { Customer } from "../lib/customers";
 
 export function AdminCustomerDetail() {
@@ -33,8 +34,11 @@ export function AdminCustomerDetail() {
         <Link to="/admin/customers" className="text-sm text-muted-foreground hover:text-primary">
           ← Back to Customers
         </Link>
-        <h2 className="mt-2 font-sans text-2xl font-bold">{customer.business_name}</h2>
-        <p className="text-sm text-muted-foreground">{customer.contact_email}</p>
+        <div className="mt-2 flex items-center gap-3">
+          <h1 className="font-sans text-2xl font-bold">{customer.business_name}</h1>
+          <StatusBadge label={customer.status} tone={customer.status === "active" ? "success" : "neutral"} />
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">{customer.contact_email}</p>
         {customer.website_url && (
           <a
             href={customer.website_url}
@@ -53,7 +57,7 @@ export function AdminCustomerDetail() {
       </div>
 
       <div>
-        <h3 className="mb-4 font-sans text-lg font-semibold">Change Requests</h3>
+        <h2 className="mb-4 font-sans text-lg font-semibold">Change Requests</h2>
         <ChangeRequestList customerId={customer.id} canUpdateStatus />
       </div>
     </div>
