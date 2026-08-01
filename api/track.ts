@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const sql = getDb();
     const [customer] = await sql`
-      SELECT id FROM customers WHERE tracking_site_key = ${event.site_key} AND status = 'active'
+      SELECT id FROM customers WHERE tracking_site_key = ${event.site_key} AND status IN ('active', 'internal')
     `;
 
     if (!customer) {
