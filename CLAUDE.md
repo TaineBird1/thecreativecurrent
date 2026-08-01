@@ -102,7 +102,7 @@ Once a lead becomes a paying client, the admin invites them to a portal where th
 ## Known limitations / not yet done
 
 - No real client has been invited yet — the full customer-side portal experience (their own live traffic, their own change requests) hasn't been exercised with a genuine client account, only with disposable test accounts created/torn down via the service-role key during development.
-- Resend is still on the unverified `onboarding@resend.dev` sender. Once needed, switch to a verified `@thecreativecurrent.co.za` sender (DNS + env var change).
+- `LEADS_FROM_EMAIL` is now `leads@thecreativecurrent.co.za` — domain verified in Resend (MX/SPF/DKIM added to Cloudflare via Resend's Cloudflare auto-configure), no longer the shared `onboarding@resend.dev` sender. Project is linked to Vercel via CLI (`.vercel/` dir, gitignored) if env vars need updating again — `vercel env add/rm <name> <environment>`, one environment at a time; removing a var from one environment removes the whole record if it previously spanned multiple environments, so it has to be re-added to each of Development/Preview/Production individually.
 - Supabase's free-tier auth email rate limit is low (a handful per hour) — heavy testing of the invite flow can trip it; real customer invites should be fine under normal usage.
 - No automated test suite. Every backend piece (leads API, tracking, RLS policies, storage policies, invite flow, admin checklist) was verified via one-off Node scripts run directly against the real Supabase project and, for critical paths, the deployed production API — not via a persisted test framework.
 - Google Search Console + Google Business Profile setup still needs to be done manually (see SEO section above).
