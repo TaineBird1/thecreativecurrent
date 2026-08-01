@@ -3,6 +3,7 @@ import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabaseClient";
 import { WvcLogo } from "../components/WvcLogo";
 import { IconDashboard, IconUsers, IconClipboardList, IconInbox, IconLogOut } from "./components/icons";
+import { useSEO } from "../lib/seo";
 
 const navItems = [
   { label: "Overview", to: "/admin", icon: IconDashboard, end: true },
@@ -12,6 +13,8 @@ const navItems = [
 ];
 
 export function AdminLayout() {
+  useSEO({ title: "Admin | The Creative Current", description: "Admin dashboard.", noindex: true });
+
   const { profile } = useAuth();
 
   return (

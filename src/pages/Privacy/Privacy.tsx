@@ -1,7 +1,13 @@
 import { LegalLayout, LegalSection } from "../../components/LegalLayout";
 import { siteInfo } from "../../data/nav";
+import { useSEO } from "../../lib/seo";
 
 export function Privacy() {
+  useSEO({
+    title: "Privacy Policy | The Creative Current",
+    description: "How The Creative Current collects, uses, and protects your personal information, in line with POPIA.",
+  });
+
   return (
     <LegalLayout
       title="Privacy Policy"

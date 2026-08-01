@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth";
+import { useSEO } from "../lib/seo";
 
 function SetPasswordForm() {
   const { clearPasswordRecovery } = useAuth();
@@ -91,6 +92,8 @@ function SetPasswordForm() {
 }
 
 export function PortalLogin() {
+  useSEO({ title: "Sign In | The Creative Current", description: "Sign in to your portal.", noindex: true });
+
   const { session, profile, loading, passwordRecovery } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

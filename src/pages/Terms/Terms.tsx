@@ -1,7 +1,13 @@
 import { LegalLayout, LegalSection } from "../../components/LegalLayout";
 import { siteInfo } from "../../data/nav";
+import { useSEO } from "../../lib/seo";
 
 export function Terms() {
+  useSEO({
+    title: "Terms of Service | The Creative Current",
+    description: "The terms governing your use of The Creative Current's website.",
+  });
+
   return (
     <LegalLayout
       title="Terms of Service"

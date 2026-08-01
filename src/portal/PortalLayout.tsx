@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabaseClient";
+import { useSEO } from "../lib/seo";
 
 const tabs = [
   { label: "Dashboard", to: "/portal" },
@@ -8,6 +9,8 @@ const tabs = [
 ];
 
 export function PortalLayout() {
+  useSEO({ title: "Portal | The Creative Current", description: "Client portal.", noindex: true });
+
   const { profile } = useAuth();
 
   return (
