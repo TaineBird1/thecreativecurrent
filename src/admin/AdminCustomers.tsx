@@ -33,7 +33,11 @@ export function AdminCustomers() {
 
   async function loadCustomers() {
     setLoading(true);
-    const { data } = await supabase.from("customers").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("customers")
+      .select("*")
+      .neq("status", "internal")
+      .order("created_at", { ascending: false });
     setCustomers((data as Customer[]) ?? []);
     setLoading(false);
   }

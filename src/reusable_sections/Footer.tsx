@@ -154,10 +154,14 @@ export function Footer() {
           </p>
           <ul className="flex flex-wrap items-center gap-6">
             <li>
-              <span className="text-[13px] text-white/40">Privacy</span>
+              <Link to="/privacy" className="text-[13px] text-white/65 transition-colors duration-300 hover:text-primary">
+                Privacy
+              </Link>
             </li>
             <li>
-              <span className="text-[13px] text-white/40">Terms</span>
+              <Link to="/terms" className="text-[13px] text-white/65 transition-colors duration-300 hover:text-primary">
+                Terms
+              </Link>
             </li>
             <li>
               <span className="text-[13px] text-white/40">Accessibility</span>

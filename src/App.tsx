@@ -6,6 +6,8 @@ import { AppointmentBooking } from "./pages/AppointmentBooking/AppointmentBookin
 import { Pricing } from "./pages/Pricing/Pricing";
 import { Contact } from "./pages/Contact/Contact";
 import { AboutUs } from "./pages/AboutUs/AboutUs";
+import { Privacy } from "./pages/Privacy/Privacy";
+import { Terms } from "./pages/Terms/Terms";
 import { AuthProvider } from "./lib/auth";
 import { RequireAdmin, RequireCustomer } from "./lib/authGuard";
 import { PortalLogin } from "./portal/PortalLogin";
@@ -30,6 +32,8 @@ function MarketingSite() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/about-us" element={<AboutUs />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
         </Routes>
       </main>
       <Footer />

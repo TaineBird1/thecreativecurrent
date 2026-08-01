@@ -30,6 +30,12 @@ CREATE TABLE IF NOT EXISTS customers (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- 'internal' status: reserved for The Creative Current's own site, tracked
+-- via the same analytics_events infrastructure as real clients but excluded
+-- from the admin's customer-facing list (see AdminCustomers.tsx's query).
+ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_status_check;
+ALTER TABLE customers ADD CONSTRAINT customers_status_check CHECK (status IN ('active','inactive','internal'));
+
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,

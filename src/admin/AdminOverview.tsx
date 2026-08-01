@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { StatCard } from "./components/StatCard";
 import { StatusBadge } from "../components/StatusBadge";
+import { LiveVisitorCount } from "../components/LiveVisitorCount";
+import { TrafficChart } from "../components/TrafficChart";
 import { IconUsers, IconClipboardList, IconInbox, IconActivity } from "./components/icons";
 import type { LeadRow } from "../lib/leads";
 import type { ChangeRequestStatus } from "../lib/changeRequests";
@@ -28,6 +30,7 @@ export function AdminOverview() {
   const [newLeadCount, setNewLeadCount] = useState<number | null>(null);
   const [recentLeads, setRecentLeads] = useState<LeadRow[]>([]);
   const [recentRequests, setRecentRequests] = useState<RecentChangeRequest[]>([]);
+  const [ownSiteId, setOwnSiteId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,8 +45,9 @@ export function AdminOverview() {
         { count: newLeads },
         { data: leadRows },
         { data: requestRows },
+        { data: ownSite },
       ] = await Promise.all([
-        supabase.from("customers").select("*", { count: "exact", head: true }),
+        supabase.from("customers").select("*", { count: "exact", head: true }).neq("status", "internal"),
         supabase.from("change_requests").select("*", { count: "exact", head: true }).in("status", ["submitted", "in_progress"]),
         supabase.from("leads").select("*", { count: "exact", head: true }),
         supabase.from("leads").select("*", { count: "exact", head: true }).gte("created_at", weekAgo.toISOString()),
@@ -53,6 +57,7 @@ export function AdminOverview() {
           .select("id, description, status, created_at, customers(business_name)")
           .order("created_at", { ascending: false })
           .limit(5),
+        supabase.from("customers").select("id").eq("status", "internal").maybeSingle(),
       ]);
 
       setCustomerCount(customers ?? 0);
@@ -61,6 +66,7 @@ export function AdminOverview() {
       setNewLeadCount(newLeads ?? 0);
       setRecentLeads((leadRows as LeadRow[]) ?? []);
       setRecentRequests((requestRows as unknown as RecentChangeRequest[]) ?? []);
+      setOwnSiteId((ownSite as { id: number } | null)?.id ?? null);
       setLoading(false);
     }
     load();
@@ -89,6 +95,18 @@ export function AdminOverview() {
           hint="Last 7 days"
         />
       </div>
+
+      {ownSiteId && (
+        <div>
+          <h2 className="mb-4 font-sans text-lg font-semibold">Your Website</h2>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <LiveVisitorCount customerId={ownSiteId} />
+            <div className="lg:col-span-2">
+              <TrafficChart customerId={ownSiteId} />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-border bg-card">
