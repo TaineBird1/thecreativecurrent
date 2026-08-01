@@ -57,7 +57,7 @@ Once a lead becomes a paying client, the admin invites them to a portal where th
 
 - `src/lib/supabaseClient.ts` — browser Supabase client (`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` — **note the `VITE_` prefix**, not the `NEXT_PUBLIC_` ones the Vercel/Supabase integration originally injected; those are invisible to Vite and only the `VITE_*` copies were added manually).
 - `src/lib/auth.tsx` — `AuthProvider`/`useAuth()`, tracks session + profile + a `passwordRecovery` flag (set on Supabase's `PASSWORD_RECOVERY` auth event, so invite/recovery links show a "set your password" form instead of silently logging in with no way to set one).
-- `src/lib/authGuard.tsx` — `<RequireAdmin>`, `<RequireCustomer>` route guards.
+- Auth/role guarding is inlined directly into `AdminLayout.tsx`/`PortalLayout.tsx` (both already call `useAuth()` for their own UI) rather than a separate `<RequireAdmin>`/`<RequireCustomer>` wrapper — the old wrapper version is what originally shipped, but it's gone now (see the redirect-loop note below). Guard order matters: **check `!session || !profile` before checking `profile.role`** — a session can be valid (unexpired JWT) while its `profiles` row no longer exists (e.g. a deleted test/preview account), leaving `profile` permanently `null`. Checking role first (`profile?.role !== "admin"`) treats a null profile as "wrong role" and redirects to `/portal`, which redirects right back to `/admin` for the same reason — an infinite loop between the two layouts. Treating "no profile" as "not authenticated" (redirect to `/login`) avoids this for any orphaned-session case.
 - Single admin (bootstrapped manually via `supabase.auth.admin.inviteUserByEmail` + a hand-inserted `profiles` row — there's no self-service "first admin" flow, and there shouldn't be for a single-admin system). Customers are **invite-only** — no public signup page exists.
 
 **Data model** (`sql/schema.sql`, applied via `scripts/run-schema.mjs` against `POSTGRES_URL_NON_POOLING`):
@@ -75,9 +75,12 @@ Once a lead becomes a paying client, the admin invites them to a portal where th
 
 **Routes** (`src/App.tsx`) — outside the marketing site's `Header`/`Footer`:
 - `/login` — shared login; also renders the password-set form when `passwordRecovery` is true.
-- `/portal` (customer, `RequireCustomer`) — `PortalDashboard` (live count + 7-day traffic chart), `/portal/requests` (`PortalChangeRequests` — submit form + own request list).
-- `/admin` (`RequireAdmin`) — `/admin/customers` (list + invite form), `/admin/customers/:id` (per-customer analytics + requests), `/admin/change-requests` (cross-customer checklist with mark-done, business-name joined in), `/admin/leads` (existing leads table + "convert to customer" prefill).
+- `/portal` (customer) — `PortalDashboard` (live count + 7-day traffic chart), `/portal/requests` (`PortalChangeRequests` — submit form + own request list).
+- `/admin` — `/admin/customers` (list + invite form), `/admin/customers/:id` (per-customer analytics + requests), `/admin/change-requests` (cross-customer checklist with mark-done, business-name joined in), `/admin/leads` (existing leads table + "convert to customer" prefill).
 - `/privacy`, `/terms` — static legal pages (`src/pages/Privacy`, `src/pages/Terms`), sharing a `LegalLayout`/`LegalSection` component (`src/components/LegalLayout.tsx`). Linked from `Footer.tsx`. Privacy Policy content is POPIA-oriented (South Africa's data protection law).
+- `*` (within the marketing site only) — `NotFound` (`src/pages/NotFound`), `noindex`'d via `useSEO`, so broken/typo'd URLs don't return a blank "soft 404" to Google.
+
+**Code-splitting** (`src/App.tsx`): `/login`, `/portal/*`, and `/admin/*` sit behind a pathless `<Route element={<AuthLayout/>}>` layout route (`src/AuthApp.tsx` — just `<AuthProvider><Outlet/></AuthProvider>`), and every page/layout component under those paths is `React.lazy`-loaded individually. This matters because `AuthProvider` (and therefore the whole Supabase SDK) used to wrap the **entire app**, including the public marketing site, even though no marketing page calls `useAuth()` — every visitor was downloading ~570KB of JS they'd never use. Splitting it out dropped the marketing bundle to ~353KB with Supabase (~207KB) deferred to its own chunk that only loads on `/login`, `/portal`, or `/admin`. Gotcha hit while building this: a *second*, nested `<Routes>` mounted via a splat parent (`path="/admin/*"`) resolves its children against the **remaining** unmatched path segment, not the full URL — declaring absolute-looking child paths (`<Route path="/admin">`) inside it never matches anything and silently renders blank. Fixed by keeping one single top-level `<Routes>` tree (children-based nesting, as before) and only lazy-loading the `element` values.
 
 **Shared components** (used by both admin and portal — moved to `src/components/` mid-build once that became clear): `LiveVisitorCount.tsx`, `TrafficChart.tsx` (dependency-free CSS bar chart), `ChangeRequestList.tsx` (takes optional `customerId`/`canUpdateStatus`/`showBusinessName` props to serve both the customer's own list and the admin's cross-customer checklist).
 
@@ -87,10 +90,20 @@ Once a lead becomes a paying client, the admin invites them to a portal where th
 
 **`tsconfig.api.json` gotcha** (bit the project twice): `module: nodenext` requires explicit `.js` extensions on relative imports in `api/*.ts` files, even though the source is `.ts` (e.g. `from "./_lib/db.js"`).
 
+## SEO
+
+- `public/robots.txt` — allows crawling, disallows `/admin`, `/portal`, `/login`, points to the sitemap.
+- `public/sitemap.xml` — static, lists the 7 public marketing/legal routes. Update by hand if a marketing page is added/removed (nothing generates this automatically).
+- `src/lib/seo.ts` — `useSEO({title, description, noindex})` hook, called at the top of every page component. Imperatively sets `document.title`, `<meta name="description">`, `<meta name="robots">`, `<link rel="canonical">`, and `og:title`/`og:description`/`og:url`, on mount/route change. `/login`, `/portal`, `/admin` pass `noindex: true`.
+- `index.html` — static fallback `og:*`/`twitter:*` tags (only ever reflect the homepage, since this is a client-rendered SPA with no SSR — a scraper that doesn't execute JS sees these for any URL) plus a `ProfessionalService` JSON-LD block (name/address/phone/areaServed) for local-business rich results.
+- Hero images that are above-the-fold / likely LCP candidates (`Evolution.tsx` on Home, `Contact/sections/Hero.tsx`) use `loading="eager"` + `fetchPriority="high"`, not `loading="lazy"` — lazy-loading the LCP image delays paint and directly hurts Core Web Vitals.
+- Still needed, requires an actual Google account (not something committable to the repo): Google Search Console verification + submitting the sitemap, and a Google Business Profile listing for local search. If/when a verification meta tag or file is issued, wire it into `index.html`/`public/`.
+
 ## Known limitations / not yet done
 
 - No real client has been invited yet — the full customer-side portal experience (their own live traffic, their own change requests) hasn't been exercised with a genuine client account, only with disposable test accounts created/torn down via the service-role key during development.
 - Resend is still on the unverified `onboarding@resend.dev` sender. Once needed, switch to a verified `@thecreativecurrent.co.za` sender (DNS + env var change).
 - Supabase's free-tier auth email rate limit is low (a handful per hour) — heavy testing of the invite flow can trip it; real customer invites should be fine under normal usage.
 - No automated test suite. Every backend piece (leads API, tracking, RLS policies, storage policies, invite flow, admin checklist) was verified via one-off Node scripts run directly against the real Supabase project and, for critical paths, the deployed production API — not via a persisted test framework.
-- Main JS bundle is ~570KB (Supabase SDK pulled the whole app over the 500KB warning threshold). Not yet code-split; `/portal` and `/admin` could be lazy-loaded since marketing-site visitors don't need that code.
+- Google Search Console + Google Business Profile setup still needs to be done manually (see SEO section above).
+- `og:image`/`twitter:image` reuse an existing 1254×1254 square hero photo rather than a purpose-made 1200×630 social-preview image.

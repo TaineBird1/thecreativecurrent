@@ -69,7 +69,8 @@ export function Evolution() {
                 <img
                   src={heroWorkspace}
                   alt="Modern web design studio workspace with glowing monitors"
-                  loading="lazy"
+                  loading="eager"
+                  fetchPriority="high"
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               </div>

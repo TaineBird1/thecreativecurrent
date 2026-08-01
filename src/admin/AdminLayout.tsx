@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabaseClient";
 import { WvcLogo } from "../components/WvcLogo";
@@ -15,7 +15,15 @@ const navItems = [
 export function AdminLayout() {
   useSEO({ title: "Admin | The Creative Current", description: "Admin dashboard.", noindex: true });
 
-  const { profile } = useAuth();
+  const { session, profile, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">Loading…</div>
+    );
+  }
+  if (!session || !profile) return <Navigate to="/login" replace />;
+  if (profile.role !== "admin") return <Navigate to="/portal" replace />;
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">

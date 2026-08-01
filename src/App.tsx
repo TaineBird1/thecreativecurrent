@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Header } from "./reusable_sections/Header";
 import { Footer } from "./reusable_sections/Footer";
@@ -8,18 +9,27 @@ import { Contact } from "./pages/Contact/Contact";
 import { AboutUs } from "./pages/AboutUs/AboutUs";
 import { Privacy } from "./pages/Privacy/Privacy";
 import { Terms } from "./pages/Terms/Terms";
-import { AuthProvider } from "./lib/auth";
-import { RequireAdmin, RequireCustomer } from "./lib/authGuard";
-import { PortalLogin } from "./portal/PortalLogin";
-import { PortalLayout } from "./portal/PortalLayout";
-import { PortalDashboard } from "./portal/PortalDashboard";
-import { PortalChangeRequests } from "./portal/PortalChangeRequests";
-import { AdminLayout } from "./admin/AdminLayout";
-import { AdminOverview } from "./admin/AdminOverview";
-import { AdminLeads } from "./admin/AdminLeads";
-import { AdminCustomers } from "./admin/AdminCustomers";
-import { AdminCustomerDetail } from "./admin/AdminCustomerDetail";
-import { AdminChangeRequests } from "./admin/AdminChangeRequests";
+import { NotFound } from "./pages/NotFound/NotFound";
+
+const AuthLayout = lazy(() => import("./AuthApp"));
+const PortalLogin = lazy(() => import("./portal/PortalLogin").then((m) => ({ default: m.PortalLogin })));
+const PortalLayout = lazy(() => import("./portal/PortalLayout").then((m) => ({ default: m.PortalLayout })));
+const PortalDashboard = lazy(() =>
+  import("./portal/PortalDashboard").then((m) => ({ default: m.PortalDashboard }))
+);
+const PortalChangeRequests = lazy(() =>
+  import("./portal/PortalChangeRequests").then((m) => ({ default: m.PortalChangeRequests }))
+);
+const AdminLayout = lazy(() => import("./admin/AdminLayout").then((m) => ({ default: m.AdminLayout })));
+const AdminOverview = lazy(() => import("./admin/AdminOverview").then((m) => ({ default: m.AdminOverview })));
+const AdminLeads = lazy(() => import("./admin/AdminLeads").then((m) => ({ default: m.AdminLeads })));
+const AdminCustomers = lazy(() => import("./admin/AdminCustomers").then((m) => ({ default: m.AdminCustomers })));
+const AdminCustomerDetail = lazy(() =>
+  import("./admin/AdminCustomerDetail").then((m) => ({ default: m.AdminCustomerDetail }))
+);
+const AdminChangeRequests = lazy(() =>
+  import("./admin/AdminChangeRequests").then((m) => ({ default: m.AdminChangeRequests }))
+);
 
 function MarketingSite() {
   return (
@@ -34,6 +44,7 @@ function MarketingSite() {
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       <Footer />
@@ -44,37 +55,25 @@ function MarketingSite() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
+      <Suspense fallback={null}>
         <Routes>
-          <Route path="/login" element={<PortalLogin />} />
-          <Route
-            path="/portal"
-            element={
-              <RequireCustomer>
-                <PortalLayout />
-              </RequireCustomer>
-            }
-          >
-            <Route index element={<PortalDashboard />} />
-            <Route path="requests" element={<PortalChangeRequests />} />
-          </Route>
-          <Route
-            path="/admin"
-            element={
-              <RequireAdmin>
-                <AdminLayout />
-              </RequireAdmin>
-            }
-          >
-            <Route index element={<AdminOverview />} />
-            <Route path="leads" element={<AdminLeads />} />
-            <Route path="customers" element={<AdminCustomers />} />
-            <Route path="customers/:id" element={<AdminCustomerDetail />} />
-            <Route path="change-requests" element={<AdminChangeRequests />} />
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<PortalLogin />} />
+            <Route path="/portal" element={<PortalLayout />}>
+              <Route index element={<PortalDashboard />} />
+              <Route path="requests" element={<PortalChangeRequests />} />
+            </Route>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminOverview />} />
+              <Route path="leads" element={<AdminLeads />} />
+              <Route path="customers" element={<AdminCustomers />} />
+              <Route path="customers/:id" element={<AdminCustomerDetail />} />
+              <Route path="change-requests" element={<AdminChangeRequests />} />
+            </Route>
           </Route>
           <Route path="/*" element={<MarketingSite />} />
         </Routes>
-      </AuthProvider>
+      </Suspense>
     </BrowserRouter>
   );
 }

@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabaseClient";
 import { useSEO } from "../lib/seo";
@@ -11,7 +11,15 @@ const tabs = [
 export function PortalLayout() {
   useSEO({ title: "Portal | The Creative Current", description: "Client portal.", noindex: true });
 
-  const { profile } = useAuth();
+  const { session, profile, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">Loading…</div>
+    );
+  }
+  if (!session || !profile) return <Navigate to="/login" replace />;
+  if (profile.role !== "customer") return <Navigate to="/admin" replace />;
 
   return (
     <div className="min-h-screen bg-background text-foreground">

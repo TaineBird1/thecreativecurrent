@@ -84,7 +84,8 @@ export function Hero() {
                 <img
                   src={contactHero}
                   alt="Abstract digital interface showing modern web design and management dashboard"
-                  loading="lazy"
+                  loading="eager"
+                  fetchPriority="high"
                   className="aspect-[4/5] w-full object-cover"
                 />
               </div>
