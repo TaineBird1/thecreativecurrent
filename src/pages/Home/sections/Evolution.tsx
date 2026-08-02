@@ -61,7 +61,7 @@ export function Evolution() {
             <div className="relative w-full rounded-2xl border border-white/10 bg-card p-5 shadow-2xl backdrop-blur-2xl md:p-6">
               <div className="mb-5 flex items-center justify-between">
                 <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                  Digital Lab / Est. 2024
+                  Digital Lab / Est. 2026
                 </span>
                 <span className="h-1.5 w-1.5 bg-purple-500" />
               </div>

@@ -70,7 +70,7 @@ export function Hero() {
               <span className="h-1.5 w-1.5 rounded-lg bg-primary" aria-hidden="true" />
             </div>
             <p className="font-sans text-sm text-foreground/70 md:text-base">
-              — powering digital growth since 2024
+              — powering digital growth since 2026
             </p>
           </div>
 

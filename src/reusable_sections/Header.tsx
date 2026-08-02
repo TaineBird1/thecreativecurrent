@@ -43,7 +43,7 @@ export function Header() {
 
         <div className="flex items-center justify-end gap-5">
           <span className="hidden font-mono text-[10px] font-medium uppercase tracking-[0.25em] text-muted-foreground xl:inline-block">
-            Est. 2024
+            Est. 2026
           </span>
           <Link
             to="/#get-in-touch"

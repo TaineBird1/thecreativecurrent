@@ -324,7 +324,7 @@ export function Contact() {
                 <div className="font-mono text-sm tracking-wider">{siteInfo.email}</div>
                 <div className="font-mono text-sm tracking-wider">{siteInfo.phone}</div>
                 <div className="pt-2 font-mono text-xs uppercase tracking-[0.12em] text-gray-500">
-                  Mon-Fri <span className="mx-1.5 inline-block h-1 w-1 align-middle bg-cyan-400" /> 9am - 6pm SAT
+                  Mon-Fri <span className="mx-1.5 inline-block h-1 w-1 align-middle bg-cyan-400" /> 9am - 6pm
                 </div>
               </div>
             </div>

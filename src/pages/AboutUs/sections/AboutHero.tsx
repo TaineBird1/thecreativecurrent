@@ -17,7 +17,7 @@ export function AboutHero() {
       <div className="mx-auto max-w-[1040px]">
         <div className="flex items-center justify-between gap-4">
           <span className="whitespace-nowrap font-sans text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            Est. 2025 · Digital Excellence
+            Est. 2026 · Digital Excellence
           </span>
           <div className="mx-2 h-px flex-1 bg-border/60 md:mx-6" />
           <span className="whitespace-nowrap font-sans text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
