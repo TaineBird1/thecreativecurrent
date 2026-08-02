@@ -36,7 +36,7 @@ export function Current() {
               Book a Consultation
             </Link>
             <Link
-              to="/contact"
+              to="/pricing"
               className="group inline-flex items-center gap-2 font-sans text-sm uppercase tracking-wider text-foreground transition-colors hover:text-primary"
             >
               <span>View Our Services</span>

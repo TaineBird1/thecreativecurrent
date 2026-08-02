@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import calendarBg from "../../../assets/site/calendarbooking-bg.png";
+import calendarBg from "../../../assets/site/calendarbooking-bg.webp";
 
 export function Calendarbooking() {
   return (
@@ -18,7 +18,7 @@ export function Calendarbooking() {
 
       <div className="relative z-10 mx-auto flex max-w-[800px] flex-col items-center px-6 py-32 text-center md:py-44 lg:py-[180px]">
         <div className="mb-12 md:mb-16">
-          <span className="font-sans text-xs uppercase tracking-[0.25em] text-primary">03 — Connect</span>
+          <span className="font-mono text-xs uppercase tracking-[0.25em] text-primary">03 — Connect</span>
         </div>
 
         <h2

@@ -8,7 +8,7 @@ export function Hero() {
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="order-2 lg:col-span-7 lg:order-1">
             <div className="mb-8 flex items-center gap-3 md:mb-10">
-              <span className="font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-foreground md:text-[13px]">
+              <span className="font-mono text-xs uppercase tracking-[0.25em] text-primary">
                 № 01 — Vision
               </span>
               <span className="inline-block h-2 w-2 rotate-45 bg-primary" aria-hidden="true" />

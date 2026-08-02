@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
-import serviceWebDesign from "../../../assets/site/service-web-design.png";
+import serviceWebDesign from "../../../assets/site/service-web-design.webp";
 import serviceManagement from "../../../assets/site/service-management.webp";
 import serviceStrategy from "../../../assets/site/service-strategy.webp";
 import serviceDevelopment from "../../../assets/site/service-development.webp";
-import serviceBranding from "../../../assets/site/service-branding.png";
-import serviceSupport from "../../../assets/site/service-support.png";
+import serviceBranding from "../../../assets/site/service-branding.webp";
+import serviceSupport from "../../../assets/site/service-support.webp";
 
 const services = [
   {
@@ -74,7 +74,7 @@ export function Expertise() {
     <section className="relative overflow-hidden bg-background px-6 py-24 text-foreground md:px-12 md:py-32 lg:px-20">
       <div className="mb-20 grid grid-cols-1 gap-8 lg:mb-28 lg:grid-cols-12 lg:gap-12">
         <div className="flex flex-col justify-between lg:col-span-5">
-          <span className="mb-6 block font-sans text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <span className="mb-6 block font-mono text-xs uppercase tracking-[0.25em] text-primary">
             Our Core Services
           </span>
           <h2 className="font-sans text-5xl font-bold leading-[1.05] tracking-tight text-foreground md:text-6xl lg:text-[60px]">

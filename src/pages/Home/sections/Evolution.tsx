@@ -6,7 +6,7 @@ export function Evolution() {
     <section className="relative min-h-[720px] w-full overflow-hidden bg-background text-foreground">
       <div className="mx-auto w-full max-w-[1440px] px-6 py-16 md:px-10 md:py-20 lg:px-16 lg:py-24">
         <div className="mb-12 flex items-center gap-4 md:mb-16">
-          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+          <span className="font-mono text-xs uppercase tracking-[0.25em] text-primary">
             01 — The Current
           </span>
           <span className="h-px max-w-[120px] flex-1 bg-gradient-to-r from-cyan-500 to-purple-600" />

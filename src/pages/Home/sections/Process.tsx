@@ -1,10 +1,10 @@
 import { useInViewport } from "../../../hooks/useInViewport";
-import processDiscovery from "../../../assets/site/process-discovery.png";
+import processDiscovery from "../../../assets/site/process-discovery.webp";
 import processVisualStrategy from "../../../assets/site/process-visual-strategy.webp";
 import processDevelopment from "../../../assets/site/process-development.webp";
-import processContent from "../../../assets/site/process-content.png";
+import processContent from "../../../assets/site/process-content.webp";
 import processQa from "../../../assets/site/process-qa.webp";
-import processLaunch from "../../../assets/site/process-launch.png";
+import processLaunch from "../../../assets/site/process-launch.webp";
 
 const stages = [
   {

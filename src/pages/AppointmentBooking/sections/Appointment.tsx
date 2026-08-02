@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import appointmentHero from "../../../assets/site/appointment-hero.png";
+import appointmentHero from "../../../assets/site/appointment-hero.webp";
 
 export function Appointment() {
   return (
@@ -21,7 +21,7 @@ export function Appointment() {
           </div>
           <div className="max-w-xl pb-16 pl-12 pr-12">
             <div className="mb-8">
-              <span className="font-mono text-xs uppercase tracking-[0.22em] text-chart-1">
+              <span className="font-mono text-xs uppercase tracking-[0.25em] text-primary">
                 01 / Book Your Session
               </span>
             </div>
@@ -95,7 +95,7 @@ export function Appointment() {
         </div>
         <div className="flex-1 px-6 pb-16 pt-10 sm:px-10">
           <div className="mb-6">
-            <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-chart-1">
+            <span className="font-mono text-xs uppercase tracking-[0.25em] text-primary">
               01 / Book Your Session
             </span>
           </div>

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 const title = "The Creative Current";
-const filters = ["All", "Web Design", "Management", "Strategy", "Growth"];
+const filters = ["Web Design", "Management", "Strategy", "Growth"];
 
 export function AboutHero() {
   const [visible, setVisible] = useState(false);
-  const [activeFilter, setActiveFilter] = useState("All");
 
   useEffect(() => {
     const timeout = setTimeout(() => setVisible(true), 50);
@@ -51,19 +51,20 @@ export function AboutHero() {
           {filters.map((filter, i) => (
             <div key={filter} className="flex items-center">
               {i > 0 && <span className="mx-1 font-sans text-[11px] text-muted-foreground/60 md:mx-2">·</span>}
-              <button
-                type="button"
-                onClick={() => setActiveFilter(filter)}
-                className={`rounded-lg px-2 py-1 font-sans text-[11px] uppercase tracking-[0.2em] transition-colors ${
-                  activeFilter === filter
-                    ? "border-b border-primary pb-0.5 text-primary"
-                    : "text-muted-foreground hover:text-primary"
-                }`}
-              >
+              <span className="rounded-lg px-2 py-1 font-sans text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                 {filter}
-              </button>
+              </span>
             </div>
           ))}
+        </div>
+
+        <div className="mt-12 flex justify-center">
+          <Link
+            to="/contact"
+            className="rounded-lg bg-primary px-8 py-4 font-sans text-sm font-semibold uppercase tracking-[0.15em] text-primary-foreground shadow-lg transition-all hover:bg-primary/90 hover:shadow-glow-cyan"
+          >
+            Enquire Now
+          </Link>
         </div>
       </div>
     </section>

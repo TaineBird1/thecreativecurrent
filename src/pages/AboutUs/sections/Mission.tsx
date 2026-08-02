@@ -8,7 +8,7 @@ export function Mission() {
         <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-12 md:gap-8">
           <div className="relative md:col-span-7">
             <div className="mb-10 flex items-center gap-4">
-              <span className="font-sans text-xs font-medium uppercase tracking-[0.18em] text-primary md:text-sm">
+              <span className="font-mono text-xs uppercase tracking-[0.25em] text-primary">
                 § 03 / Mission
               </span>
               <div className="h-px w-10 bg-border" />

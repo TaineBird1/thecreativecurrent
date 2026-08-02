@@ -4,7 +4,6 @@ import { Process } from "./sections/Process";
 import { Current } from "./sections/Current";
 import { Contact } from "./sections/Contact";
 import { Calendarbooking } from "./sections/Calendarbooking";
-import { FeaturedServices } from "./sections/FeaturedServices";
 import { useSEO } from "../../lib/seo";
 
 export function Home() {
@@ -22,7 +21,6 @@ export function Home() {
       <Current />
       <Contact />
       <Calendarbooking />
-      <FeaturedServices />
     </>
   );
 }
