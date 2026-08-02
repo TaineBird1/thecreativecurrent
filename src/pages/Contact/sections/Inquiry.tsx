@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useLeadSubmit } from "../../../hooks/useLeadSubmit";
 import { SubmissionSuccessConfirmation } from "./SubmissionSuccessConfirmation";
+import type { LeadSource } from "../../../lib/leads";
 
 const steps = ["Service", "Schedule", "Details", "Confirm"];
 
@@ -65,7 +66,7 @@ const initialState: FormState = {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\s()-]{7,20}$/;
 
-export function Inquiry() {
+export function Inquiry({ source = "contact" }: { source?: LeadSource }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(initialState);
   const { submit, isSubmitting, error, success } = useLeadSubmit();
@@ -98,7 +99,7 @@ export function Inquiry() {
     e.preventDefault();
     if (!step0Valid || !step2Valid) return;
     await submit({
-      source: "contact",
+      source,
       name: form.name,
       email: form.email,
       phone: form.phone,

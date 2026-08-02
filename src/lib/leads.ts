@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const leadSources = ["home", "pricing", "contact"] as const;
+export const leadSources = ["home", "pricing", "contact", "appointment"] as const;
 export type LeadSource = (typeof leadSources)[number];
 
 export const leadPayloadSchema = z.object({

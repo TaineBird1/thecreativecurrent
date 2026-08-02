@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS leads (
   id BIGSERIAL PRIMARY KEY,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  source TEXT NOT NULL CHECK (source IN ('home','pricing','contact')),
+  source TEXT NOT NULL CHECK (source IN ('home','pricing','contact','appointment')),
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   phone TEXT,
@@ -15,6 +15,11 @@ CREATE TABLE IF NOT EXISTS leads (
   newsletter_opt_in BOOLEAN,
   raw_payload JSONB NOT NULL
 );
+
+-- 'appointment' source: added when the Appointment Booking page got its own
+-- copy of the Inquiry form, so leads from it aren't misattributed as 'contact'.
+ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_source_check;
+ALTER TABLE leads ADD CONSTRAINT leads_source_check CHECK (source IN ('home','pricing','contact','appointment'));
 
 -- Client portal: customers, auth role mapping, analytics, change requests
 

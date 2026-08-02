@@ -18,6 +18,7 @@ const sourceLabels: Record<LeadPayload["source"], string> = {
   home: "Home page",
   pricing: "Pricing page",
   contact: "Contact page",
+  appointment: "Appointment Booking page",
 };
 
 function buildBody(lead: LeadPayload, id?: number) {
