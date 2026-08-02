@@ -25,7 +25,7 @@ export function AboutHero() {
           </span>
         </div>
 
-        <h1 className="mt-12 text-center font-sans font-bold leading-[0.95] tracking-tight text-foreground text-[64px] sm:text-[96px] md:text-[140px] lg:text-[180px] xl:text-[200px]">
+        <h1 className="mt-12 text-center font-sans font-bold leading-[0.95] tracking-tight text-foreground text-[40px] sm:text-[96px] md:text-[140px] lg:text-[180px] xl:text-[200px]">
           {title.split("").map((char, i) => (
             <span
               key={i}

@@ -16,7 +16,7 @@ export function SubmissionSuccessConfirmation() {
         <div className="col-span-12 md:col-span-7 md:col-start-2">
           <h1
             className="mb-0 font-sans font-light leading-[1.02] tracking-tight text-foreground animate-fade-up"
-            style={{ fontSize: "clamp(2.75rem, 8vw, 7rem)" }}
+            style={{ fontSize: "clamp(2rem, 8vw, 7rem)" }}
           >
             <span className="block">Message received. We're</span>
             <span className="block">

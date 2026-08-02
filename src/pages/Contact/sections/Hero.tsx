@@ -15,7 +15,7 @@ export function Hero() {
             </div>
             <h1
               className="mb-10 font-sans font-bold text-foreground"
-              style={{ fontSize: "clamp(3.25rem, 7vw, 6.5rem)", letterSpacing: "-0.025em", lineHeight: 0.95 }}
+              style={{ fontSize: "clamp(2.25rem, 7vw, 6.5rem)", letterSpacing: "-0.025em", lineHeight: 0.95 }}
             >
               <span className="block">Building digital</span>
               <span className="block">experiences that</span>

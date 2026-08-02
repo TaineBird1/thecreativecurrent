@@ -11,7 +11,7 @@ export function Current() {
 
           <h2
             className="font-sans font-bold tracking-tighter text-foreground"
-            style={{ fontSize: "clamp(3.5rem, 10vw, 7.5rem)", lineHeight: 1 }}
+            style={{ fontSize: "clamp(2.25rem, 10vw, 7.5rem)", lineHeight: 1 }}
           >
             <span>Ignite your </span>
             <span className="relative inline-block">

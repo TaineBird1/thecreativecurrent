@@ -23,7 +23,7 @@ export function Calendarbooking() {
 
         <h2
           className="font-sans font-bold leading-[0.95] tracking-tight text-foreground"
-          style={{ fontSize: "clamp(3.5rem, 10vw, 8.75rem)" }}
+          style={{ fontSize: "clamp(2.25rem, 10vw, 8.75rem)" }}
         >
           Start your
           <span className="inline-flex items-center px-3 align-middle md:px-5">

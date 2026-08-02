@@ -46,7 +46,7 @@ export function Booking() {
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-4xl text-center">
           <p className="mb-10 font-mono text-xs uppercase tracking-[0.35em] text-primary">Get In Touch</p>
-          <h2 className="mb-10 font-sans text-5xl font-bold leading-[1.05] text-foreground md:text-7xl lg:text-[96px]">
+          <h2 className="mb-10 font-sans text-4xl font-bold leading-[1.05] text-foreground md:text-7xl lg:text-[96px]">
             Ready to Go
           </h2>
           <p className="mx-auto max-w-2xl font-sans text-[17px] text-muted-foreground">

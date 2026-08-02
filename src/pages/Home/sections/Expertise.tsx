@@ -77,7 +77,7 @@ export function Expertise() {
           <span className="mb-6 block font-mono text-xs uppercase tracking-[0.25em] text-primary">
             Our Core Services
           </span>
-          <h2 className="font-sans text-5xl font-bold leading-[1.05] tracking-tight text-foreground md:text-6xl lg:text-[60px]">
+          <h2 className="font-sans text-4xl font-bold leading-[1.05] tracking-tight text-foreground md:text-6xl lg:text-[60px]">
             The current <em className="font-normal italic text-primary">expertise</em>
           </h2>
         </div>

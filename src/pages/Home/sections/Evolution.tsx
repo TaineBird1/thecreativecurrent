@@ -14,7 +14,7 @@ export function Evolution() {
 
         <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-12 lg:gap-12">
           <div className="lg:col-span-7">
-            <h1 className="font-sans font-extrabold leading-[0.92] tracking-tight text-foreground text-[56px] sm:text-[80px] md:text-[100px] lg:text-[120px]">
+            <h1 className="font-sans font-extrabold leading-[0.92] tracking-tight text-foreground text-[40px] sm:text-[80px] md:text-[100px] lg:text-[120px]">
               <span className="block">Building the</span>
               <span className="block bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text pl-[8%] text-transparent">
                 digital future

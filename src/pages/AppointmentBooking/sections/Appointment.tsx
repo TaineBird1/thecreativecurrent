@@ -101,7 +101,7 @@ export function Appointment() {
           </div>
           <h1
             className="font-sans font-bold leading-[1.04] tracking-[-0.03em] text-foreground"
-            style={{ fontSize: "clamp(2.75rem, 9vw, 3.75rem)" }}
+            style={{ fontSize: "clamp(2.25rem, 9vw, 3.75rem)" }}
           >
             Digital Growth
             <span className="block font-light italic text-foreground/85">

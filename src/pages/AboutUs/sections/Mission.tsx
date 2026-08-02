@@ -28,7 +28,7 @@ export function Mission() {
 
             <h2
               className="relative z-10 font-sans font-normal uppercase"
-              style={{ fontSize: "clamp(3rem, 8vw, 7.5rem)", lineHeight: 0.86, letterSpacing: "-0.015em" }}
+              style={{ fontSize: "clamp(2rem, 8vw, 7.5rem)", lineHeight: 0.95, letterSpacing: "-0.015em" }}
             >
               <span className="text-foreground">WE DON'T </span>
               <span className="relative inline-block text-[0.85em] italic text-primary" style={{ letterSpacing: "0.01em" }}>
