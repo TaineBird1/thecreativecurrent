@@ -10,6 +10,7 @@ import { AboutUs } from "./pages/AboutUs/AboutUs";
 import { Privacy } from "./pages/Privacy/Privacy";
 import { Terms } from "./pages/Terms/Terms";
 import { NotFound } from "./pages/NotFound/NotFound";
+import { ScrollToTop } from "./components/ScrollToTop";
 
 const AuthLayout = lazy(() => import("./AuthApp"));
 const PortalLogin = lazy(() => import("./portal/PortalLogin").then((m) => ({ default: m.PortalLogin })));
@@ -55,6 +56,7 @@ function MarketingSite() {
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Suspense fallback={null}>
         <Routes>
           <Route element={<AuthLayout />}>

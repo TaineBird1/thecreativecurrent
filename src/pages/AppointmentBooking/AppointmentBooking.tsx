@@ -12,8 +12,8 @@ export function AppointmentBooking() {
 
   return (
     <>
-      <Appointment />
       <Booking />
+      <Appointment />
       <Faq />
     </>
   );

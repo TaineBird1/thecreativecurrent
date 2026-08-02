@@ -42,7 +42,7 @@ const cards = [
 
 export function Booking() {
   return (
-    <section className="bg-background px-6 pb-32 pt-[200px] text-foreground md:px-12">
+    <section className="bg-background px-6 pb-32 pt-24 text-foreground md:px-12 md:pt-32 lg:pt-40">
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-4xl text-center">
           <p className="mb-10 font-mono text-xs uppercase tracking-[0.35em] text-primary">Get In Touch</p>
