@@ -15,11 +15,11 @@ export function AboutHero() {
   return (
     <section className="bg-background px-6 pb-16 pt-32 text-foreground md:pb-24 md:pt-40">
       <div className="mx-auto max-w-[1040px]">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <span className="whitespace-nowrap font-sans text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
             Est. 2026 · Digital Excellence
           </span>
-          <div className="mx-2 h-px flex-1 bg-border/60 md:mx-6" />
+          <div className="hidden h-px flex-1 bg-border/60 sm:mx-2 sm:block md:mx-6" />
           <span className="whitespace-nowrap font-sans text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
             — The Creative Current
           </span>
