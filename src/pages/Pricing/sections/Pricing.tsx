@@ -3,7 +3,7 @@ const tiers = [
     name: "Basic",
     audience: "For new ventures",
     price: "R6000",
-    terms: "Once off fee with a monthly retainer of R3000",
+    terms: "Once off fee with a monthly retainer of R1000",
     features: [
       "Get your website up and running",
       "Basic SEO optimization",
@@ -18,7 +18,7 @@ const tiers = [
     name: "Advanced",
     audience: "For scaling brands",
     price: "R8000",
-    terms: "Once off fee with a month retainer fee of R4000",
+    terms: "Once off fee with a month retainer fee of R1500",
     features: [
       "Full website development",
       "Custom Landing Page",
@@ -35,7 +35,7 @@ const tiers = [
     name: "Premium",
     audience: "For established brands",
     price: "R15000",
-    terms: "Once off fee with monthly retainer of R7000 a month",
+    terms: "Once off fee with monthly retainer of R2000 a month",
     features: [
       "Bespoke web architecture",
       "Unlimited page templates",
