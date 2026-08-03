@@ -56,12 +56,18 @@ export async function sendLeadNotification(lead: LeadPayload, id?: number) {
     throw new Error("LEADS_FROM_EMAIL or LEADS_NOTIFICATION_EMAIL is not set");
   }
 
-  await resend.emails.send({
+  // resend.emails.send() returns { data, error } -- it does NOT throw on a
+  // rejected send, so this check is required or a failed send silently
+  // looks like a success.
+  const { error } = await resend.emails.send({
     from: `The Creative Current <${from}>`,
     to,
     subject: `New lead: ${lead.name} (${sourceLabels[lead.source]})`,
     text: buildBody(lead, id),
   });
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 // Cold outreach: nothing calls this until a human has explicitly approved
@@ -74,7 +80,7 @@ export async function sendOutreachEmail(to: string, subject: string, body: strin
     throw new Error("OUTREACH_FROM_EMAIL is not set");
   }
 
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: `The Creative Current <${from}>`,
     to,
     subject,
@@ -83,4 +89,7 @@ export async function sendOutreachEmail(to: string, subject: string, body: strin
       <p style="font-size:12px;color:#888;">The Creative Current, Durban, KZN, South Africa.
       If you'd rather not hear from us again, just reply and let us know.</p>`,
   });
+  if (error) {
+    throw new Error(error.message);
+  }
 }
