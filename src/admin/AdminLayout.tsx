@@ -2,7 +2,7 @@ import { NavLink, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabaseClient";
 import { WvcLogo } from "../components/WvcLogo";
-import { IconDashboard, IconUsers, IconClipboardList, IconInbox, IconLogOut } from "./components/icons";
+import { IconDashboard, IconUsers, IconClipboardList, IconInbox, IconSearch, IconLogOut } from "./components/icons";
 import { useSEO } from "../lib/seo";
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { label: "Customers", to: "/admin/customers", icon: IconUsers },
   { label: "Change Requests", to: "/admin/change-requests", icon: IconClipboardList },
   { label: "Leads", to: "/admin/leads", icon: IconInbox },
+  { label: "Outreach", to: "/admin/outreach", icon: IconSearch },
 ];
 
 export function AdminLayout() {

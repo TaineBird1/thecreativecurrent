@@ -141,3 +141,35 @@ FOR SELECT USING (
   bucket_id = 'change-request-screenshots'
   AND ((storage.foldername(name))[1] = my_customer_id()::text OR is_admin())
 );
+
+-- Cold-outreach prospecting: distinct from `leads` (inbound, someone already
+-- contacted you) -- these are outbound targets found via Google Places or
+-- added manually. Admin-only end to end; nothing sends without an explicit
+-- human approval (see api/prospects-send.ts).
+CREATE TABLE IF NOT EXISTS prospects (
+  id BIGSERIAL PRIMARY KEY,
+  business_name TEXT NOT NULL,
+  category TEXT,
+  phone TEXT,
+  email TEXT,
+  address TEXT,
+  maps_url TEXT,
+  place_id TEXT UNIQUE,
+  source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('places_api','manual')),
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','drafted','approved','sent','replied','won','lost')),
+  draft_subject TEXT,
+  draft_body TEXT,
+  notes TEXT,
+  sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE prospects ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS prospects_select ON prospects;
+CREATE POLICY prospects_select ON prospects FOR SELECT USING (is_admin());
+DROP POLICY IF EXISTS prospects_insert ON prospects;
+CREATE POLICY prospects_insert ON prospects FOR INSERT WITH CHECK (is_admin());
+DROP POLICY IF EXISTS prospects_update ON prospects;
+CREATE POLICY prospects_update ON prospects FOR UPDATE USING (is_admin());
+DROP POLICY IF EXISTS prospects_delete ON prospects;
+CREATE POLICY prospects_delete ON prospects FOR DELETE USING (is_admin());

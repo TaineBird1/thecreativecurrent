@@ -28,7 +28,7 @@ Sections composed per page (`src/pages/<Page>/sections/*.tsx`), `Header`/`Footer
 ```
 src/pages/
 ├── Home/sections/          # Evolution (hero), Expertise (6 services), Process (6-step timeline),
-│                           # Current (CTA), Contact (intake form), Calendarbooking, FeaturedServices
+│                           # Current (CTA), Contact (intake form), Calendarbooking
 ├── AppointmentBooking/sections/   # Appointment (hero), Booking (contact cards), Faq (7-item)
 ├── Pricing/sections/       # Pricing (real tiers: R6,000/R8,000/R15,000), Faq (11-item), Contact
 ├── Contact/sections/       # Hero, Inquiry (4-step form), SubmissionSuccessConfirmation
@@ -84,11 +84,25 @@ Once a lead becomes a paying client, the admin invites them to a portal where th
 
 **Shared components** (used by both admin and portal — moved to `src/components/` mid-build once that became clear): `LiveVisitorCount.tsx`, `TrafficChart.tsx` (dependency-free CSS bar chart), `ChangeRequestList.tsx` (takes optional `customerId`/`canUpdateStatus`/`showBusinessName` props to serve both the customer's own list and the admin's cross-customer checklist).
 
-**Only 2 serverless functions exist for the portal** (everything else is direct `supabase-js` from the browser, authorized by RLS):
-- `api/invite-customer.ts` — admin-only (checked via `profiles.role`), uses `SUPABASE_SERVICE_ROLE_KEY` to create the auth user + customer + profile rows. Service role key can never reach the browser, so this can't be done client-side.
+**4 serverless functions exist in total** (everything else is direct `supabase-js` from the browser, authorized by RLS):
+- `api/invite-customer.ts` — admin-only, uses `SUPABASE_SERVICE_ROLE_KEY` to create the auth user + customer + profile rows. Service role key can never reach the browser, so this can't be done client-side.
 - `api/track.ts` — see above.
+- `api/prospects-search.ts`, `api/prospects-send.ts` — see Cold Outreach below.
+
+All admin-only functions share **`api/_lib/requireAdmin.ts`**: pulls the `Bearer` token, calls `getSupabaseAdmin().auth.getUser(token)`, then checks `profiles.role === 'admin'`. Written inline three times before being factored out — reuse it for any new admin-only endpoint rather than re-copying the check.
 
 **`tsconfig.api.json` gotcha** (bit the project twice): `module: nodenext` requires explicit `.js` extensions on relative imports in `api/*.ts` files, even though the source is `.ts` (e.g. `from "./_lib/db.js"`).
+
+## Cold Outreach (Admin only, `/admin/outreach`)
+
+Find local businesses with no website, draft a personalized email, and only send after an explicit human approval — ported from a prototype a separate Claude Desktop session built as a standalone Next.js app (never run/deployed; only this feature was worth pulling in, since the rest duplicated what's already live here).
+
+**Why it's built this way**: South Africa's POPIA requires opt-in consent for direct electronic marketing to people who aren't already customers. Cold outreach to new prospects sits in a legal gray area at best, so nothing sends without a human reviewing that exact draft first, volume stays low/personal rather than bulk, and every email includes an opt-out line. Not legal advice — POPIA section 69 (direct marketing) is worth an actual read before doing this at real scale.
+
+- `prospects` table (`sql/schema.sql`) — deliberately a separate table from `leads`: `leads` is inbound (someone already contacted you), `prospects` is outbound targets. Admin-only RLS (`is_admin()`) on all four operations; list/create/update/delete all happen directly from the browser via `supabase-js`, same pattern as `AdminLeads.tsx` — no server round-trip needed for any of that.
+- `api/prospects-search.ts` — the only thing that needs a server: calls Google Places (Text Search, then a Details lookup per result — only Details returns whether a `website` is listed) using `GOOGLE_PLACES_API_KEY`, which can't reach the browser.
+- `src/lib/outreachTemplate.ts` — `buildOutreachDraft(businessName, category)`, a pure string template. Draft generation is entirely client-side (no API call) — the result is just saved back via a normal `supabase-js` update.
+- `api/prospects-send.ts` — the other server-only piece: sends via `sendOutreachEmail` (`api/_lib/email.ts`, reuses the same Resend client as lead notifications, `OUTREACH_FROM_EMAIL` env var — deliberately **not** the zip prototype's Gmail SMTP, since Resend's already-verified domain has better deliverability and this is exactly the kind of mail most likely to get flagged as spam). Refuses to send unless `status = 'approved'` and an email is on file, then flips `status` to `'sent'` in the same request.
 
 ## SEO
 
@@ -107,3 +121,4 @@ Once a lead becomes a paying client, the admin invites them to a portal where th
 - No automated test suite. Every backend piece (leads API, tracking, RLS policies, storage policies, invite flow, admin checklist) was verified via one-off Node scripts run directly against the real Supabase project and, for critical paths, the deployed production API — not via a persisted test framework.
 - Google Search Console + Google Business Profile setup still needs to be done manually (see SEO section above).
 - `og:image`/`twitter:image` reuse an existing 1254×1254 square hero photo rather than a purpose-made 1200×630 social-preview image.
+- Google Places does not return email addresses — only phone/address/website. For no-website results (the actual leads), there's usually no public email in Google's data at all, so an email typically has to be found manually (search, Facebook page, or just call the number) and pasted into the prospect's card before it can be sent to.

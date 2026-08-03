@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { inviteCustomerSchema, type InviteCustomerApiResponse } from "../src/lib/customers.js";
 import { getSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { requireAdmin } from "./_lib/requireAdmin.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -8,31 +9,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
-  if (!token) {
-    res.status(401).json({ ok: false, error: "missing_auth" } satisfies InviteCustomerApiResponse);
+  const auth = await requireAdmin(req);
+  if (!auth.authorized) {
+    res.status(auth.status).json({ ok: false, error: auth.error } satisfies InviteCustomerApiResponse);
     return;
   }
 
   const supabase = getSupabaseAdmin();
-
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData.user) {
-    res.status(401).json({ ok: false, error: "invalid_auth" } satisfies InviteCustomerApiResponse);
-    return;
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userData.user.id)
-    .single();
-
-  if (profile?.role !== "admin") {
-    res.status(403).json({ ok: false, error: "forbidden" } satisfies InviteCustomerApiResponse);
-    return;
-  }
 
   const parsed = inviteCustomerSchema.safeParse(req.body);
   if (!parsed.success) {

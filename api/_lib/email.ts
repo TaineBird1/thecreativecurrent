@@ -3,7 +3,7 @@ import type { LeadPayload } from "../../src/lib/leads.js";
 
 let client: Resend | null = null;
 
-function getResend() {
+export function getResend() {
   if (!client) {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
@@ -61,5 +61,26 @@ export async function sendLeadNotification(lead: LeadPayload, id?: number) {
     to,
     subject: `New lead: ${lead.name} (${sourceLabels[lead.source]})`,
     text: buildBody(lead, id),
+  });
+}
+
+// Cold outreach: nothing calls this until a human has explicitly approved
+// the exact draft being sent (see api/prospects-send.ts). Includes an
+// opt-out line per POPIA's direct-marketing provisions.
+export async function sendOutreachEmail(to: string, subject: string, body: string) {
+  const resend = getResend();
+  const from = process.env.OUTREACH_FROM_EMAIL;
+  if (!from) {
+    throw new Error("OUTREACH_FROM_EMAIL is not set");
+  }
+
+  await resend.emails.send({
+    from: `The Creative Current <${from}>`,
+    to,
+    subject,
+    text: body,
+    html: `${body.replace(/\n/g, "<br>")}<br><br><hr style="border:none;border-top:1px solid #ccc;margin:16px 0;">
+      <p style="font-size:12px;color:#888;">The Creative Current, Durban, KZN, South Africa.
+      If you'd rather not hear from us again, just reply and let us know.</p>`,
   });
 }
