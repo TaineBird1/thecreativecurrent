@@ -28,6 +28,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const sql = getDb();
+    // start_date/preferred_date are optional date inputs that submit as ""
+    // when left blank, not omitted -- `??` only guards null/undefined, so
+    // an empty string reached postgres as a literal DATE value and crashed
+    // ("Invalid time value") on every submission that skipped these fields.
     const [row] = await sql`
       INSERT INTO leads (
         source, name, email, phone, service_type, message, description,
@@ -36,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ) VALUES (
         ${lead.source}, ${lead.name}, ${lead.email}, ${lead.phone ?? null},
         ${lead.service_type ?? null}, ${lead.message ?? null}, ${lead.description ?? null},
-        ${lead.project_details ?? null}, ${lead.start_date ?? null}, ${lead.preferred_date ?? null},
+        ${lead.project_details ?? null}, ${lead.start_date || null}, ${lead.preferred_date || null},
         ${lead.company_name ?? null}, ${lead.newsletter ?? null}, ${sql.json(lead)}
       )
       RETURNING id
