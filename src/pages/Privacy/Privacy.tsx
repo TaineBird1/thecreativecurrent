@@ -101,7 +101,11 @@ export function Privacy() {
           <a href={`mailto:${siteInfo.email}`} className="text-primary hover:underline">
             {siteInfo.email}
           </a>{" "}
-          or {siteInfo.phone}.
+          or{" "}
+          <a href={siteInfo.whatsappHref} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            {siteInfo.phone}
+          </a>
+          .
         </p>
       </LegalSection>
     </LegalLayout>
