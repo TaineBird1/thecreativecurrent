@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    await sendOutreachEmail(prospect.email, prospect.draft_subject, prospect.draft_body);
+    await sendOutreachEmail(prospect.email, prospect.draft_subject, prospect.draft_body, { prospectId: prospect.id });
   } catch (e) {
     res.status(500).json({ ok: false, error: e instanceof Error ? e.message : "send failed" } satisfies ProspectSendApiResponse);
     return;

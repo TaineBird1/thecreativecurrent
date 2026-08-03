@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-      await sendOutreachEmail(p.email, p.draft_subject, p.draft_body);
+      await sendOutreachEmail(p.email, p.draft_subject, p.draft_body, { prospectId: p.id });
       await supabase.from("prospects").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", id);
       sent.push(id);
     } catch (e) {

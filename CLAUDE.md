@@ -84,10 +84,10 @@ Once a lead becomes a paying client, the admin invites them to a portal where th
 
 **Shared components** (used by both admin and portal — moved to `src/components/` mid-build once that became clear): `LiveVisitorCount.tsx`, `TrafficChart.tsx` (dependency-free CSS bar chart), `ChangeRequestList.tsx` (takes optional `customerId`/`canUpdateStatus`/`showBusinessName` props to serve both the customer's own list and the admin's cross-customer checklist).
 
-**4 serverless functions exist in total** (everything else is direct `supabase-js` from the browser, authorized by RLS):
+**6 serverless functions exist in total** (everything else is direct `supabase-js` from the browser, authorized by RLS):
 - `api/invite-customer.ts` — admin-only, uses `SUPABASE_SERVICE_ROLE_KEY` to create the auth user + customer + profile rows. Service role key can never reach the browser, so this can't be done client-side.
 - `api/track.ts` — see above.
-- `api/prospects-search.ts`, `api/prospects-send.ts` — see Cold Outreach below.
+- `api/prospects-search.ts`, `api/prospects-send.ts`, `api/outreach-run.ts`, `api/prospects-bulk-send.ts` — see Cold Outreach below.
 
 All admin-only functions share **`api/_lib/requireAdmin.ts`**: pulls the `Bearer` token, calls `getSupabaseAdmin().auth.getUser(token)`, then checks `profiles.role === 'admin'`. Written inline three times before being factored out — reuse it for any new admin-only endpoint rather than re-copying the check.
 
@@ -108,6 +108,10 @@ Find local businesses with no website, draft a personalized email, and only send
 - `api/outreach-run.ts` — runs every saved search via `discoverPlaces`, inserts any new opportunity (`place_id` not already in `prospects`) with an auto-generated draft and `status = 'drafted'`. **Never sends anything.** Two entry points into the same `runAllSearches()`: `GET` (checked against `CRON_SECRET` — Vercel doesn't verify this header for you) called by the Vercel Cron job in `vercel.json` (`0 5 * * *`, i.e. 7am SA time), and `POST` (checked via `requireAdmin`) called by the "Run all saved searches now" button on `/admin/outreach/review`.
 - `api/prospects-bulk-send.ts` — admin-only, body `{ ids }`. Unlike `prospects-send.ts`, does **not** require a prior `status = 'approved'` — on the review page, seeing the draft in the checklist and clicking "Send selected" *is* the human approval step, just reviewed as a daily batch instead of one at a time. Still refuses to send without an email and a draft on file.
 - `src/admin/AdminOutreachReview.tsx` (`/admin/outreach/review`) — the daily batch-review UI: "Run all saved searches now" button, then every `status = 'drafted'` prospect as a pre-checked checklist item (editable email, collapsible draft preview) with a "Send selected" button. Reachable via a link from `/admin/outreach`, not a separate sidebar item.
+
+### Email Activity Log (`/admin/activity`)
+
+`email_log` table records every email `api/_lib/email.ts` sends — both `sendLeadNotification` and `sendOutreachEmail` log a row on success *and* failure (recipient, subject, type, status, error message, optional `prospect_id`/`lead_id`). Written via the service-role client inline in those functions, so no INSERT policy is needed. Exists because a Resend send returning `{ error }` instead of throwing previously failed silently (see `sendOutreachEmail`'s own comment) — this makes that kind of failure visible in-app instead of only in Resend's dashboard. `src/admin/AdminActivity.tsx` lists the most recent 200 rows with Total/Sent/Failed counts; hover a "Failed" badge to see the error.
 
 ## SEO
 

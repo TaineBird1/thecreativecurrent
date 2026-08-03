@@ -199,3 +199,25 @@ DROP POLICY IF EXISTS saved_searches_insert ON saved_searches;
 CREATE POLICY saved_searches_insert ON saved_searches FOR INSERT WITH CHECK (is_admin());
 DROP POLICY IF EXISTS saved_searches_delete ON saved_searches;
 CREATE POLICY saved_searches_delete ON saved_searches FOR DELETE USING (is_admin());
+
+-- Email activity log: every email api/_lib/email.ts sends (lead notifications
+-- and cold outreach) gets a row here, success or failure, so a silent-failure
+-- bug (like the earlier Resend {error} vs throw issue) is visible in-app
+-- instead of only in Resend's own dashboard. Written via the privileged
+-- service-role client inside the functions that already send these emails,
+-- so no INSERT policy is needed -- same reasoning as analytics_events/leads.
+CREATE TABLE IF NOT EXISTS email_log (
+  id BIGSERIAL PRIMARY KEY,
+  recipient TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'other' CHECK (type IN ('outreach','lead_notification','other')),
+  status TEXT NOT NULL CHECK (status IN ('sent','failed')),
+  error TEXT,
+  prospect_id BIGINT REFERENCES prospects(id),
+  lead_id BIGINT REFERENCES leads(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE email_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS email_log_select ON email_log;
+CREATE POLICY email_log_select ON email_log FOR SELECT USING (is_admin());
