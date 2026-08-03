@@ -4,6 +4,16 @@ export type ProspectSource = (typeof prospectSources)[number];
 export const prospectStatuses = ["new", "drafted", "approved", "sent", "replied", "won", "lost"] as const;
 export type ProspectStatus = (typeof prospectStatuses)[number];
 
+export const prospectStatusTone: Record<ProspectStatus, "neutral" | "primary" | "success" | "warning"> = {
+  new: "neutral",
+  drafted: "warning",
+  approved: "primary",
+  sent: "success",
+  replied: "success",
+  won: "success",
+  lost: "neutral",
+};
+
 export type Prospect = {
   id: number;
   business_name: string;

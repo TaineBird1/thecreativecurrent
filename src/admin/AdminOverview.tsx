@@ -5,9 +5,10 @@ import { StatCard } from "./components/StatCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { LiveVisitorCount } from "../components/LiveVisitorCount";
 import { TrafficChart } from "../components/TrafficChart";
-import { IconUsers, IconClipboardList, IconInbox, IconActivity } from "./components/icons";
+import { IconUsers, IconClipboardList, IconInbox, IconActivity, IconSearch } from "./components/icons";
 import type { LeadRow } from "../lib/leads";
 import type { ChangeRequestStatus } from "../lib/changeRequests";
+import { prospectStatusTone, type Prospect } from "../lib/prospects";
 
 type RecentChangeRequest = {
   id: number;
@@ -30,6 +31,9 @@ export function AdminOverview() {
   const [newLeadCount, setNewLeadCount] = useState<number | null>(null);
   const [recentLeads, setRecentLeads] = useState<LeadRow[]>([]);
   const [recentRequests, setRecentRequests] = useState<RecentChangeRequest[]>([]);
+  const [prospectCount, setProspectCount] = useState<number | null>(null);
+  const [readyToSendCount, setReadyToSendCount] = useState<number | null>(null);
+  const [recentProspects, setRecentProspects] = useState<Prospect[]>([]);
   const [ownSiteId, setOwnSiteId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,6 +50,9 @@ export function AdminOverview() {
         { data: leadRows },
         { data: requestRows },
         { data: ownSite },
+        { count: prospects },
+        { count: readyToSend },
+        { data: prospectRows },
       ] = await Promise.all([
         supabase.from("customers").select("*", { count: "exact", head: true }).neq("status", "internal"),
         supabase.from("change_requests").select("*", { count: "exact", head: true }).in("status", ["submitted", "in_progress"]),
@@ -58,6 +65,9 @@ export function AdminOverview() {
           .order("created_at", { ascending: false })
           .limit(5),
         supabase.from("customers").select("id").eq("status", "internal").maybeSingle(),
+        supabase.from("prospects").select("*", { count: "exact", head: true }),
+        supabase.from("prospects").select("*", { count: "exact", head: true }).eq("status", "approved"),
+        supabase.from("prospects").select("*").order("created_at", { ascending: false }).limit(5),
       ]);
 
       setCustomerCount(customers ?? 0);
@@ -67,6 +77,9 @@ export function AdminOverview() {
       setRecentLeads((leadRows as LeadRow[]) ?? []);
       setRecentRequests((requestRows as unknown as RecentChangeRequest[]) ?? []);
       setOwnSiteId((ownSite as { id: number } | null)?.id ?? null);
+      setProspectCount(prospects ?? 0);
+      setReadyToSendCount(readyToSend ?? 0);
+      setRecentProspects((prospectRows as Prospect[]) ?? []);
       setLoading(false);
     }
     load();
@@ -93,6 +106,13 @@ export function AdminOverview() {
           value={loading ? "—" : (newLeadCount ?? 0)}
           icon={<IconActivity className="size-4" />}
           hint="Last 7 days"
+        />
+        <StatCard label="Prospects" value={loading ? "—" : (prospectCount ?? 0)} icon={<IconSearch className="size-4" />} />
+        <StatCard
+          label="Ready to Send"
+          value={loading ? "—" : (readyToSendCount ?? 0)}
+          icon={<IconActivity className="size-4" />}
+          hint="Approved, awaiting send"
         />
       </div>
 
@@ -164,6 +184,45 @@ export function AdminOverview() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="font-sans text-sm font-semibold">Outreach Prospects</h2>
+          <Link to="/admin/outreach" className="text-xs text-primary hover:underline">
+            View all
+          </Link>
+        </div>
+        <div className="divide-y divide-border">
+          {!loading && recentProspects.length === 0 && (
+            <p className="px-6 py-6 text-sm text-muted-foreground">
+              No prospects yet — find some on the Outreach page.
+            </p>
+          )}
+          {recentProspects.map((p) => (
+            <div key={p.id} className="flex items-center justify-between gap-3 px-6 py-4">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{p.business_name}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {p.category || "—"} {p.address ? `· ${p.address}` : ""}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                {p.phone && (
+                  <a href={`tel:${p.phone}`} className="text-xs text-primary hover:underline">
+                    Call
+                  </a>
+                )}
+                {p.email && (
+                  <a href={`mailto:${p.email}`} className="text-xs text-primary hover:underline">
+                    Email
+                  </a>
+                )}
+                <StatusBadge label={p.status} tone={prospectStatusTone[p.status]} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

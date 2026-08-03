@@ -2,17 +2,7 @@ import { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { StatusBadge } from "../../components/StatusBadge";
 import { buildOutreachDraft } from "../../lib/outreachTemplate";
-import type { Prospect, ProspectSendApiResponse, ProspectStatus } from "../../lib/prospects";
-
-const STATUS_TONE: Record<ProspectStatus, "neutral" | "primary" | "success" | "warning"> = {
-  new: "neutral",
-  drafted: "warning",
-  approved: "primary",
-  sent: "success",
-  replied: "success",
-  won: "success",
-  lost: "neutral",
-};
+import { prospectStatusTone, type Prospect, type ProspectSendApiResponse } from "../../lib/prospects";
 
 export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onChange: () => void }) {
   const [email, setEmail] = useState(prospect.email ?? "");
@@ -105,7 +95,7 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
             )}
           </div>
         </div>
-        <StatusBadge label={prospect.status} tone={STATUS_TONE[prospect.status]} />
+        <StatusBadge label={prospect.status} tone={prospectStatusTone[prospect.status]} />
       </div>
 
       <div className="grid gap-2">
