@@ -42,7 +42,7 @@ const services = [
 ];
 
 type FormState = {
-  service: string;
+  services: string[];
   preferred_date: string;
   name: string;
   email: string;
@@ -53,7 +53,7 @@ type FormState = {
 };
 
 const initialState: FormState = {
-  service: "",
+  services: [],
   preferred_date: "",
   name: "",
   email: "",
@@ -77,7 +77,16 @@ export function Inquiry({ source = "contact" }: { source?: LeadSource }) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  const step0Valid = form.service.trim().length > 0;
+  function toggleService(value: string) {
+    setForm((prev) => ({
+      ...prev,
+      services: prev.services.includes(value)
+        ? prev.services.filter((v) => v !== value)
+        : [...prev.services, value],
+    }));
+  }
+
+  const step0Valid = form.services.length > 0;
   const step2Valid =
     form.name.trim().length >= 2 &&
     form.name.trim().length <= 80 &&
@@ -106,7 +115,7 @@ export function Inquiry({ source = "contact" }: { source?: LeadSource }) {
       company_name: form.company_name,
       project_details: form.project_details,
       preferred_date: form.preferred_date,
-      service_type: form.service,
+      service_type: form.services.join(", "),
       honeypot: form.honeypot,
     });
   }
@@ -176,16 +185,18 @@ export function Inquiry({ source = "contact" }: { source?: LeadSource }) {
                   What are you looking for?
                 </h2>
                 <p className="mb-10 text-muted-foreground">
-                  Select the service that aligns with your digital goals. We'll handle the rest.
+                  Select the services that align with your digital goals — choose as many as you like.
                 </p>
                 <div className="space-y-4">
                   {services.map((service) => {
-                    const selected = form.service === service.value;
+                    const selected = form.services.includes(service.value);
                     return (
                       <button
                         type="button"
                         key={service.value}
-                        onClick={() => setForm((prev) => ({ ...prev, service: service.value }))}
+                        role="checkbox"
+                        aria-checked={selected}
+                        onClick={() => toggleService(service.value)}
                         className={`w-full cursor-pointer rounded-lg border-l-2 p-8 text-left transition-all duration-300 ${
                           selected ? "border-l-primary bg-card" : "border-l-transparent bg-card/40 hover:bg-card/60"
                         }`}
@@ -213,6 +224,27 @@ export function Inquiry({ source = "contact" }: { source?: LeadSource }) {
                             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                               {service.description}
                             </p>
+                          </div>
+                          <div
+                            className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors duration-300 ${
+                              selected ? "border-primary bg-primary text-primary-foreground" : "border-border text-transparent"
+                            }`}
+                            aria-hidden="true"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="size-3.5"
+                            >
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
                           </div>
                         </div>
                       </button>
@@ -331,7 +363,7 @@ export function Inquiry({ source = "contact" }: { source?: LeadSource }) {
                   Take a last look before you send it through.
                 </p>
                 <div className="space-y-3 rounded-lg border border-border bg-card p-8 text-sm">
-                  <p><span className="text-muted-foreground">Service:</span> {form.service}</p>
+                  <p><span className="text-muted-foreground">Service:</span> {form.services.join(", ")}</p>
                   {form.preferred_date && <p><span className="text-muted-foreground">Target date:</span> {form.preferred_date}</p>}
                   <p><span className="text-muted-foreground">Name:</span> {form.name}</p>
                   <p><span className="text-muted-foreground">Email:</span> {form.email}</p>
