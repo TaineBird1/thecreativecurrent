@@ -4,8 +4,8 @@ const cards = [
   {
     label: "Direct Line",
     value: `(+27) ${siteInfo.phone.replace("+27", "").trim()}`,
-    href: `tel:${siteInfo.phoneHref}`,
-    bullets: ["Mon-Fri: 9am - 6pm", "Priority support for active clients", "Secure encrypted voice channels"],
+    href: siteInfo.whatsappHref,
+    bullets: ["Mon-Fri: 9am - 6pm", "Priority support for active clients", "Secure encrypted WhatsApp chat"],
     icon: (
       <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" />
     ),
@@ -61,7 +61,12 @@ export function Booking() {
             return (
               <Wrapper
                 key={card.label}
-                {...(card.href ? { href: card.href } : {})}
+                {...(card.href
+                  ? {
+                      href: card.href,
+                      ...(card.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {}),
+                    }
+                  : {})}
                 className="group relative flex min-h-[420px] flex-col rounded-2xl border border-white/5 bg-card p-10 shadow-lg transition-all duration-500 hover:border-primary/50 md:p-14"
               >
                 <div className="mb-12">

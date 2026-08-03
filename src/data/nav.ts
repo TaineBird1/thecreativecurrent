@@ -1,8 +1,12 @@
+const phoneHref = "+27614785459";
+
 export const siteInfo = {
   name: "The Creative Current",
   email: "thecreativecurrent01@gmail.com",
   phone: "+27 61 478 5459",
-  phoneHref: "+27614785459",
+  phoneHref,
+  // wa.me requires international format with no "+", spaces, or leading zero.
+  whatsappHref: `https://wa.me/${phoneHref.replace("+", "")}`,
   location: "Durban, KZN, South Africa",
 };
 
