@@ -4,6 +4,9 @@ export type ProspectSource = (typeof prospectSources)[number];
 export const prospectStatuses = ["new", "drafted", "approved", "sent", "replied", "won", "lost"] as const;
 export type ProspectStatus = (typeof prospectStatuses)[number];
 
+export const prospectReasons = ["no_website", "poor_website"] as const;
+export type ProspectReason = (typeof prospectReasons)[number];
+
 export const prospectStatusTone: Record<ProspectStatus, "neutral" | "primary" | "success" | "warning"> = {
   new: "neutral",
   drafted: "warning",
@@ -30,6 +33,16 @@ export type Prospect = {
   notes: string | null;
   sent_at: string | null;
   created_at: string;
+  website: string | null;
+  page_speed_score: number | null;
+  reason: ProspectReason;
+};
+
+export type SavedSearch = {
+  id: number;
+  category: string;
+  location: string;
+  created_at: string;
 };
 
 export type ProspectSearchResult = {
@@ -40,6 +53,8 @@ export type ProspectSearchResult = {
   mapsUrl: string | null;
   hasWebsite: boolean;
   website: string | null;
+  pageSpeedScore: number | null;
+  isPoorWebsite: boolean;
 };
 
 export type ProspectSearchApiResponse =
@@ -48,4 +63,12 @@ export type ProspectSearchApiResponse =
 
 export type ProspectSendApiResponse =
   | { ok: true; prospect: Prospect }
+  | { ok: false; error: string };
+
+export type ProspectRunApiResponse =
+  | { ok: true; created: number; searchesRun: number; errors: string[] }
+  | { ok: false; error: string };
+
+export type ProspectBulkSendApiResponse =
+  | { ok: true; sent: number[]; skipped: { id: number; reason: string }[] }
   | { ok: false; error: string };

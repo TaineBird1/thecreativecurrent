@@ -32,6 +32,9 @@ const AdminChangeRequests = lazy(() =>
   import("./admin/AdminChangeRequests").then((m) => ({ default: m.AdminChangeRequests }))
 );
 const AdminOutreach = lazy(() => import("./admin/AdminOutreach").then((m) => ({ default: m.AdminOutreach })));
+const AdminOutreachReview = lazy(() =>
+  import("./admin/AdminOutreachReview").then((m) => ({ default: m.AdminOutreachReview }))
+);
 
 function MarketingSite() {
   return (
@@ -73,6 +76,7 @@ function App() {
               <Route path="customers/:id" element={<AdminCustomerDetail />} />
               <Route path="change-requests" element={<AdminChangeRequests />} />
               <Route path="outreach" element={<AdminOutreach />} />
+              <Route path="outreach/review" element={<AdminOutreachReview />} />
             </Route>
           </Route>
           <Route path="/*" element={<MarketingSite />} />

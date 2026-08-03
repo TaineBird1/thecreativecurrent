@@ -2,5 +2,6 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  ],
+  "crons": [{ "path": "/api/outreach-run", "schedule": "0 5 * * *" }]
 }

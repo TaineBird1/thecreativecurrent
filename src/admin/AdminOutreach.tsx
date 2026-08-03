@@ -1,7 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { ProspectCard } from "./components/ProspectCard";
-import type { Prospect, ProspectSearchApiResponse, ProspectSearchResult, ProspectStatus } from "../lib/prospects";
+import type {
+  Prospect,
+  ProspectSearchApiResponse,
+  ProspectSearchResult,
+  ProspectStatus,
+  SavedSearch,
+} from "../lib/prospects";
 
 export function AdminOutreach() {
   const [category, setCategory] = useState("");
@@ -15,6 +22,9 @@ export function AdminOutreach() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<ProspectStatus | "">("");
 
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [savingSearch, setSavingSearch] = useState(false);
+
   async function loadProspects() {
     setLoading(true);
     let query = supabase.from("prospects").select("*").order("created_at", { ascending: false });
@@ -24,10 +34,19 @@ export function AdminOutreach() {
     setLoading(false);
   }
 
+  async function loadSavedSearches() {
+    const { data } = await supabase.from("saved_searches").select("*").order("created_at", { ascending: false });
+    setSavedSearches((data as SavedSearch[]) ?? []);
+  }
+
   useEffect(() => {
     loadProspects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
+
+  useEffect(() => {
+    loadSavedSearches();
+  }, []);
 
   async function handleSearch(e: FormEvent) {
     e.preventDefault();
@@ -63,6 +82,9 @@ export function AdminOutreach() {
       address: r.address,
       maps_url: r.mapsUrl,
       place_id: r.placeId,
+      website: r.website,
+      page_speed_score: r.pageSpeedScore,
+      reason: r.isPoorWebsite ? "poor_website" : "no_website",
       source: "places_api",
     });
     if (!error) {
@@ -71,16 +93,40 @@ export function AdminOutreach() {
     }
   }
 
+  async function saveCurrentSearch() {
+    if (!category || !location) return;
+    setSavingSearch(true);
+    await supabase.from("saved_searches").upsert({ category, location }, { onConflict: "category,location" });
+    await loadSavedSearches();
+    setSavingSearch(false);
+  }
+
+  async function removeSavedSearch(id: number) {
+    await supabase.from("saved_searches").delete().eq("id", id);
+    loadSavedSearches();
+  }
+
   const noWebsiteResults = (results ?? []).filter((r) => !r.hasWebsite);
-  const hasWebsiteResults = (results ?? []).filter((r) => r.hasWebsite);
+  const poorWebsiteResults = (results ?? []).filter((r) => r.hasWebsite && r.isPoorWebsite);
+  const goodWebsiteResults = (results ?? []).filter((r) => r.hasWebsite && !r.isPoorWebsite);
+  const alreadySaved = savedSearches.some((s) => s.category === category && s.location === location);
 
   return (
     <div className="space-y-10">
-      <div>
-        <h1 className="font-sans text-2xl font-bold">Outreach</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Find local businesses without a website, draft a personalized email, and review it before anything sends.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-sans text-2xl font-bold">Outreach</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Find local businesses without a website (or with a poor one), draft a personalized email, and review it
+            before anything sends.
+          </p>
+        </div>
+        <Link
+          to="/admin/outreach/review"
+          className="shrink-0 rounded-lg border border-primary/40 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+        >
+          Daily Review
+        </Link>
       </div>
 
       <section className="rounded-lg border border-border bg-card">
@@ -120,7 +166,36 @@ export function AdminOutreach() {
           >
             {searching ? "Searching..." : "Search"}
           </button>
+          <button
+            type="button"
+            onClick={saveCurrentSearch}
+            disabled={savingSearch || !category || !location || alreadySaved}
+            className="h-11 rounded-lg border border-border px-4 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
+          >
+            {alreadySaved ? "Saved" : "Save this search"}
+          </button>
         </form>
+
+        {savedSearches.length > 0 && (
+          <div className="flex flex-wrap gap-2 border-t border-border px-6 py-4">
+            {savedSearches.map((s) => (
+              <span
+                key={s.id}
+                className="flex items-center gap-2 rounded-full border border-border bg-black px-3 py-1 text-xs text-muted-foreground"
+              >
+                {s.category} in {s.location}
+                <button
+                  type="button"
+                  onClick={() => removeSavedSearch(s.id)}
+                  className="text-muted-foreground hover:text-red-400"
+                  aria-label={`Remove saved search ${s.category} in ${s.location}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
 
         {searchError && (
           <p role="alert" className="px-6 pb-6 text-sm text-red-500">
@@ -165,14 +240,45 @@ export function AdminOutreach() {
               )}
             </div>
 
-            {hasWebsiteResults.length > 0 && (
+            {poorWebsiteResults.length > 0 && (
+              <div>
+                <h3 className="mb-3 font-sans text-sm font-semibold">
+                  Poor website ({poorWebsiteResults.length}) — also worth a look
+                </h3>
+                <div className="space-y-2">
+                  {poorWebsiteResults.map((r) => (
+                    <div
+                      key={r.placeId}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border bg-black px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{r.businessName}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          PageSpeed score {r.pageSpeedScore} · {r.address}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => addProspect(r)}
+                        disabled={addedIds.has(r.placeId)}
+                        className="shrink-0 rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
+                      >
+                        {addedIds.has(r.placeId) ? "Added" : "Add as lead"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {goodWebsiteResults.length > 0 && (
               <details className="text-sm text-muted-foreground">
                 <summary className="cursor-pointer">
-                  {hasWebsiteResults.length} result{hasWebsiteResults.length === 1 ? "" : "s"} already have a
+                  {goodWebsiteResults.length} result{goodWebsiteResults.length === 1 ? "" : "s"} already have a good
                   website (skip these)
                 </summary>
                 <ul className="mt-2 space-y-1 pl-4">
-                  {hasWebsiteResults.map((r) => (
+                  {goodWebsiteResults.map((r) => (
                     <li key={r.placeId}>{r.businessName}</li>
                   ))}
                 </ul>

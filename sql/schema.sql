@@ -173,3 +173,29 @@ DROP POLICY IF EXISTS prospects_update ON prospects;
 CREATE POLICY prospects_update ON prospects FOR UPDATE USING (is_admin());
 DROP POLICY IF EXISTS prospects_delete ON prospects;
 CREATE POLICY prospects_delete ON prospects FOR DELETE USING (is_admin());
+
+-- Poor-website detection: a business can also be a lead if it has a website
+-- that scores poorly on Google PageSpeed, not just no website at all.
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS page_speed_score INTEGER;
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT 'no_website';
+ALTER TABLE prospects DROP CONSTRAINT IF EXISTS prospects_reason_check;
+ALTER TABLE prospects ADD CONSTRAINT prospects_reason_check CHECK (reason IN ('no_website','poor_website'));
+
+-- Saved searches (category + location) power the daily automated discovery
+-- job in api/outreach-run.ts -- nothing to run at 5am without these.
+CREATE TABLE IF NOT EXISTS saved_searches (
+  id BIGSERIAL PRIMARY KEY,
+  category TEXT NOT NULL,
+  location TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (category, location)
+);
+ALTER TABLE saved_searches ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS saved_searches_select ON saved_searches;
+CREATE POLICY saved_searches_select ON saved_searches FOR SELECT USING (is_admin());
+DROP POLICY IF EXISTS saved_searches_insert ON saved_searches;
+CREATE POLICY saved_searches_insert ON saved_searches FOR INSERT WITH CHECK (is_admin());
+DROP POLICY IF EXISTS saved_searches_delete ON saved_searches;
+CREATE POLICY saved_searches_delete ON saved_searches FOR DELETE USING (is_admin());
