@@ -5,7 +5,7 @@
 // or unresponsive site must not stall the whole search, so any failure
 // (timeout, non-HTML response, no match) just returns null rather than
 // throwing.
-const SCRAPE_TIMEOUT_MS = 6000;
+const SCRAPE_TIMEOUT_MS = 8000;
 
 const IGNORED_DOMAINS = [
   "sentry.io",
