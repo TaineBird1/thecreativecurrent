@@ -47,11 +47,16 @@ export type DiscoveredPlace = {
 // Google's price_level enum: 0 Free, 1 Inexpensive, 2 Moderate, 3 Expensive,
 // 4 Very Expensive. Only populated for some categories (restaurants, cafes,
 // retail) -- most service trades (electricians, plumbers, etc.) don't have
-// it at all, so this filter will exclude those categories almost entirely.
-export const MIDDLE_CLASS_PRICE_LEVEL = 2;
+// it at all. Unknown (null) is treated as a PASS, not a fail -- confirmed
+// via real search results that every electrician/pre-school result came
+// back null, so requiring price_level to be known would have silently
+// excluded those categories entirely. Only businesses Google explicitly
+// marks Expensive or Very Expensive are filtered out.
+const EXCLUDED_PRICE_LEVELS = [3, 4];
 
 export function isMiddleClassPriceLevel(priceLevel: number | null): boolean {
-  return priceLevel === MIDDLE_CLASS_PRICE_LEVEL;
+  if (priceLevel === null) return true;
+  return !EXCLUDED_PRICE_LEVELS.includes(priceLevel);
 }
 
 export async function discoverPlaces(category: string, location: string, apiKey: string): Promise<DiscoveredPlace[]> {
