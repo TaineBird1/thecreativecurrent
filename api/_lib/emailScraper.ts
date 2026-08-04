@@ -33,9 +33,15 @@ export async function scrapeEmailFromWebsite(url: string): Promise<string | null
   const timeout = setTimeout(() => controller.abort(), SCRAPE_TIMEOUT_MS);
   try {
     const res = await fetch(url, { signal: controller.signal, redirect: "follow" });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`scrapeEmailFromWebsite: ${url} responded ${res.status}`);
+      return null;
+    }
     const contentType = res.headers.get("content-type") || "";
-    if (!contentType.includes("text/html")) return null;
+    if (!contentType.includes("text/html")) {
+      console.error(`scrapeEmailFromWebsite: ${url} content-type was "${contentType}", not HTML`);
+      return null;
+    }
     const html = await res.text();
 
     // A mailto: link is a much stronger signal than a bare text match --
@@ -51,7 +57,8 @@ export async function scrapeEmailFromWebsite(url: string): Promise<string | null
     if (textMatch && isLikelyRealEmail(textMatch[0])) return textMatch[0];
 
     return null;
-  } catch {
+  } catch (e) {
+    console.error(`scrapeEmailFromWebsite failed for ${url}:`, e instanceof Error ? e.message : e);
     return null;
   } finally {
     clearTimeout(timeout);
