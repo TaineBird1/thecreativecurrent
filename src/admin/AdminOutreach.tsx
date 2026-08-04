@@ -83,6 +83,7 @@ export function AdminOutreach() {
       maps_url: r.mapsUrl,
       place_id: r.placeId,
       website: r.website,
+      email: r.email,
       page_speed_score: r.pageSpeedScore,
       reason: r.isPoorWebsite ? "poor_website" : "no_website",
       source: "places_api",
@@ -256,6 +257,9 @@ export function AdminOutreach() {
                         <p className="truncate text-xs text-muted-foreground">
                           PageSpeed score {r.pageSpeedScore} · {r.address}
                         </p>
+                        {r.email && (
+                          <p className="mt-0.5 truncate text-xs text-primary">✓ Email found: {r.email}</p>
+                        )}
                       </div>
                       <button
                         type="button"

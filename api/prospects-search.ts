@@ -50,6 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     website: p.website,
     pageSpeedScore: p.pageSpeedScore,
     isPoorWebsite: p.isPoorWebsite,
+    email: p.email,
   }));
 
   res.status(200).json({ ok: true, results } satisfies ProspectSearchApiResponse);

@@ -53,6 +53,7 @@ async function runAllSearches() {
           maps_url: r.mapsUrl,
           place_id: r.placeId,
           website: r.website,
+          email: r.email,
           page_speed_score: r.pageSpeedScore,
           reason,
           source: "places_api",

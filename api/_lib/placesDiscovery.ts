@@ -1,4 +1,5 @@
 import { getPageSpeedScore, POOR_WEBSITE_THRESHOLD } from "./pagespeed.js";
+import { scrapeEmailFromWebsite } from "./emailScraper.js";
 
 // Shared by api/prospects-search.ts (interactive) and api/outreach-run.ts
 // (automated daily discovery) so the Google Places + PageSpeed logic only
@@ -38,6 +39,7 @@ export type DiscoveredPlace = {
   website: string | null;
   pageSpeedScore: number | null;
   isPoorWebsite: boolean;
+  email: string | null;
 };
 
 export async function discoverPlaces(category: string, location: string, apiKey: string): Promise<DiscoveredPlace[]> {
@@ -64,9 +66,14 @@ export async function discoverPlaces(category: string, location: string, apiKey:
       const website = d.website || null;
       let pageSpeedScore: number | null = null;
       let isPoorWebsite = false;
+      let email: string | null = null;
 
       if (website) {
-        pageSpeedScore = await getPageSpeedScore(website);
+        // Google Places never returns an email -- for a business that does
+        // have a website (i.e. a poor-website lead, not a no-website one),
+        // its homepage is the one place worth automatically checking for a
+        // contact email instead of always requiring a human to find one.
+        [pageSpeedScore, email] = await Promise.all([getPageSpeedScore(website), scrapeEmailFromWebsite(website)]);
         isPoorWebsite = pageSpeedScore !== null && pageSpeedScore < POOR_WEBSITE_THRESHOLD;
       }
 
@@ -80,6 +87,7 @@ export async function discoverPlaces(category: string, location: string, apiKey:
         website,
         pageSpeedScore,
         isPoorWebsite,
+        email,
       };
     })
   );
