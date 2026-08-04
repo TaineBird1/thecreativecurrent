@@ -1,14 +1,25 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireAdmin } from "./_lib/requireAdmin.js";
 import { getSupabaseAdmin } from "./_lib/supabaseAdmin.js";
-import { discoverPlaces } from "./_lib/placesDiscovery.js";
+import { discoverPlaces, isMiddleClassPriceLevel } from "./_lib/placesDiscovery.js";
 import { buildOutreachDraft } from "../src/lib/outreachTemplate.js";
 import { sendOutreachDigest } from "./_lib/email.js";
 import type { ProspectRunApiResponse } from "../src/lib/prospects.js";
 
-// Runs every saved search, adds any new leads (no-website or poor-website),
-// and auto-generates a draft for each new one. Never sends anything -- leads
-// land in "drafted" status, ready for the review page's explicit send step.
+// Runs every saved search and adds any new QUALIFIED lead: must have a
+// website with a scraped email on file (so a no-website lead, which by
+// definition has no email, never qualifies here -- a deliberate choice, not
+// an oversight) and Google's "Moderate" price tier as the closest available
+// proxy for "middle class". price_level is only populated for some
+// categories (restaurants, cafes, retail) -- service trades like
+// electricians/plumbers rarely have it at all, so this sharply cuts how
+// many categories produce anything here. Interactive manual search
+// (AdminOutreach.tsx) is intentionally NOT filtered this way -- a human
+// reviewing results directly has full context to add whatever they want;
+// this stricter bar only applies to what gets auto-generated without a
+// human looking at each result first. Auto-generates a draft for each new
+// lead. Never sends anything -- leads land in "drafted" status, ready for
+// the review page's explicit send step.
 async function runAllSearches() {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
@@ -34,7 +45,9 @@ async function runAllSearches() {
   for (const search of savedSearches as { category: string; location: string }[]) {
     try {
       const results = await discoverPlaces(search.category, search.location, apiKey);
-      const opportunities = results.filter((r) => !r.hasWebsite || r.isPoorWebsite);
+      const opportunities = results.filter(
+        (r) => r.isPoorWebsite && r.email !== null && isMiddleClassPriceLevel(r.priceLevel)
+      );
 
       for (const r of opportunities) {
         const { data: existing } = await supabase
@@ -44,8 +57,9 @@ async function runAllSearches() {
           .maybeSingle();
         if (existing) continue;
 
-        const reason = r.hasWebsite ? "poor_website" : "no_website";
-        const { subject, body } = buildOutreachDraft(r.businessName, search.category, reason);
+        // Always "poor_website" here -- the filter above requires a website
+        // (and therefore an email), so "no_website" can never be reached.
+        const { subject, body } = buildOutreachDraft(r.businessName, search.category, "poor_website");
 
         const { error: insertError } = await supabase.from("prospects").insert({
           business_name: r.businessName,
@@ -57,7 +71,7 @@ async function runAllSearches() {
           website: r.website,
           email: r.email,
           page_speed_score: r.pageSpeedScore,
-          reason,
+          reason: "poor_website",
           source: "places_api",
           status: "drafted",
           draft_subject: subject,

@@ -10,6 +10,17 @@ import type {
   SavedSearch,
 } from "../lib/prospects";
 
+// Google's price_level: 0 Free, 1 Inexpensive, 2 Moderate, 3 Expensive,
+// 4 Very Expensive -- 2 (Moderate) is what the automated daily run treats
+// as "middle class". Only populated for some categories (restaurants,
+// cafes, retail); most service trades never have it, hence "no price data".
+function priceLevelLabel(priceLevel: number | null): string {
+  if (priceLevel === null) return "no price data";
+  if (priceLevel === 0) return "Free";
+  const symbols = "$".repeat(priceLevel);
+  return priceLevel === 2 ? `${symbols} (Moderate)` : symbols;
+}
+
 export function AdminOutreach() {
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("Durban");
@@ -255,7 +266,7 @@ export function AdminOutreach() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-foreground">{r.businessName}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          PageSpeed score {r.pageSpeedScore} · {r.address}
+                          PageSpeed score {r.pageSpeedScore} · {priceLevelLabel(r.priceLevel)} · {r.address}
                         </p>
                         {r.email && (
                           <p className="mt-0.5 truncate text-xs text-primary">✓ Email found: {r.email}</p>

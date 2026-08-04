@@ -117,10 +117,14 @@ export async function sendOutreachEmail(
   if (!from) {
     throw new Error("OUTREACH_FROM_EMAIL is not set");
   }
+  // BCC'd so every send also lands in the admin's own Gmail inbox as a
+  // record of what actually went out, not just visible in email_log/Resend.
+  const bcc = process.env.LEADS_NOTIFICATION_EMAIL;
 
   const { error } = await resend.emails.send({
     from: `The Creative Current <${from}>`,
     to,
+    ...(bcc ? { bcc } : {}),
     subject,
     text: body,
     html: `${body.replace(/\n/g, "<br>")}<br><br><hr style="border:none;border-top:1px solid #ccc;margin:16px 0;">

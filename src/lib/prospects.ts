@@ -56,6 +56,7 @@ export type ProspectSearchResult = {
   pageSpeedScore: number | null;
   isPoorWebsite: boolean;
   email: string | null;
+  priceLevel: number | null;
 };
 
 export type ProspectSearchApiResponse =

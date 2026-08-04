@@ -26,6 +26,7 @@ type DetailsResponse = {
     formatted_address?: string;
     website?: string;
     url?: string;
+    price_level?: number;
   };
 };
 
@@ -40,7 +41,18 @@ export type DiscoveredPlace = {
   pageSpeedScore: number | null;
   isPoorWebsite: boolean;
   email: string | null;
+  priceLevel: number | null;
 };
+
+// Google's price_level enum: 0 Free, 1 Inexpensive, 2 Moderate, 3 Expensive,
+// 4 Very Expensive. Only populated for some categories (restaurants, cafes,
+// retail) -- most service trades (electricians, plumbers, etc.) don't have
+// it at all, so this filter will exclude those categories almost entirely.
+export const MIDDLE_CLASS_PRICE_LEVEL = 2;
+
+export function isMiddleClassPriceLevel(priceLevel: number | null): boolean {
+  return priceLevel === MIDDLE_CLASS_PRICE_LEVEL;
+}
 
 export async function discoverPlaces(category: string, location: string, apiKey: string): Promise<DiscoveredPlace[]> {
   const query = `${category} in ${location}`;
@@ -57,7 +69,7 @@ export async function discoverPlaces(category: string, location: string, apiKey:
 
   return Promise.all(
     results.map(async (place) => {
-      const fields = "name,formatted_phone_number,formatted_address,website,url,place_id";
+      const fields = "name,formatted_phone_number,formatted_address,website,url,place_id,price_level";
       const detailsUrl = `${DETAILS_URL}?place_id=${place.place_id}&fields=${fields}&key=${apiKey}`;
       const detailsRes = await fetch(detailsUrl);
       const detailsData = (await detailsRes.json()) as DetailsResponse;
@@ -88,6 +100,7 @@ export async function discoverPlaces(category: string, location: string, apiKey:
         pageSpeedScore,
         isPoorWebsite,
         email,
+        priceLevel: typeof d.price_level === "number" ? d.price_level : null,
       };
     })
   );
