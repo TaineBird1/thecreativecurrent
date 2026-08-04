@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useLeadSubmit } from "../../../hooks/useLeadSubmit";
 import { SubmissionSuccessConfirmation } from "./SubmissionSuccessConfirmation";
+import { InquiryCalendar, formatDateValue, parseDateValue } from "./InquiryCalendar";
 import type { LeadSource } from "../../../lib/leads";
 
 const steps = ["Service", "Schedule", "Details", "Confirm"];
@@ -262,18 +263,27 @@ export function Inquiry({ source = "contact" }: { source?: LeadSource }) {
                 <p className="mb-10 text-muted-foreground">
                   Give us a rough target date — this just helps us plan, it's not a hard deadline.
                 </p>
-                <div className="grid gap-2">
-                  <label htmlFor="c-date" className="font-sans text-sm text-muted-foreground">
-                    Target start date
-                  </label>
-                  <input
-                    id="c-date"
-                    name="preferred_date"
-                    type="date"
-                    value={form.preferred_date}
-                    onChange={handleChange}
-                    className="h-12 rounded-lg border border-border bg-card px-4 text-foreground outline-none focus:border-primary"
-                  />
+                <div className="grid gap-3">
+                  <p className="font-sans text-sm text-muted-foreground">Target start date (optional)</p>
+                  <div className="inline-block rounded-lg border border-border bg-card p-4">
+                    <InquiryCalendar
+                      selected={parseDateValue(form.preferred_date)}
+                      onSelect={(date) =>
+                        setForm((prev) => ({ ...prev, preferred_date: date ? formatDateValue(date) : "" }))
+                      }
+                    />
+                  </div>
+                  {form.preferred_date && (
+                    <p className="text-sm text-foreground">
+                      Selected:{" "}
+                      {parseDateValue(form.preferred_date)?.toLocaleDateString(undefined, {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
