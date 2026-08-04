@@ -3,6 +3,7 @@ import { requireAdmin } from "./_lib/requireAdmin.js";
 import { getSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { discoverPlaces } from "./_lib/placesDiscovery.js";
 import { buildOutreachDraft } from "../src/lib/outreachTemplate.js";
+import { sendOutreachDigest } from "./_lib/email.js";
 import type { ProspectRunApiResponse } from "../src/lib/prospects.js";
 
 // Runs every saved search, adds any new leads (no-website or poor-website),
@@ -23,11 +24,12 @@ async function runAllSearches() {
     return { ok: false as const, error: searchesError.message };
   }
   if (!savedSearches || savedSearches.length === 0) {
-    return { ok: true as const, created: 0, searchesRun: 0, errors: [] };
+    return { ok: true as const, created: 0, searchesRun: 0, errors: [], newLeads: [] };
   }
 
   let created = 0;
   const errors: string[] = [];
+  const newLeads: { businessName: string; category: string }[] = [];
 
   for (const search of savedSearches as { category: string; location: string }[]) {
     try {
@@ -67,13 +69,14 @@ async function runAllSearches() {
           continue;
         }
         created++;
+        newLeads.push({ businessName: r.businessName, category: search.category });
       }
     } catch (e) {
       errors.push(`${search.category} in ${search.location}: ${e instanceof Error ? e.message : "failed"}`);
     }
   }
 
-  return { ok: true as const, created, searchesRun: savedSearches.length, errors };
+  return { ok: true as const, created, searchesRun: savedSearches.length, errors, newLeads };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -87,12 +90,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     const result = await runAllSearches();
+    if (result.ok && result.newLeads.length > 0) {
+      // Best-effort: a failed digest email must never fail the cron run
+      // itself -- the leads are already safely in the database either way.
+      try {
+        await sendOutreachDigest(result.newLeads);
+      } catch (e) {
+        console.error("Failed to send outreach digest email:", e);
+      }
+    }
     res.status(result.ok ? 200 : 500).json(result satisfies ProspectRunApiResponse);
     return;
   }
 
   // POST -- used by the "Run all saved searches now" button, gated by an
-  // admin session instead of the cron secret.
+  // admin session instead of the cron secret. Doesn't send the digest --
+  // whoever clicked it is already looking at the result on screen.
   if (req.method === "POST") {
     const auth = await requireAdmin(req);
     if (!auth.authorized) {

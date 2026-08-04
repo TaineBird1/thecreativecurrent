@@ -67,7 +67,7 @@ export type ProspectSendApiResponse =
   | { ok: false; error: string };
 
 export type ProspectRunApiResponse =
-  | { ok: true; created: number; searchesRun: number; errors: string[] }
+  | { ok: true; created: number; searchesRun: number; errors: string[]; newLeads: { businessName: string; category: string }[] }
   | { ok: false; error: string };
 
 export type ProspectBulkSendApiResponse =

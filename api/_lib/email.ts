@@ -55,7 +55,7 @@ function buildBody(lead: LeadPayload, id?: number) {
 async function logEmail(params: {
   recipient: string;
   subject: string;
-  type: "outreach" | "lead_notification";
+  type: "outreach" | "lead_notification" | "other";
   status: "sent" | "failed";
   error?: string;
   prospectId?: number;
@@ -132,4 +132,40 @@ export async function sendOutreachEmail(
     throw new Error(error.message);
   }
   await logEmail({ recipient: to, subject, type: "outreach", status: "sent", prospectId: opts.prospectId });
+}
+
+// Sent once per daily cron run, only when it actually finds something --
+// so checking /admin/outreach/review can be a "when I get the email"
+// habit instead of a daily manual check. Only the cron path sends this;
+// the "Run all saved searches now" button doesn't, since whoever clicked
+// it is already looking at the result on screen.
+export async function sendOutreachDigest(newLeads: { businessName: string; category: string }[]) {
+  const resend = getResend();
+  const from = process.env.LEADS_FROM_EMAIL;
+  const to = process.env.LEADS_NOTIFICATION_EMAIL;
+  if (!from || !to) {
+    throw new Error("LEADS_FROM_EMAIL or LEADS_NOTIFICATION_EMAIL is not set");
+  }
+
+  const subject = `${newLeads.length} new outreach lead${newLeads.length === 1 ? "" : "s"} found today`;
+  const lines = newLeads.map((l) => `- ${l.businessName} (${l.category})`);
+  const body = [
+    `Today's outreach run found ${newLeads.length} new lead${newLeads.length === 1 ? "" : "s"}:`,
+    "",
+    ...lines,
+    "",
+    "Review and send: https://www.thecreativecurrent.co.za/admin/outreach/review",
+  ].join("\n");
+
+  const { error } = await resend.emails.send({
+    from: `The Creative Current <${from}>`,
+    to,
+    subject,
+    text: body,
+  });
+  if (error) {
+    await logEmail({ recipient: to, subject, type: "other", status: "failed", error: error.message });
+    throw new Error(error.message);
+  }
+  await logEmail({ recipient: to, subject, type: "other", status: "sent" });
 }
