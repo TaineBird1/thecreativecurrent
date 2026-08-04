@@ -40,7 +40,6 @@ const tiers = [
       "Bespoke web architecture",
       "Unlimited page templates",
       "Content management",
-      "E-commerce functionality",
       "Enterprise security suite",
       "Ongoing strategic growth",
       "24/7 priority assistance",
