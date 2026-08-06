@@ -96,7 +96,7 @@ export function AdminOutreach() {
       website: r.website,
       email: r.email,
       page_speed_score: r.pageSpeedScore,
-      reason: r.isPoorWebsite ? "poor_website" : "no_website",
+      reason: "poor_website",
       source: "places_api",
     });
     if (!error) {
@@ -118,8 +118,14 @@ export function AdminOutreach() {
     loadSavedSearches();
   }
 
+  // Targeting policy (whole system, not just automated generation): only
+  // businesses with an existing-but-poor website AND a found email are
+  // real leads here. No-website results are shown for transparency but
+  // never addable; poor-website-with-no-email likewise -- consistent with
+  // what api/outreach-run.ts already enforces for automated generation.
+  const needsUpdateResults = (results ?? []).filter((r) => r.hasWebsite && r.isPoorWebsite && r.email);
+  const needsUpdateNoEmailResults = (results ?? []).filter((r) => r.hasWebsite && r.isPoorWebsite && !r.email);
   const noWebsiteResults = (results ?? []).filter((r) => !r.hasWebsite);
-  const poorWebsiteResults = (results ?? []).filter((r) => r.hasWebsite && r.isPoorWebsite);
   const goodWebsiteResults = (results ?? []).filter((r) => r.hasWebsite && !r.isPoorWebsite);
   const alreadySaved = savedSearches.some((s) => s.category === category && s.location === location);
 
@@ -129,8 +135,8 @@ export function AdminOutreach() {
         <div>
           <h1 className="font-sans text-2xl font-bold">Outreach</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Find local businesses without a website (or with a poor one), draft a personalized email, and review it
-            before anything sends.
+            Find local businesses whose website needs updating and have a contactable email on file, draft a
+            personalized email, and review it before anything sends.
           </p>
         </div>
         <Link
@@ -219,15 +225,15 @@ export function AdminOutreach() {
           <div className="space-y-6 border-t border-border p-6">
             <div>
               <h3 className="mb-3 font-sans text-sm font-semibold">
-                No website found ({noWebsiteResults.length}) — best leads
+                Websites that need updating ({needsUpdateResults.length})
               </h3>
-              {noWebsiteResults.length === 0 ? (
+              {needsUpdateResults.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   None in this batch — try a different area or category.
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {noWebsiteResults.map((r) => (
+                  {needsUpdateResults.map((r) => (
                     <div
                       key={r.placeId}
                       className="flex items-center justify-between gap-3 rounded-lg border border-border bg-black px-4 py-3"
@@ -235,8 +241,9 @@ export function AdminOutreach() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-foreground">{r.businessName}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {r.address} {r.phone ? `· ${r.phone}` : ""}
+                          PageSpeed score {r.pageSpeedScore} · {priceLevelLabel(r.priceLevel)} · {r.address}
                         </p>
+                        <p className="mt-0.5 truncate text-xs text-primary">✓ Email found: {r.email}</p>
                       </div>
                       <button
                         type="button"
@@ -252,38 +259,34 @@ export function AdminOutreach() {
               )}
             </div>
 
-            {poorWebsiteResults.length > 0 && (
-              <div>
-                <h3 className="mb-3 font-sans text-sm font-semibold">
-                  Poor website ({poorWebsiteResults.length}) — also worth a look
-                </h3>
-                <div className="space-y-2">
-                  {poorWebsiteResults.map((r) => (
-                    <div
-                      key={r.placeId}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border bg-black px-4 py-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-foreground">{r.businessName}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          PageSpeed score {r.pageSpeedScore} · {priceLevelLabel(r.priceLevel)} · {r.address}
-                        </p>
-                        {r.email && (
-                          <p className="mt-0.5 truncate text-xs text-primary">✓ Email found: {r.email}</p>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => addProspect(r)}
-                        disabled={addedIds.has(r.placeId)}
-                        className="shrink-0 rounded-lg border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
-                      >
-                        {addedIds.has(r.placeId) ? "Added" : "Add as lead"}
-                      </button>
-                    </div>
+            {needsUpdateNoEmailResults.length > 0 && (
+              <details className="text-sm text-muted-foreground">
+                <summary className="cursor-pointer">
+                  {needsUpdateNoEmailResults.length} more have a website that needs updating, but no email was found
+                  (not shown as leads — no way to contact them yet)
+                </summary>
+                <ul className="mt-2 space-y-1 pl-4">
+                  {needsUpdateNoEmailResults.map((r) => (
+                    <li key={r.placeId}>
+                      {r.businessName} — PageSpeed score {r.pageSpeedScore}
+                    </li>
                   ))}
-                </div>
-              </div>
+                </ul>
+              </details>
+            )}
+
+            {noWebsiteResults.length > 0 && (
+              <details className="text-sm text-muted-foreground">
+                <summary className="cursor-pointer">
+                  {noWebsiteResults.length} result{noWebsiteResults.length === 1 ? "" : "s"} have no website at all
+                  (not targeted — no site to update, no email to find)
+                </summary>
+                <ul className="mt-2 space-y-1 pl-4">
+                  {noWebsiteResults.map((r) => (
+                    <li key={r.placeId}>{r.businessName}</li>
+                  ))}
+                </ul>
+              </details>
             )}
 
             {goodWebsiteResults.length > 0 && (
