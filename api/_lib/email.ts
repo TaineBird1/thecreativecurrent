@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import nodemailer, { type Transporter } from "nodemailer";
 import { getSupabaseAdmin } from "./supabaseAdmin.js";
 import type { LeadPayload } from "../../src/lib/leads.js";
 
@@ -13,6 +14,24 @@ export function getResend() {
     client = new Resend(apiKey);
   }
   return client;
+}
+
+let gmailTransport: Transporter | null = null;
+
+// Cold outreach sends via the admin's actual Gmail account (not Resend) so
+// recipients see a real personal address as the sender and replies land
+// directly in that inbox -- Gmail also auto-saves a copy to Sent, so no
+// separate BCC-to-self is needed here the way the other email paths do it.
+function getGmailTransport() {
+  if (!gmailTransport) {
+    const user = process.env.GMAIL_USER;
+    const pass = process.env.GMAIL_APP_PASSWORD;
+    if (!user || !pass) {
+      throw new Error("GMAIL_USER or GMAIL_APP_PASSWORD is not set");
+    }
+    gmailTransport = nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
+  }
+  return gmailTransport;
 }
 
 const sourceLabels: Record<LeadPayload["source"], string> = {
@@ -105,35 +124,35 @@ export async function sendLeadNotification(lead: LeadPayload, id?: number) {
 
 // Cold outreach: nothing calls this until a human has explicitly approved
 // the exact draft being sent (see api/prospects-send.ts). Includes an
-// opt-out line per POPIA's direct-marketing provisions.
+// opt-out line per POPIA's direct-marketing provisions. Sent via the
+// admin's real Gmail account (not Resend) so the From address recipients
+// see is a genuine personal inbox, and replies land there directly.
 export async function sendOutreachEmail(
   to: string,
   subject: string,
   body: string,
   opts: { prospectId?: number } = {}
 ) {
-  const resend = getResend();
-  const from = process.env.OUTREACH_FROM_EMAIL;
-  if (!from) {
-    throw new Error("OUTREACH_FROM_EMAIL is not set");
-  }
-  // BCC'd so every send also lands in the admin's own Gmail inbox as a
-  // record of what actually went out, not just visible in email_log/Resend.
-  const bcc = process.env.LEADS_NOTIFICATION_EMAIL;
+  const transport = getGmailTransport();
+  const user = process.env.GMAIL_USER as string;
+  const displayName = process.env.OUTREACH_FROM_NAME || "The Creative Current";
 
-  const { error } = await resend.emails.send({
-    from: `The Creative Current <${from}>`,
-    to,
-    ...(bcc ? { bcc } : {}),
-    subject,
-    text: body,
-    html: `${body.replace(/\n/g, "<br>")}<br><br><hr style="border:none;border-top:1px solid #ccc;margin:16px 0;">
-      <p style="font-size:12px;color:#888;">The Creative Current, Durban, KZN, South Africa.
-      If you'd rather not hear from us again, just reply and let us know.</p>`,
-  });
-  if (error) {
-    await logEmail({ recipient: to, subject, type: "outreach", status: "failed", error: error.message, prospectId: opts.prospectId });
-    throw new Error(error.message);
+  try {
+    // nodemailer rejects on a failed send (unlike Resend's { error } shape),
+    // so the try/catch itself is the failure check here.
+    await transport.sendMail({
+      from: `${displayName} <${user}>`,
+      to,
+      subject,
+      text: body,
+      html: `${body.replace(/\n/g, "<br>")}<br><br><hr style="border:none;border-top:1px solid #ccc;margin:16px 0;">
+        <p style="font-size:12px;color:#888;">The Creative Current, Durban, KZN, South Africa.
+        If you'd rather not hear from us again, just reply and let us know.</p>`,
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "send failed";
+    await logEmail({ recipient: to, subject, type: "outreach", status: "failed", error: message, prospectId: opts.prospectId });
+    throw new Error(message);
   }
   await logEmail({ recipient: to, subject, type: "outreach", status: "sent", prospectId: opts.prospectId });
 }
