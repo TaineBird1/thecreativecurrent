@@ -49,6 +49,33 @@ https://thecreativecurrent.co.za`;
 }
 
 /**
+ * A phone opener, which is a different job from an email.
+ *
+ * On email you are competing for attention in a list. On a call you have
+ * interrupted someone mid-work, so the first job is to justify the
+ * interruption in one sentence and hand the conversation straight back. Hence
+ * the shape: say who you are, say the one concrete thing you noticed, ask a
+ * question, stop talking.
+ *
+ * Returned in parts rather than as a paragraph so the UI can show it as
+ * prompts to glance at, not a monologue to recite -- a script read aloud
+ * verbatim is worse than no script.
+ */
+export function buildCallScript(businessName: string, category?: string | null, defect?: string | null) {
+  const trade = category?.trim().toLowerCase().replace(/s$/, "") || "business";
+
+  return {
+    opener: `Hi, is this ${businessName}? My name's — I run a small web design studio here in Durban. I'm not selling anything on this call, I promise.`,
+    point: defect
+      ? `The reason I'm phoning: I came across your listing and had a look at your website — ${defect}.`
+      : `The reason I'm phoning: I came across your listing and noticed you don't have a website, which for a ${trade} means people searching nearby are finding your competitors instead.`,
+    ask: `Did you know about that? / Is that something you've been meaning to sort out?`,
+    close: `If it's useful I can email you a couple of specific ideas — what's the best address for that?`,
+    ifNo: `No problem at all — thanks for your time, I won't call again.`,
+  };
+}
+
+/**
  * The one permitted second touch. Deliberately shorter than the first email
  * and built around the specific fault rather than repeating the pitch -- the
  * first message already made the offer, so restating it adds nothing and

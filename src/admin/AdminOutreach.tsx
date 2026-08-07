@@ -140,6 +140,12 @@ export function AdminOutreach() {
           </p>
         </div>
         <Link
+          to="/admin/outreach/calls"
+          className="shrink-0 rounded-lg border border-primary/40 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+        >
+          Call List
+        </Link>
+        <Link
           to="/admin/outreach/review"
           className="shrink-0 rounded-lg border border-primary/40 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
         >

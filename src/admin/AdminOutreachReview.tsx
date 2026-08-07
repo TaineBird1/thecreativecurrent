@@ -173,9 +173,14 @@ export function AdminOutreachReview() {
           <Link to="/admin/outreach" className="text-xs text-primary hover:underline">
             ← Back to Outreach
           </Link>
-          <Link to="/admin/outreach/stats" className="text-xs text-primary hover:underline">
-            Results &amp; reply rates →
-          </Link>
+          <div className="flex gap-4">
+            <Link to="/admin/outreach/calls" className="text-xs text-primary hover:underline">
+              Call list →
+            </Link>
+            <Link to="/admin/outreach/stats" className="text-xs text-primary hover:underline">
+              Results &amp; reply rates →
+            </Link>
+          </div>
         </div>
         <h1 className="mt-2 font-sans text-2xl font-bold">Daily Review</h1>
         <p className="mt-1 text-sm text-muted-foreground">

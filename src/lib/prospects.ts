@@ -1,8 +1,23 @@
 export const prospectSources = ["places_api", "manual"] as const;
 export type ProspectSource = (typeof prospectSources)[number];
 
-export const prospectStatuses = ["new", "drafted", "approved", "sent", "replied", "won", "lost"] as const;
+export const prospectStatuses = [
+  "new",
+  "drafted",
+  "approved",
+  "sent",
+  "replied",
+  "won",
+  "lost",
+  // Call-first states. Neither is an outcome -- both mean "tried, try again".
+  // "Not interested" reuses 'lost' rather than adding a synonym for it.
+  "no_answer",
+  "callback",
+] as const;
 export type ProspectStatus = (typeof prospectStatuses)[number];
+
+/** Statuses that put a lead in the calling queue rather than the email flow. */
+export const callQueueStatuses: ProspectStatus[] = ["new", "no_answer", "callback"];
 
 export const prospectReasons = ["no_website", "poor_website"] as const;
 export type ProspectReason = (typeof prospectReasons)[number];
@@ -45,6 +60,8 @@ export const prospectStatusTone: Record<ProspectStatus, "neutral" | "primary" | 
   replied: "success",
   won: "success",
   lost: "neutral",
+  no_answer: "neutral",
+  callback: "warning",
 };
 
 export type Prospect = {
@@ -70,6 +87,9 @@ export type Prospect = {
   email_defect: string | null;
   /** Set once a follow-up has gone out. Non-null means no further contact. */
   followed_up_at: string | null;
+  call_notes: string | null;
+  last_called_at: string | null;
+  call_attempts: number;
 };
 
 /**

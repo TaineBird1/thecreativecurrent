@@ -191,6 +191,22 @@ ALTER TABLE prospects ADD COLUMN IF NOT EXISTS email_defect TEXT;
 -- non-responding recipient is itself another unsolicited marketing message,
 -- so the cap is deliberate rather than a matter of taste.
 ALTER TABLE prospects ADD COLUMN IF NOT EXISTS followed_up_at TIMESTAMPTZ;
+
+-- Call-first leads. Google Places returns a phone for almost every business
+-- but never an email, so the strongest prospects -- a lapsed domain has no
+-- page left to scrape an address from -- can only be reached by calling.
+-- These three columns are the whole of that workflow's state.
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS call_notes TEXT;
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS last_called_at TIMESTAMPTZ;
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS call_attempts INTEGER NOT NULL DEFAULT 0;
+
+-- 'no_answer' and 'callback' are the two states a call can leave a lead in
+-- that are not an outcome. "Not interested" deliberately reuses the existing
+-- 'lost' rather than adding a synonym, and a lead that turns into a real
+-- conversation goes to 'won' like any other.
+ALTER TABLE prospects DROP CONSTRAINT IF EXISTS prospects_status_check;
+ALTER TABLE prospects ADD CONSTRAINT prospects_status_check
+  CHECK (status IN ('new','drafted','approved','sent','replied','won','lost','no_answer','callback'));
 ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT 'no_website';
 ALTER TABLE prospects DROP CONSTRAINT IF EXISTS prospects_reason_check;
 ALTER TABLE prospects ADD CONSTRAINT prospects_reason_check CHECK (reason IN ('no_website','poor_website'));
