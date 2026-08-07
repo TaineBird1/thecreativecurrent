@@ -47,3 +47,45 @@ https://thecreativecurrent.co.za`;
 
   return { subject, body };
 }
+
+/**
+ * The one permitted second touch. Deliberately shorter than the first email
+ * and built around the specific fault rather than repeating the pitch -- the
+ * first message already made the offer, so restating it adds nothing and
+ * reads as pestering.
+ *
+ * This exists partly to recover a real gap: the first batch of outreach went
+ * out on the generic template, before drafts could name the defect. Those
+ * recipients were told their site "could be working harder"; the follow-up can
+ * tell them exactly what is wrong with it, which is a better email than the
+ * one they got.
+ *
+ * Explicitly signs off as the last contact. That is both the decent thing and
+ * the POPIA-safe one: a recipient who does not reply is told, in the message
+ * itself, that nothing further is coming.
+ */
+export function buildFollowUpDraft(businessName: string, category?: string | null, defect?: string | null) {
+  const subject = `Following up — ${businessName}`;
+
+  const specifics = defect
+    ? `To be specific about what I noticed: ${defect}.`
+    : `The short version: your website isn't doing as much for you as it could, and for a ${
+        category ? category.toLowerCase() : "business"
+      } that mostly gets found online, that's worth a look.`;
+
+  const body = `Hi there,
+
+I sent a note last week about ${businessName}'s website and didn't hear back — no problem at all, I know how it goes.
+
+${specifics}
+
+If it's useful, I'm happy to do a short walkthrough of what I'd change, at no cost and with no obligation. If not, I won't follow up again.
+
+Best,
+The Creative Current
+${siteInfo.email}
+${siteInfo.phone}
+https://thecreativecurrent.co.za`;
+
+  return { subject, body };
+}

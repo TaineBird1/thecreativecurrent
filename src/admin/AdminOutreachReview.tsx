@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import type { Prospect, ProspectBulkSendApiResponse, ProspectRunApiResponse } from "../lib/prospects";
+import {
+  FOLLOW_UP_AFTER_DAYS,
+  type Prospect,
+  type ProspectBulkSendApiResponse,
+  type ProspectRunApiResponse,
+} from "../lib/prospects";
 
 export function AdminOutreachReview() {
   const [drafted, setDrafted] = useState<Prospect[]>([]);
@@ -14,6 +19,13 @@ export function AdminOutreachReview() {
 
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<{ sent: number[]; skipped: { id: number; reason: string }[] } | null>(
+    null
+  );
+
+  const [followUps, setFollowUps] = useState<Prospect[]>([]);
+  const [followUpSelected, setFollowUpSelected] = useState<Set<number>>(new Set());
+  const [followingUp, setFollowingUp] = useState(false);
+  const [followUpResult, setFollowUpResult] = useState<{ sent: number[]; skipped: { id: number; reason: string }[] } | null>(
     null
   );
 
@@ -33,8 +45,30 @@ export function AdminOutreachReview() {
     setLoading(false);
   }
 
+  // Mirrors the guards in api/prospects-followup-send.ts exactly. The endpoint
+  // re-checks all of them; this is only so the list shows what will actually
+  // go, rather than offering rows the API would then refuse.
+  async function loadFollowUps() {
+    const cutoff = new Date(Date.now() - FOLLOW_UP_AFTER_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabase
+      .from("prospects")
+      .select("*")
+      .eq("status", "sent")
+      .is("followed_up_at", null)
+      .not("email", "is", null)
+      .lt("sent_at", cutoff)
+      .order("sent_at", { ascending: true });
+    const rows = (data as Prospect[]) ?? [];
+    setFollowUps(rows);
+    // Deliberately NOT pre-selected, unlike the first-contact list. A follow-up
+    // is a second unsolicited email to someone who has already ignored one, so
+    // it should take a decision to include rather than a decision to remove.
+    setFollowUpSelected(new Set());
+  }
+
   useEffect(() => {
     loadDrafted();
+    loadFollowUps();
   }, []);
 
   async function authHeader() {
@@ -99,12 +133,50 @@ export function AdminOutreachReview() {
     }
   }
 
+  function toggleFollowUp(id: number) {
+    setFollowUpSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function sendFollowUps() {
+    setFollowingUp(true);
+    setFollowUpResult(null);
+    try {
+      const res = await fetch("/api/prospects-followup-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: await authHeader() },
+        body: JSON.stringify({ ids: Array.from(followUpSelected) }),
+      });
+      const data: ProspectBulkSendApiResponse = await res.json();
+      if (data.ok) setFollowUpResult({ sent: data.sent, skipped: data.skipped });
+      await loadFollowUps();
+    } catch {
+      setFollowUpResult({ sent: [], skipped: [] });
+    } finally {
+      setFollowingUp(false);
+    }
+  }
+
+  function daysSince(iso: string | null) {
+    if (!iso) return "?";
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  }
+
   return (
     <div className="space-y-10">
       <div>
-        <Link to="/admin/outreach" className="text-xs text-primary hover:underline">
-          ← Back to Outreach
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link to="/admin/outreach" className="text-xs text-primary hover:underline">
+            ← Back to Outreach
+          </Link>
+          <Link to="/admin/outreach/stats" className="text-xs text-primary hover:underline">
+            Results &amp; reply rates →
+          </Link>
+        </div>
         <h1 className="mt-2 font-sans text-2xl font-bold">Daily Review</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Run your saved searches, skim what got drafted, uncheck anything you don't like, send the rest. Nothing
@@ -206,6 +278,80 @@ export function AdminOutreachReview() {
                       <p className="mt-1 font-medium text-foreground">{p.draft_subject}</p>
                       <p className="mt-1 whitespace-pre-wrap">{p.draft_body}</p>
                     </details>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="font-sans text-sm font-semibold">
+            Follow-ups available ({followUps.length}) — {followUpSelected.size} selected
+          </h2>
+          <button
+            type="button"
+            onClick={sendFollowUps}
+            disabled={followingUp || followUpSelected.size === 0}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition-opacity disabled:opacity-50"
+          >
+            {followingUp ? "Sending..." : `Send ${followUpSelected.size} follow-up${followUpSelected.size === 1 ? "" : "s"}`}
+          </button>
+        </div>
+
+        <p className="mb-3 text-xs text-muted-foreground">
+          Emailed more than {FOLLOW_UP_AFTER_DAYS} days ago and never replied. These are{" "}
+          <strong className="text-foreground">not pre-selected</strong> — a follow-up is a second unsolicited email to
+          someone who already ignored one, so tick only the ones worth it. Each business can be followed up{" "}
+          <strong className="text-foreground">once</strong>, and the message says so.
+        </p>
+
+        {followUpResult && (
+          <div className="mb-4 rounded-lg border border-border bg-card p-3 text-sm">
+            <p className="text-green-500">Sent: {followUpResult.sent.length}</p>
+            {followUpResult.skipped.length > 0 && (
+              <ul className="mt-1 ml-4 list-disc text-muted-foreground">
+                {followUpResult.skipped.map((s) => (
+                  <li key={s.id}>
+                    {followUps.find((f) => f.id === s.id)?.business_name || s.id} — {s.reason}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {followUps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nothing due — anyone emailed in the last {FOLLOW_UP_AFTER_DAYS} days will appear here once that window
+              passes.
+            </p>
+          ) : (
+            followUps.map((p) => (
+              <div key={p.id} className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={followUpSelected.has(p.id)}
+                    onChange={() => toggleFollowUp(p.id)}
+                    className="mt-1.5 h-4 w-4"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{p.business_name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {p.email} · emailed {daysSince(p.sent_at)} days ago
+                      {p.category ? ` · ${p.category}` : ""}
+                    </p>
+                    {p.email_defect ? (
+                      <p className="mt-1 text-xs text-primary">Will lead with: {p.email_defect}</p>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        No specific defect on file — falls back to the generic wording.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

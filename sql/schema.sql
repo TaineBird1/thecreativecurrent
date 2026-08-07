@@ -185,6 +185,12 @@ ALTER TABLE prospects ADD COLUMN IF NOT EXISTS page_speed_score INTEGER;
 -- written once at discovery time, but the button that rewrites it runs much
 -- later, with no access to the original site check.
 ALTER TABLE prospects ADD COLUMN IF NOT EXISTS email_defect TEXT;
+-- Set when a single follow-up has been sent. Its presence is the guard that
+-- stops a second one: cold outreach that did not get a reply earns one more
+-- attempt, not an indefinite sequence. Under POPIA a follow-up to a
+-- non-responding recipient is itself another unsolicited marketing message,
+-- so the cap is deliberate rather than a matter of taste.
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS followed_up_at TIMESTAMPTZ;
 ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT 'no_website';
 ALTER TABLE prospects DROP CONSTRAINT IF EXISTS prospects_reason_check;
 ALTER TABLE prospects ADD CONSTRAINT prospects_reason_check CHECK (reason IN ('no_website','poor_website'));

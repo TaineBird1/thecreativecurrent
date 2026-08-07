@@ -68,7 +68,17 @@ export type Prospect = {
   reason: ProspectReason;
   /** Recipient-facing phrasing of the fault found on their site, if any. */
   email_defect: string | null;
+  /** Set once a follow-up has gone out. Non-null means no further contact. */
+  followed_up_at: string | null;
 };
+
+/**
+ * How long to wait after the first email before a follow-up is offered.
+ * Shared so the review page and the send endpoint can never disagree about
+ * who is eligible -- the UI listing someone the API then refuses would look
+ * like a bug and invite retrying.
+ */
+export const FOLLOW_UP_AFTER_DAYS = 7;
 
 export type SavedSearch = {
   id: number;
