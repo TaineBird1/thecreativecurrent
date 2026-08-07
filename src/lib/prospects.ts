@@ -7,6 +7,36 @@ export type ProspectStatus = (typeof prospectStatuses)[number];
 export const prospectReasons = ["no_website", "poor_website"] as const;
 export type ProspectReason = (typeof prospectReasons)[number];
 
+// Deterministic outcome of the site check in api/_lib/websiteHealth.ts.
+// Declared here rather than there because api/*.ts already imports from
+// src/lib/*, and this union is shared by the API handlers and the admin UI.
+// Anything other than "live" means the site is broken rather than merely
+// dated -- a concrete, verifiable defect to open an outreach email with.
+export const websiteHealthStates = [
+  "live",
+  "dns_failure",
+  "connection_refused",
+  "tls_error",
+  "http_error",
+  "parked",
+  "builder_subdomain",
+  "timeout",
+] as const;
+export type WebsiteHealth = (typeof websiteHealthStates)[number];
+
+// Short labels for the admin UI, so a result reads as a defect rather than
+// an error code.
+export const websiteHealthLabel: Record<WebsiteHealth, string> = {
+  live: "Live",
+  dns_failure: "Domain dead",
+  connection_refused: "Server not responding",
+  tls_error: "HTTPS broken",
+  http_error: "Returns an error",
+  parked: "Placeholder page",
+  builder_subdomain: "No own domain",
+  timeout: "Times out",
+};
+
 export const prospectStatusTone: Record<ProspectStatus, "neutral" | "primary" | "success" | "warning"> = {
   new: "neutral",
   drafted: "warning",
@@ -57,6 +87,8 @@ export type ProspectSearchResult = {
   isPoorWebsite: boolean;
   email: string | null;
   priceLevel: number | null;
+  websiteHealth: WebsiteHealth | null;
+  websiteHealthDetail: string | null;
 };
 
 export type ProspectSearchApiResponse =

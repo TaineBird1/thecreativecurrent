@@ -76,6 +76,12 @@ async function runAllSearches() {
           status: "drafted",
           draft_subject: subject,
           draft_body: body,
+          // The concrete, verifiable defect that made this a lead ("domain
+          // does not resolve", "no mobile viewport meta tag", ...). Worth
+          // storing because it is the strongest opening line available: the
+          // owner can confirm it themselves in seconds, unlike a subjective
+          // "your site looks dated".
+          notes: r.websiteHealthDetail,
         });
 
         if (insertError) {

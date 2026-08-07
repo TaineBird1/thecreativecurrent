@@ -1,5 +1,6 @@
 import { getPageSpeedScore, POOR_WEBSITE_THRESHOLD } from "./pagespeed.js";
 import { scrapeEmailFromWebsite } from "./emailScraper.js";
+import { getWebsiteHealth, isWeakWebsite, type WebsiteHealth } from "./websiteHealth.js";
 
 // Shared by api/prospects-search.ts (interactive) and api/outreach-run.ts
 // (automated daily discovery) so the Google Places + PageSpeed logic only
@@ -42,6 +43,10 @@ export type DiscoveredPlace = {
   isPoorWebsite: boolean;
   email: string | null;
   priceLevel: number | null;
+  /** null when the business has no website at all -- nothing to check. */
+  websiteHealth: WebsiteHealth | null;
+  /** Plain-English reason the site failed, for the prospect's notes. */
+  websiteHealthDetail: string | null;
 };
 
 // Google's price_level enum: 0 Free, 1 Inexpensive, 2 Moderate, 3 Expensive,
@@ -84,14 +89,33 @@ export async function discoverPlaces(category: string, location: string, apiKey:
       let pageSpeedScore: number | null = null;
       let isPoorWebsite = false;
       let email: string | null = null;
+      let websiteHealth: WebsiteHealth | null = null;
+      let websiteHealthDetail: string | null = null;
 
       if (website) {
         // Google Places never returns an email -- for a business that does
         // have a website (i.e. a poor-website lead, not a no-website one),
         // its homepage is the one place worth automatically checking for a
         // contact email instead of always requiring a human to find one.
-        [pageSpeedScore, email] = await Promise.all([getPageSpeedScore(website), scrapeEmailFromWebsite(website)]);
-        isPoorWebsite = pageSpeedScore !== null && pageSpeedScore < POOR_WEBSITE_THRESHOLD;
+        //
+        // The health check runs alongside PageSpeed rather than replacing it:
+        // PageSpeed still catches the genuinely slow-but-working sites, while
+        // getWebsiteHealth catches everything PageSpeed structurally cannot
+        // score -- dead domains, 5xx, TLS failures, parked pages, free
+        // builder subdomains -- plus the missing-viewport case, where a site
+        // loads fast enough to pass PageSpeed while being unusable on a
+        // phone. See websiteHealth.ts for why the score alone was wrong in
+        // both directions.
+        const [score, scrapedEmail, health] = await Promise.all([
+          getPageSpeedScore(website),
+          scrapeEmailFromWebsite(website),
+          getWebsiteHealth(website),
+        ]);
+        pageSpeedScore = score;
+        email = scrapedEmail;
+        websiteHealth = health.health;
+        websiteHealthDetail = health.detail;
+        isPoorWebsite = isWeakWebsite(health, score, POOR_WEBSITE_THRESHOLD);
       }
 
       return {
@@ -106,6 +130,8 @@ export async function discoverPlaces(category: string, location: string, apiKey:
         isPoorWebsite,
         email,
         priceLevel: typeof d.price_level === "number" ? d.price_level : null,
+        websiteHealth,
+        websiteHealthDetail,
       };
     })
   );
