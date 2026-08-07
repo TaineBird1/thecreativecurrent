@@ -1,5 +1,5 @@
 import { getPageSpeedScore, POOR_WEBSITE_THRESHOLD } from "./pagespeed.js";
-import { scrapeEmailFromWebsite } from "./emailScraper.js";
+import { extractEmailFromHtml } from "./emailScraper.js";
 import { getWebsiteHealth, isWeakWebsite, type WebsiteHealth } from "./websiteHealth.js";
 
 // Shared by api/prospects-search.ts (interactive) and api/outreach-run.ts
@@ -109,13 +109,18 @@ export async function discoverPlaces(category: string, location: string, apiKey:
         // loads fast enough to pass PageSpeed while being unusable on a
         // phone. See websiteHealth.ts for why the score alone was wrong in
         // both directions.
-        const [score, scrapedEmail, health] = await Promise.all([
-          getPageSpeedScore(website),
-          scrapeEmailFromWebsite(website),
-          getWebsiteHealth(website),
-        ]);
+        // Only TWO requests here, not three, and only ONE of them touches the
+        // business's own server. getPageSpeedScore calls Google, not the site.
+        // Running getWebsiteHealth and scrapeEmailFromWebsite in parallel meant
+        // firing two simultaneous requests at the same small business's host --
+        // often cheap shared hosting -- and that self-inflicted load produced
+        // false timeouts: on a real Johannesburg run, three sites reported
+        // `timeout` under concurrency and then loaded in under 4 seconds each
+        // when checked individually. The health check already downloads the
+        // homepage, so the email is now extracted from that same HTML.
+        const [score, health] = await Promise.all([getPageSpeedScore(website), getWebsiteHealth(website)]);
         pageSpeedScore = score;
-        email = scrapedEmail;
+        email = health.html ? extractEmailFromHtml(health.html) : null;
         websiteHealth = health.health;
         websiteHealthDetail = health.detail;
         websiteEmailDefect = health.emailDefect;

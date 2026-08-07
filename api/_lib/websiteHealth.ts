@@ -50,6 +50,11 @@ export type WebsiteHealthResult = {
    * there is nothing concrete to lead with.
    */
   emailDefect: string | null;
+  /**
+   * The fetched page source, so callers can reuse it instead of downloading
+   * the same homepage again. Null whenever the page never loaded.
+   */
+  html: string | null;
 };
 
 // Free site-builder / hosting subdomains. A business on one of these has no
@@ -182,6 +187,7 @@ export async function getWebsiteHealth(url: string): Promise<WebsiteHealthResult
       hasViewport: false,
       detail: `No domain of their own -- the site is a free ${host.split(".").slice(-2).join(".")} subdomain.`,
       emailDefect: "it's sitting on a free hosting subdomain rather than a domain of your own, which makes it harder to find and easier to forget",
+      html: null,
     };
   }
 
@@ -210,6 +216,7 @@ export async function getWebsiteHealth(url: string): Promise<WebsiteHealthResult
         emailDefect: redirected
           ? "your domain currently forwards to a page that no longer exists, so visitors who click through end up on an error"
           : `it's returning an error (HTTP ${res.status}) instead of loading`,
+        html: null,
       };
     }
 
@@ -225,6 +232,7 @@ export async function getWebsiteHealth(url: string): Promise<WebsiteHealthResult
         hasViewport: false,
         detail: `Serves a placeholder page, not a website (matched "${parkedHit}") -- hosting is paid for but nothing is built on it.`,
         emailDefect: "the domain is live but still shows a placeholder page rather than an actual site",
+        html: body,
       };
     }
 
@@ -239,6 +247,7 @@ export async function getWebsiteHealth(url: string): Promise<WebsiteHealthResult
       emailDefect: hasViewport
         ? null
         : "it isn't set up for mobile, so on a phone it loads at full desktop width and visitors have to pinch and zoom to read anything",
+      html: body,
     };
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
@@ -249,17 +258,37 @@ export async function getWebsiteHealth(url: string): Promise<WebsiteHealthResult
         hasViewport: false,
         detail: `No response within ${REQUEST_TIMEOUT_MS / 1000}s.`,
         emailDefect: "it takes long enough to load that most visitors give up before it appears",
+        html: null,
       };
     }
     const { health, detail, emailDefect } = classifyNetworkError(networkErrorCode(err));
-    return { health, statusCode: null, finalUrl: null, hasViewport: false, detail, emailDefect };
+    return { health, statusCode: null, finalUrl: null, hasViewport: false, detail, emailDefect, html: null };
   } finally {
     clearTimeout(timeout);
   }
 }
 
-/** Anything other than a healthy, mobile-ready page is a prospect. */
+/**
+ * Anything other than a healthy, mobile-ready page is a prospect -- EXCEPT a
+ * timeout, which is inconclusive rather than a defect.
+ *
+ * This exception is load-bearing. A timeout says "we did not get an answer in
+ * 8 seconds", which is not the same as "this site is broken", and the two are
+ * easy to confuse when the checker itself is under load. Measured on a real
+ * Johannesburg run: alpha-plumbing.co.za, plumbsol.co.za and dripdryplumber.com
+ * all reported `timeout` while being checked concurrently, then all three came
+ * back live in under 4 seconds when checked one at a time -- alpha-plumbing in
+ * 515ms, with a viewport tag, a perfectly healthy site. Counting those as weak
+ * would have generated outreach telling three functioning businesses their
+ * website is too slow, which is both false and the fastest way to lose them.
+ *
+ * pagespeed.ts already takes this position for its own timeout ("a timeout is
+ * treated the same as any other failure ... not counted as poor"); this brings
+ * the health check into line with it. A genuinely slow site still gets caught
+ * by its PageSpeed score, which is the measurement built for that job.
+ */
 export function isWeakWebsite(result: WebsiteHealthResult, pageSpeedScore: number | null, poorThreshold: number): boolean {
+  if (result.health === "timeout") return pageSpeedScore !== null && pageSpeedScore < poorThreshold;
   if (result.health !== "live") return true;
   if (!result.hasViewport) return true;
   return pageSpeedScore !== null && pageSpeedScore < poorThreshold;
