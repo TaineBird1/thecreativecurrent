@@ -59,7 +59,15 @@ async function runAllSearches() {
 
         // Always "poor_website" here -- the filter above requires a website
         // (and therefore an email), so "no_website" can never be reached.
-        const { subject, body } = buildOutreachDraft(r.businessName, search.category, "poor_website");
+        // Lead with the specific fault when there is one -- "your domain no
+        // longer resolves" is checkable in ten seconds, unlike a generic
+        // opinion about their design.
+        const { subject, body } = buildOutreachDraft(
+          r.businessName,
+          search.category,
+          "poor_website",
+          r.websiteEmailDefect
+        );
 
         const { error: insertError } = await supabase.from("prospects").insert({
           business_name: r.businessName,
@@ -82,6 +90,7 @@ async function runAllSearches() {
           // owner can confirm it themselves in seconds, unlike a subjective
           // "your site looks dated".
           notes: r.websiteHealthDetail,
+          email_defect: r.websiteEmailDefect,
         });
 
         if (insertError) {

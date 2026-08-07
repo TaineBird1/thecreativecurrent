@@ -47,6 +47,8 @@ export type DiscoveredPlace = {
   websiteHealth: WebsiteHealth | null;
   /** Plain-English reason the site failed, for the prospect's notes. */
   websiteHealthDetail: string | null;
+  /** The same fault phrased for the recipient, to open the outreach email with. */
+  websiteEmailDefect: string | null;
 };
 
 // Google's price_level enum: 0 Free, 1 Inexpensive, 2 Moderate, 3 Expensive,
@@ -91,6 +93,7 @@ export async function discoverPlaces(category: string, location: string, apiKey:
       let email: string | null = null;
       let websiteHealth: WebsiteHealth | null = null;
       let websiteHealthDetail: string | null = null;
+      let websiteEmailDefect: string | null = null;
 
       if (website) {
         // Google Places never returns an email -- for a business that does
@@ -115,6 +118,7 @@ export async function discoverPlaces(category: string, location: string, apiKey:
         email = scrapedEmail;
         websiteHealth = health.health;
         websiteHealthDetail = health.detail;
+        websiteEmailDefect = health.emailDefect;
         isPoorWebsite = isWeakWebsite(health, score, POOR_WEBSITE_THRESHOLD);
       }
 
@@ -132,6 +136,7 @@ export async function discoverPlaces(category: string, location: string, apiKey:
         priceLevel: typeof d.price_level === "number" ? d.price_level : null,
         websiteHealth,
         websiteHealthDetail,
+        websiteEmailDefect,
       };
     })
   );

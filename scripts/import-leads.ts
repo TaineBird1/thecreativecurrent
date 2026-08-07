@@ -90,6 +90,55 @@ function phoneKey(phone: string): string {
   return phone.replace(/\D/g, "");
 }
 
+// The CSV notes are written in our own voice ("DEAD DOMAIN - coffeerock.co.za
+// and www both fail DNS resolution"). This maps the recurring markers in that
+// prose onto the same recipient-facing phrasing getWebsiteHealth produces for
+// Places-discovered leads, so an imported prospect opens on the same specific,
+// checkable fact rather than a generic "your site could work harder".
+// Deliberately conservative: anything that does not match a known marker
+// returns null and falls back to the generic opener, because a confidently
+// wrong claim about someone's website is worse than a vague one.
+// Ordered most-specific first.
+const DEFECT_PATTERNS: { test: RegExp; defect: string }[] = [
+  {
+    test: /redirects? (off\s?shore|to .*which returns HTTP 404|OFFSHORE)|301-redirects off its own domain/i,
+    defect: "your domain currently forwards somewhere else entirely rather than to your own site",
+  },
+  { test: /DEAD DOMAIN|fails? DNS resolution|ENOTFOUND|NXDOMAIN|domain does not resolve|no longer resolves/i,
+    defect: "the domain it runs on no longer resolves, so anyone clicking through from Google or a directory listing lands on nothing at all" },
+  { test: /HTTP 500|Internal Server Error/i,
+    defect: "it's returning a server error instead of loading" },
+  { test: /returns HTTP 404|business\.site|Google Business Profile site and Google shut/i,
+    defect: "the web address still listed for you returns a 404, so visitors who click it hit a dead page" },
+  { test: /SSL|certificate (does not|doesn't) (cover|match)|cert.*mismatch|security warning/i,
+    defect: "its security certificate doesn't match the domain, so browsers block the page with a warning before anyone can see it" },
+  { test: /REFUSES the connection|ECONNREFUSED|refuses connections/i,
+    defect: "the server behind it isn't accepting connections, so the page never loads for anyone trying to visit" },
+  { test: /suspended/i,
+    defect: "the hosting account behind it has been suspended, so the site is currently offline" },
+  { test: /Index of \/|auto-index|LiteSpeed .*directory|bare Apache/i,
+    defect: "the domain is live but serves a bare file listing rather than an actual website" },
+  { test: /holding page|to go live soon|coming soon|under construction|Hostinger default|no site is installed/i,
+    defect: "the domain is live but still shows a placeholder page rather than an actual site" },
+  { test: /free .*subdomain|wordpress\.com|yolasite|Google Sites|builder subdomain|wixsite/i,
+    defect: "it's sitting on a free hosting subdomain rather than a domain of your own, which makes it harder to find and easier to forget" },
+  { test: /NO (mobile )?viewport|no viewport meta tag|not (be )?render.*phone|desktop width/i,
+    defect: "it isn't set up for mobile, so on a phone it loads at full desktop width and visitors have to pinch and zoom to read anything" },
+  { test: /phone number is published as an IMAGE|tel_number\.png/i,
+    defect: "your phone number is published as an image rather than text, so it can't be tapped to call and search engines can't read it" },
+  { test: /\/contact returns 404|contact page.*404/i,
+    defect: "the contact page returns a 404, so anyone trying to get hold of you through the site can't" },
+  { test: /misspells its own business name/i,
+    defect: "the site header misspells your own business name" },
+];
+
+function defectFromNote(note: string): string | null {
+  for (const { test, defect } of DEFECT_PATTERNS) {
+    if (test.test(note)) return defect;
+  }
+  return null;
+}
+
 type PlannedProspect = {
   business_name: string;
   category: string | null;
@@ -103,6 +152,7 @@ type PlannedProspect = {
   draft_subject: string | null;
   draft_body: string | null;
   notes: string;
+  email_defect: string | null;
 };
 
 function toProspect(row: Row): PlannedProspect | null {
@@ -131,7 +181,10 @@ function toProspect(row: Row): PlannedProspect | null {
   // a draft and land in "drafted" (the status AdminOutreachReview lists).
   // Phone-only rows land in "new": visible in the prospects list for manual
   // work, but never surfaced as something ready to send.
-  const draft = email ? buildOutreachDraft(name, category, reason) : null;
+  // Only a poor_website lead can have a site defect -- a no_website lead has
+  // no site to find one on, and its opener is already specific by nature.
+  const emailDefect = reason === "poor_website" ? defectFromNote(row["Website Quality Note"] || "") : null;
+  const draft = email ? buildOutreachDraft(name, category, reason, emailDefect) : null;
 
   return {
     business_name: name,
@@ -146,11 +199,16 @@ function toProspect(row: Row): PlannedProspect | null {
     draft_subject: draft?.subject ?? null,
     draft_body: draft?.body ?? null,
     notes: noteParts.join(" | "),
+    email_defect: emailDefect,
   };
 }
 
 const args = process.argv.slice(2);
 const commit = args.includes("--commit");
+// Rewrites draft_subject/draft_body/email_defect on rows that already exist,
+// instead of inserting. Needed because the first import ran before the drafts
+// could use a specific defect, so those rows carry the generic opener.
+const redraft = args.includes("--redraft");
 const fileArgs = args.filter((a) => !a.startsWith("--"));
 const files = fileArgs.length > 0 ? fileArgs : DEFAULT_FILES.map((f) => path.join(DEFAULT_DIR, f));
 
@@ -193,6 +251,46 @@ try {
     SELECT business_name, phone FROM prospects
   `;
   const existingKeys = new Set(existing.map((e) => `${e.business_name.toLowerCase()}|${phoneKey(e.phone ?? "")}`));
+
+  if (redraft) {
+    const withDefect = deduped.filter((p) => p.email_defect !== null);
+    const sendable = withDefect.filter((p) => p.status === "drafted");
+    console.log("");
+    console.log(`Rows with a specific defect .. ${withDefect.length}`);
+    console.log(`  of those, sendable ......... ${sendable.length} (have an email, so carry a draft)`);
+    console.log(`Rows falling back to generic . ${deduped.length - withDefect.length}`);
+
+    if (!commit) {
+      console.log("");
+      console.log("DRY RUN -- nothing written. Add --commit to apply.");
+      console.log("Sample of the new opening lines:");
+      for (const p of sendable.slice(0, 3)) {
+        console.log(`\n  ${p.business_name}:\n    ${p.draft_body?.split("\n")[2] ?? ""}`);
+      }
+      await sql.end();
+      process.exit(0);
+    }
+
+    let updated = 0;
+    for (const p of deduped) {
+      const res = await sql`
+        UPDATE prospects
+           SET email_defect = ${p.email_defect},
+               draft_subject = COALESCE(${p.draft_subject}, draft_subject),
+               draft_body = COALESCE(${p.draft_body}, draft_body)
+         WHERE lower(business_name) = ${p.business_name.toLowerCase()}
+           AND source = 'manual'
+           AND status IN ('new','drafted')
+      `;
+      updated += res.count;
+    }
+    console.log("");
+    console.log(`Updated ${updated} rows.`);
+    console.log(`Note: only rows still in 'new' or 'drafted' were touched -- anything already`);
+    console.log(`approved, sent or replied is left alone so history is never rewritten.`);
+    await sql.end();
+    process.exit(0);
+  }
 
   const toInsert = deduped.filter(
     (p) => !existingKeys.has(`${p.business_name.toLowerCase()}|${phoneKey(p.phone ?? "")}`)

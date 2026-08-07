@@ -140,14 +140,21 @@ export async function sendOutreachEmail(
   try {
     // nodemailer rejects on a failed send (unlike Resend's { error } shape),
     // so the try/catch itself is the failure check here.
+    // The opt-out has to appear in BOTH MIME parts. It previously lived only
+    // in the HTML alternative, so any recipient whose client rendered the
+    // text/plain part -- plain-text-only clients, accessibility tooling, and
+    // a good share of spam filters -- received a direct-marketing email with
+    // no opt-out at all, which is precisely the part POPIA section 69 cares
+    // about. Same wording in both so they can never drift apart.
+    const footerText = `The Creative Current, Durban, KZN, South Africa.\nIf you'd rather not hear from us again, just reply and let us know.`;
+
     await transport.sendMail({
       from: `${displayName} <${user}>`,
       to,
       subject,
-      text: body,
+      text: `${body}\n\n---\n${footerText}`,
       html: `${body.replace(/\n/g, "<br>")}<br><br><hr style="border:none;border-top:1px solid #ccc;margin:16px 0;">
-        <p style="font-size:12px;color:#888;">The Creative Current, Durban, KZN, South Africa.
-        If you'd rather not hear from us again, just reply and let us know.</p>`,
+        <p style="font-size:12px;color:#888;">${footerText.replace(/\n/g, "<br>")}</p>`,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "send failed";

@@ -178,6 +178,13 @@ CREATE POLICY prospects_delete ON prospects FOR DELETE USING (is_admin());
 -- that scores poorly on Google PageSpeed, not just no website at all.
 ALTER TABLE prospects ADD COLUMN IF NOT EXISTS website TEXT;
 ALTER TABLE prospects ADD COLUMN IF NOT EXISTS page_speed_score INTEGER;
+-- The specific, verifiable fault found on their site, already phrased for the
+-- recipient (see api/_lib/websiteHealth.ts `emailDefect`). Stored rather than
+-- recomputed so regenerating a draft from ProspectCard keeps the specific
+-- opener instead of silently downgrading it to the generic one -- the draft is
+-- written once at discovery time, but the button that rewrites it runs much
+-- later, with no access to the original site check.
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS email_defect TEXT;
 ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT 'no_website';
 ALTER TABLE prospects DROP CONSTRAINT IF EXISTS prospects_reason_check;
 ALTER TABLE prospects ADD CONSTRAINT prospects_reason_check CHECK (reason IN ('no_website','poor_website'));

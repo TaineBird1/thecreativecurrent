@@ -66,6 +66,8 @@ export type Prospect = {
   website: string | null;
   page_speed_score: number | null;
   reason: ProspectReason;
+  /** Recipient-facing phrasing of the fault found on their site, if any. */
+  email_defect: string | null;
 };
 
 export type SavedSearch = {

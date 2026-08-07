@@ -28,7 +28,17 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
   }
 
   async function generateDraft() {
-    const draft = buildOutreachDraft(prospect.business_name, prospect.category);
+    // `reason` and `email_defect` were both previously omitted, which meant
+    // this button always generated the "you don't currently have a website"
+    // opener (the default) even for a poor-website prospect, and threw away
+    // the specific fault found at discovery time. Both are wrong premises to
+    // send on, and the second is the whole reason the site check exists.
+    const draft = buildOutreachDraft(
+      prospect.business_name,
+      prospect.category,
+      prospect.reason,
+      prospect.email_defect
+    );
     setSubject(draft.subject);
     setBody(draft.body);
     await updateFields(
