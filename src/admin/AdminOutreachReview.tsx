@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import {
+  DEFAULT_MAX_PER_BATCH,
+  DEFAULT_MAX_PER_DAY,
   FOLLOW_UP_AFTER_DAYS,
   type Prospect,
   type ProspectBulkSendApiResponse,
@@ -66,9 +68,25 @@ export function AdminOutreachReview() {
     setFollowUpSelected(new Set());
   }
 
+  const [sentRecently, setSentRecently] = useState<number | null>(null);
+
+  // Mirrors sendGuard's rolling 24-hour window so the headroom shown matches
+  // what the endpoint will actually allow.
+  async function loadSendBudget() {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count } = await supabase
+      .from("email_log")
+      .select("id", { count: "exact", head: true })
+      .eq("type", "outreach")
+      .eq("status", "sent")
+      .gte("created_at", since);
+    setSentRecently(count ?? 0);
+  }
+
   useEffect(() => {
     loadDrafted();
     loadFollowUps();
+    loadSendBudget();
   }, []);
 
   async function authHeader() {
@@ -126,6 +144,7 @@ export function AdminOutreachReview() {
         setSendResult({ sent: data.sent, skipped: data.skipped });
       }
       await loadDrafted();
+      await loadSendBudget();
     } catch {
       setSendResult({ sent: [], skipped: [] });
     } finally {
@@ -154,6 +173,7 @@ export function AdminOutreachReview() {
       const data: ProspectBulkSendApiResponse = await res.json();
       if (data.ok) setFollowUpResult({ sent: data.sent, skipped: data.skipped });
       await loadFollowUps();
+      await loadSendBudget();
     } catch {
       setFollowUpResult({ sent: [], skipped: [] });
     } finally {
@@ -209,6 +229,26 @@ export function AdminOutreachReview() {
           . This also runs automatically every morning.
         </p>
       </section>
+
+      {sentRecently !== null && (
+        <div
+          className={`rounded-lg border px-4 py-3 text-sm ${
+            sentRecently >= DEFAULT_MAX_PER_DAY ? "border-accent text-accent" : "border-border text-muted-foreground"
+          }`}
+        >
+          <strong className="text-foreground">
+            {sentRecently} of {DEFAULT_MAX_PER_DAY}
+          </strong>{" "}
+          outreach emails sent in the last 24 hours
+          {sentRecently >= DEFAULT_MAX_PER_DAY
+            ? " — daily limit reached. Sends will be refused until the oldest ones fall outside the window."
+            : ` — ${DEFAULT_MAX_PER_DAY - sentRecently} left, up to ${DEFAULT_MAX_PER_BATCH} per run.`}
+          <span className="mt-1 block text-xs">
+            The cap protects the sending account: a burst of near-identical emails is what gets an address filtered,
+            which would end the channel entirely. Follow-ups draw on the same budget.
+          </span>
+        </div>
+      )}
 
       <section>
         <div className="mb-3 flex items-center justify-between">

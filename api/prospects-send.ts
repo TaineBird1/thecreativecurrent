@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireAdmin } from "./_lib/requireAdmin.js";
 import { getSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendOutreachEmail } from "./_lib/email.js";
+import { getSendBudget, MAX_PER_DAY } from "./_lib/sendGuard.js";
 import type { Prospect, ProspectSendApiResponse } from "../src/lib/prospects.js";
 
 // Deliberately requires status === "approved" -- nothing sends without a
@@ -47,6 +48,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (!prospect.draft_subject || !prospect.draft_body) {
     res.status(400).json({ ok: false, error: "No draft to send" } satisfies ProspectSendApiResponse);
+    return;
+  }
+
+  // One-at-a-time sends draw on the same daily budget as the bulk paths.
+  // Without this the cap would be trivially bypassed by clicking send on
+  // individual prospects instead of using the review page.
+  const budget = await getSendBudget(1);
+  if (budget.allowed < 1) {
+    res.status(429).json({
+      ok: false,
+      error: `Daily send limit reached — ${budget.sentToday} of ${MAX_PER_DAY} sent in the last 24 hours. Try again later.`,
+    } satisfies ProspectSendApiResponse);
     return;
   }
 

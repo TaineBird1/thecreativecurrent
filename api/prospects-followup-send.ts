@@ -3,7 +3,10 @@ import { requireAdmin } from "./_lib/requireAdmin.js";
 import { getSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { sendOutreachEmail } from "./_lib/email.js";
 import { buildFollowUpDraft } from "../src/lib/outreachTemplate.js";
+import { getSendBudget, sleep, SEND_GAP_MS } from "./_lib/sendGuard.js";
 import { FOLLOW_UP_AFTER_DAYS, type Prospect, type ProspectBulkSendApiResponse } from "../src/lib/prospects.js";
+
+export const config = { maxDuration: 60 };
 
 // The single permitted second touch, sent from the review page in the same
 // human-approved batch style as the first email.
@@ -35,6 +38,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const sent: number[] = [];
   const skipped: { id: number; reason: string }[] = [];
   const cutoff = Date.now() - FOLLOW_UP_AFTER_DAYS * 24 * 60 * 60 * 1000;
+  // Follow-ups draw on the same daily budget as first contact. They leave the
+  // same account and cost the same reputation, so counting them separately
+  // would just be a way to send twice the ceiling.
+  const budget = await getSendBudget(ids.length);
 
   for (const id of ids) {
     const { data: prospect, error: fetchError } = await supabase.from("prospects").select("*").eq("id", id).single();
@@ -69,9 +76,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       continue;
     }
 
+    if (sent.length >= budget.allowed) {
+      skipped.push({ id, reason: budget.limitReason ?? "send limit reached" });
+      continue;
+    }
+
     const { subject, body } = buildFollowUpDraft(p.business_name, p.category, p.email_defect);
 
     try {
+      if (sent.length > 0) await sleep(SEND_GAP_MS);
       await sendOutreachEmail(p.email, subject, body, { prospectId: p.id });
       // Status deliberately stays "sent". A follow-up is a second attempt at
       // the same step, not progress through the funnel -- moving it would make

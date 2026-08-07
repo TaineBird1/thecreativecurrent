@@ -100,6 +100,19 @@ export type Prospect = {
  */
 export const FOLLOW_UP_AFTER_DAYS = 7;
 
+/**
+ * Defaults for the send caps in api/_lib/sendGuard.ts, shared so the review
+ * page can show remaining headroom before you click rather than only
+ * discovering the limit in the skipped list afterwards.
+ *
+ * The server reads OUTREACH_MAX_PER_DAY / OUTREACH_MAX_PER_BATCH from the
+ * environment and only falls back to these, so if either is overridden there
+ * the number shown in the UI is the default rather than the live value. The
+ * endpoint is always the authority; this is a guide.
+ */
+export const DEFAULT_MAX_PER_DAY = 20;
+export const DEFAULT_MAX_PER_BATCH = 10;
+
 export type SavedSearch = {
   id: number;
   category: string;
