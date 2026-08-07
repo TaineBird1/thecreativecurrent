@@ -6,20 +6,21 @@ import { buildOutreachDraft } from "../src/lib/outreachTemplate.js";
 import { sendOutreachDigest } from "./_lib/email.js";
 import type { ProspectRunApiResponse } from "../src/lib/prospects.js";
 
-// Runs every saved search and adds any new QUALIFIED lead: must have a
-// website with a scraped email on file (so a no-website lead, which by
-// definition has no email, never qualifies here -- a deliberate choice, not
-// an oversight) and Google's "Moderate" price tier as the closest available
-// proxy for "middle class". price_level is only populated for some
-// categories (restaurants, cafes, retail) -- service trades like
-// electricians/plumbers rarely have it at all, so this sharply cuts how
-// many categories produce anything here. Interactive manual search
-// (AdminOutreach.tsx) is intentionally NOT filtered this way -- a human
-// reviewing results directly has full context to add whatever they want;
-// this stricter bar only applies to what gets auto-generated without a
-// human looking at each result first. Auto-generates a draft for each new
-// lead. Never sends anything -- leads land in "drafted" status, ready for
-// the review page's explicit send step.
+// Runs every saved search and adds any new QUALIFIED lead: a weak or absent
+// web presence, at least one way to contact them, and not a price tier Google
+// explicitly marks Expensive/Very Expensive (the closest available proxy for
+// "middle class"). price_level is only populated for some categories
+// (restaurants, cafes, retail) -- service trades like electricians/plumbers
+// rarely have it at all, so unknown is treated as a pass.
+//
+// An email is required to SEND, not to qualify. Leads with one get a draft
+// and land in "drafted"; leads with only a phone land in "new" with no draft
+// and are worked by calling. Interactive manual search (AdminOutreach.tsx) is
+// intentionally not filtered this way -- a human reviewing results directly
+// has full context to add whatever they want.
+//
+// Never sends anything. Everything waits for the review page's explicit send
+// step, which itself refuses any prospect without an email on file.
 async function runAllSearches() {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
@@ -40,13 +41,33 @@ async function runAllSearches() {
 
   let created = 0;
   const errors: string[] = [];
-  const newLeads: { businessName: string; category: string }[] = [];
+  const newLeads: { businessName: string; category: string; sendable: boolean }[] = [];
 
   for (const search of savedSearches as { category: string; location: string }[]) {
     try {
       const results = await discoverPlaces(search.category, search.location, apiKey);
+      // A business qualifies on the state of its web presence plus ANY way to
+      // reach it -- an email is no longer required to create the lead, only to
+      // send to it.
+      //
+      // The email requirement was excluding the strongest prospects by
+      // construction: a business whose domain has lapsed has no page left to
+      // scrape an address from, so the worse its web presence, the less likely
+      // it could ever qualify. A Johannesburg run made the cost concrete --
+      // across 40 businesses the only three real defects (two dead domains and
+      // a free builder subdomain) were all rejected for having a phone but no
+      // email, and the run created nothing at all.
+      //
+      // Leads without an email land in "new" with no draft, which is not a
+      // weaker gate but a different one: prospects-send and
+      // prospects-bulk-send both refuse to send without an email on file, and
+      // the review page only lists "drafted", so these can never be emailed by
+      // accident. They are call-first leads.
       const opportunities = results.filter(
-        (r) => r.isPoorWebsite && r.email !== null && isMiddleClassPriceLevel(r.priceLevel)
+        (r) =>
+          (r.isPoorWebsite || !r.hasWebsite) &&
+          (r.email !== null || r.phone !== null) &&
+          isMiddleClassPriceLevel(r.priceLevel)
       );
 
       for (const r of opportunities) {
@@ -57,17 +78,16 @@ async function runAllSearches() {
           .maybeSingle();
         if (existing) continue;
 
-        // Always "poor_website" here -- the filter above requires a website
-        // (and therefore an email), so "no_website" can never be reached.
-        // Lead with the specific fault when there is one -- "your domain no
-        // longer resolves" is checkable in ten seconds, unlike a generic
-        // opinion about their design.
-        const { subject, body } = buildOutreachDraft(
-          r.businessName,
-          search.category,
-          "poor_website",
-          r.websiteEmailDefect
-        );
+        const reason = r.hasWebsite ? "poor_website" : "no_website";
+        // Only a lead with an email can be sent to, so only that lead gets a
+        // draft. Generating one for a phone-only prospect would sit it in the
+        // review page's checklist under a "Send selected" button with nowhere
+        // to send it. Lead with the specific fault when there is one -- "your
+        // domain no longer resolves" is checkable in ten seconds, unlike a
+        // generic opinion about their design.
+        const draft = r.email
+          ? buildOutreachDraft(r.businessName, search.category, reason, r.websiteEmailDefect)
+          : null;
 
         const { error: insertError } = await supabase.from("prospects").insert({
           business_name: r.businessName,
@@ -79,11 +99,11 @@ async function runAllSearches() {
           website: r.website,
           email: r.email,
           page_speed_score: r.pageSpeedScore,
-          reason: "poor_website",
+          reason,
           source: "places_api",
-          status: "drafted",
-          draft_subject: subject,
-          draft_body: body,
+          status: draft ? "drafted" : "new",
+          draft_subject: draft?.subject ?? null,
+          draft_body: draft?.body ?? null,
           // The concrete, verifiable defect that made this a lead ("domain
           // does not resolve", "no mobile viewport meta tag", ...). Worth
           // storing because it is the strongest opening line available: the
@@ -98,7 +118,7 @@ async function runAllSearches() {
           continue;
         }
         created++;
-        newLeads.push({ businessName: r.businessName, category: search.category });
+        newLeads.push({ businessName: r.businessName, category: search.category, sendable: draft !== null });
       }
     } catch (e) {
       errors.push(`${search.category} in ${search.location}: ${e instanceof Error ? e.message : "failed"}`);

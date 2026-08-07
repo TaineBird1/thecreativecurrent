@@ -169,7 +169,9 @@ export async function sendOutreachEmail(
 // habit instead of a daily manual check. Only the cron path sends this;
 // the "Run all saved searches now" button doesn't, since whoever clicked
 // it is already looking at the result on screen.
-export async function sendOutreachDigest(newLeads: { businessName: string; category: string }[]) {
+export async function sendOutreachDigest(
+  newLeads: { businessName: string; category: string; sendable: boolean }[]
+) {
   const resend = getResend();
   const from = process.env.LEADS_FROM_EMAIL;
   const to = process.env.LEADS_NOTIFICATION_EMAIL;
@@ -178,13 +180,30 @@ export async function sendOutreachDigest(newLeads: { businessName: string; categ
   }
 
   const subject = `${newLeads.length} new outreach lead${newLeads.length === 1 ? "" : "s"} found today`;
-  const lines = newLeads.map((l) => `- ${l.businessName} (${l.category})`);
+
+  // Split by whether the lead can actually be emailed. Listing a call-first
+  // lead under "review and send" would send you looking for it on a page that
+  // only lists drafts, and it would never be there.
+  const sendable = newLeads.filter((l) => l.sendable);
+  const callFirst = newLeads.filter((l) => !l.sendable);
+  const format = (l: { businessName: string; category: string }) => `- ${l.businessName} (${l.category})`;
+
   const body = [
-    `Today's outreach run found ${newLeads.length} new lead${newLeads.length === 1 ? "" : "s"}:`,
-    "",
-    ...lines,
+    `Today's outreach run found ${newLeads.length} new lead${newLeads.length === 1 ? "" : "s"}.`,
+    ...(sendable.length
+      ? ["", `${sendable.length} with an email, drafted and ready to review:`, ...sendable.map(format)]
+      : []),
+    ...(callFirst.length
+      ? [
+          "",
+          `${callFirst.length} with a phone but no email -- these need a call, or an address found by hand.`,
+          `They are saved under Prospects with no draft, so they will not appear on the review page:`,
+          ...callFirst.map(format),
+        ]
+      : []),
     "",
     "Review and send: https://www.thecreativecurrent.co.za/admin/outreach/review",
+    "All prospects: https://www.thecreativecurrent.co.za/admin/outreach",
   ].join("\n");
 
   const { error } = await resend.emails.send({

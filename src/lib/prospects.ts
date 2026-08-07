@@ -102,7 +102,14 @@ export type ProspectSendApiResponse =
   | { ok: false; error: string };
 
 export type ProspectRunApiResponse =
-  | { ok: true; created: number; searchesRun: number; errors: string[]; newLeads: { businessName: string; category: string }[] }
+  | {
+      ok: true;
+      created: number;
+      searchesRun: number;
+      errors: string[];
+      /** `sendable` = an email was found, so it carries a draft; otherwise it is a call-first lead. */
+      newLeads: { businessName: string; category: string; sendable: boolean }[];
+    }
   | { ok: false; error: string };
 
 export type ProspectBulkSendApiResponse =
