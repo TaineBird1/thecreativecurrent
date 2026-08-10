@@ -173,7 +173,3 @@ export type ProspectBulkSendApiResponse =
 export type CheckRepliesApiResponse =
   | { ok: true; checked: number; matched: number; errors: string[] }
   | { ok: false; error: string };
-
-export type ProspectSendReplyApiResponse =
-  | { ok: true; prospect: Prospect }
-  | { ok: false; error: string };

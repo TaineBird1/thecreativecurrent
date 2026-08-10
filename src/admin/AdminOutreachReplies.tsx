@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import type { CheckRepliesApiResponse, Prospect, ProspectSendReplyApiResponse } from "../lib/prospects";
+import type { CheckRepliesApiResponse, Prospect, ProspectSendApiResponse } from "../lib/prospects";
 
 // Prospects who wrote back. api/check-replies.ts (cron + the "Check now"
 // button here) polls Gmail via IMAP and drops a suggested response here for
@@ -64,12 +64,12 @@ export function AdminOutreachReplies() {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     try {
-      const res = await fetch("/api/prospects-send-reply", {
+      const res = await fetch("/api/prospects-send", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: p.id, body }),
+        body: JSON.stringify({ id: p.id, replyBody: body }),
       });
-      const data: ProspectSendReplyApiResponse = await res.json();
+      const data: ProspectSendApiResponse = await res.json();
       if (!data.ok) {
         setError(data.error);
         return;
