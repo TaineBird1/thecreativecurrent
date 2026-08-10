@@ -87,6 +87,28 @@ CREATE INDEX IF NOT EXISTS analytics_events_customer_visitor_created_idx ON anal
 -- No INSERT policy needed: api/track.ts writes via the privileged direct
 -- Postgres connection (api/_lib/db.ts), which bypasses RLS entirely.
 
+-- 'conversion': revenue the customer's own site earns them (a completed
+-- sale, a booking, a paid quote) -- not what they pay the agency, which is
+-- a separate concern this project doesn't track. Reported the same way a
+-- pageview is, via track.js, except a real integration (e-commerce
+-- checkout success page, booking confirmation, etc.) has to actually call
+-- it -- nothing infers a sale from browsing alone.
+ALTER TABLE analytics_events DROP CONSTRAINT IF EXISTS analytics_events_event_type_check;
+ALTER TABLE analytics_events ADD CONSTRAINT analytics_events_event_type_check
+  CHECK (event_type IN ('pageview','heartbeat','conversion'));
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS value NUMERIC(12,2);
+ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS label TEXT;
+
+-- SECURITY INVOKER (the default), same reasoning as live_visitor_count:
+-- RLS still applies, an unauthorized caller just gets 0.
+CREATE OR REPLACE FUNCTION customer_revenue(customer_id_param BIGINT, days_param INTEGER DEFAULT 30) RETURNS NUMERIC
+LANGUAGE sql STABLE AS $$
+  SELECT COALESCE(SUM(value), 0) FROM analytics_events
+  WHERE customer_id = customer_id_param
+    AND event_type = 'conversion'
+    AND created_at > now() - (days_param || ' days')::interval;
+$$;
+
 -- SECURITY INVOKER (the default -- no modifier needed): runs as the calling
 -- user, so the analytics_select RLS policy still applies underneath this
 -- count. An unauthorized caller just gets 0, not an error.

@@ -44,8 +44,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     await sql`
-      INSERT INTO analytics_events (customer_id, visitor_id, event_type, page_path, referrer)
-      VALUES (${customer.id}, ${event.visitor_id}, ${event.event_type}, ${event.page_path ?? null}, ${event.referrer ?? null})
+      INSERT INTO analytics_events (customer_id, visitor_id, event_type, page_path, referrer, value, label)
+      VALUES (
+        ${customer.id}, ${event.visitor_id}, ${event.event_type}, ${event.page_path ?? null}, ${event.referrer ?? null},
+        ${event.event_type === "conversion" ? event.value ?? null : null},
+        ${event.event_type === "conversion" ? event.label ?? null : null}
+      )
     `;
 
     res.status(204).end();

@@ -31,14 +31,19 @@
 
   var visitorId = getVisitorId();
 
-  function send(eventType) {
-    var payload = JSON.stringify({
-      site_key: siteKey,
-      visitor_id: visitorId,
-      event_type: eventType,
-      page_path: location.pathname,
-      referrer: document.referrer || undefined,
-    });
+  function send(eventType, extra) {
+    var payload = JSON.stringify(
+      Object.assign(
+        {
+          site_key: siteKey,
+          visitor_id: visitorId,
+          event_type: eventType,
+          page_path: location.pathname,
+          referrer: document.referrer || undefined,
+        },
+        extra
+      )
+    );
 
     // Deliberately not using navigator.sendBeacon here: cross-origin beacons
     // with a JSON content-type require a CORS preflight, and several browsers
@@ -81,4 +86,13 @@
   });
 
   if (!document.hidden) startHeartbeat();
+
+  // Public API: the site owner (or their e-commerce/booking checkout
+  // success page) calls this directly -- nothing here infers a sale from
+  // browsing alone. e.g. window.tccTrackConversion(499.99, "Online order").
+  window.tccTrackConversion = function (value, label) {
+    var numericValue = Number(value);
+    if (!isFinite(numericValue) || numericValue <= 0) return;
+    send("conversion", { value: numericValue, label: label ? String(label).slice(0, 200) : undefined });
+  };
 })();

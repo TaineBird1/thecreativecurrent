@@ -1,6 +1,7 @@
 import { useAuth } from "../lib/auth";
 import { LiveVisitorCount } from "../components/LiveVisitorCount";
 import { TrafficChart } from "../components/TrafficChart";
+import { RevenueTracker } from "../components/RevenueTracker";
 
 export function PortalDashboard() {
   const { profile } = useAuth();
@@ -11,6 +12,7 @@ export function PortalDashboard() {
 
   return (
     <div className="space-y-6">
+      <RevenueTracker customerId={profile.customer_id} />
       <LiveVisitorCount customerId={profile.customer_id} />
       <TrafficChart customerId={profile.customer_id} />
     </div>

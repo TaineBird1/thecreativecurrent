@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { LiveVisitorCount } from "../components/LiveVisitorCount";
 import { TrafficChart } from "../components/TrafficChart";
+import { RevenueTracker } from "../components/RevenueTracker";
 import { ChangeRequestList } from "../components/ChangeRequestList";
 import { StatusBadge } from "../components/StatusBadge";
 import type { Customer } from "../lib/customers";
@@ -52,6 +53,7 @@ export function AdminCustomerDetail() {
       </div>
 
       <div className="space-y-6">
+        <RevenueTracker customerId={customer.id} />
         <LiveVisitorCount customerId={customer.id} />
         <TrafficChart customerId={customer.id} />
       </div>
