@@ -9,6 +9,7 @@ import {
   IconInbox,
   IconSearch,
   IconActivity,
+  IconShield,
   IconLogOut,
 } from "./components/icons";
 import { useSEO } from "../lib/seo";
@@ -22,6 +23,10 @@ const navItems = [
   { label: "Activity", to: "/admin/activity", icon: IconActivity },
 ];
 
+// Owner-only, appended separately rather than living in navItems -- it's
+// the one link that must never show up for an invited admin.
+const ownerNavItem = { label: "Staff", to: "/admin/staff", icon: IconShield, end: false };
+
 export function AdminLayout() {
   useSEO({ title: "Admin | The Creative Current", description: "Admin dashboard.", noindex: true });
 
@@ -33,7 +38,10 @@ export function AdminLayout() {
     );
   }
   if (!session || !profile) return <Navigate to="/login" replace />;
-  if (profile.role !== "admin") return <Navigate to="/portal" replace />;
+  // 'owner' is a superset of 'admin' -- see sql/schema.sql's is_admin().
+  if (profile.role !== "admin" && profile.role !== "owner") return <Navigate to="/portal" replace />;
+
+  const items = profile.role === "owner" ? [...navItems, ownerNavItem] : navItems;
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -47,7 +55,7 @@ export function AdminLayout() {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-6">
-          {navItems.map((item) => (
+          {items.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

@@ -5,7 +5,7 @@ import { supabase } from "./supabaseClient";
 export type Profile = {
   id: string;
   email: string;
-  role: "admin" | "customer";
+  role: "owner" | "admin" | "customer";
   customer_id: number | null;
 };
 

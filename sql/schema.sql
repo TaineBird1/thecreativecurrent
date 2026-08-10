@@ -49,9 +49,23 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- 'owner': a superset of 'admin' added for staff management -- the one or
+-- two people who run the agency, versus 'admin' staff they invite who get
+-- full day-to-day access (leads, customers, outreach) but can't invite or
+-- remove other admins. is_admin() deliberately treats owner as admin too so
+-- every existing admin-only policy/endpoint keeps working unchanged; only
+-- the owner-only actions check is_owner() specifically.
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('owner','admin','customer'));
+
 CREATE OR REPLACE FUNCTION is_admin() RETURNS BOOLEAN
 LANGUAGE sql SECURITY DEFINER STABLE AS $$
-  SELECT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin');
+  SELECT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('owner','admin'));
+$$;
+
+CREATE OR REPLACE FUNCTION is_owner() RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'owner');
 $$;
 
 CREATE OR REPLACE FUNCTION my_customer_id() RETURNS BIGINT

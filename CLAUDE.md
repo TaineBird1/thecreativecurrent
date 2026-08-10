@@ -53,12 +53,12 @@ All 3 marketing-site forms (Home/Pricing/Contact) POST to a single `POST /api/le
 
 Once a lead becomes a paying client, the admin invites them to a portal where they see live traffic for their own separately-hosted website and submit change requests with screenshots. Full plan/design rationale: see git history (`git log --all --oneline | grep -i portal`) — the short version:
 
-**Auth**: Supabase Auth. A `profiles` table (keyed by `auth.users.id`) holds `role` (`admin`/`customer`) + `customer_id`. Two `SECURITY DEFINER` SQL functions — `is_admin()` and `my_customer_id()` — are used in every RLS policy instead of inlining checks, avoiding policy self-recursion on `profiles`.
+**Auth**: Supabase Auth. A `profiles` table (keyed by `auth.users.id`) holds `role` (`owner`/`admin`/`customer`) + `customer_id`. Three `SECURITY DEFINER` SQL functions — `is_admin()`, `is_owner()`, and `my_customer_id()` — are used in every RLS policy instead of inlining checks, avoiding policy self-recursion on `profiles`. `owner` is a superset of `admin`: `is_admin()` returns true for both roles, so every existing admin-only policy/endpoint kept working unchanged when `owner` was added — only the owner-only staff-management actions check `is_owner()` specifically. See Staff & Roles below.
 
 - `src/lib/supabaseClient.ts` — browser Supabase client (`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` — **note the `VITE_` prefix**, not the `NEXT_PUBLIC_` ones the Vercel/Supabase integration originally injected; those are invisible to Vite and only the `VITE_*` copies were added manually).
 - `src/lib/auth.tsx` — `AuthProvider`/`useAuth()`, tracks session + profile + a `passwordRecovery` flag (set on Supabase's `PASSWORD_RECOVERY` auth event, so invite/recovery links show a "set your password" form instead of silently logging in with no way to set one).
 - Auth/role guarding is inlined directly into `AdminLayout.tsx`/`PortalLayout.tsx` (both already call `useAuth()` for their own UI) rather than a separate `<RequireAdmin>`/`<RequireCustomer>` wrapper — the old wrapper version is what originally shipped, but it's gone now (see the redirect-loop note below). Guard order matters: **check `!session || !profile` before checking `profile.role`** — a session can be valid (unexpired JWT) while its `profiles` row no longer exists (e.g. a deleted test/preview account), leaving `profile` permanently `null`. Checking role first (`profile?.role !== "admin"`) treats a null profile as "wrong role" and redirects to `/portal`, which redirects right back to `/admin` for the same reason — an infinite loop between the two layouts. Treating "no profile" as "not authenticated" (redirect to `/login`) avoids this for any orphaned-session case.
-- Single admin (bootstrapped manually via `supabase.auth.admin.inviteUserByEmail` + a hand-inserted `profiles` row — there's no self-service "first admin" flow, and there shouldn't be for a single-admin system). Customers are **invite-only** — no public signup page exists.
+- The first owner was bootstrapped manually via `supabase.auth.admin.inviteUserByEmail` + a hand-inserted `profiles` row (there's no self-service "first owner" flow, and there shouldn't be). Every admin after that goes through the in-app Staff invite flow (see below). Customers are **invite-only** — no public signup page exists.
 
 **Data model** (`sql/schema.sql`, applied via `scripts/run-schema.mjs` against `POSTGRES_URL_NON_POOLING`):
 - `customers` — business_name, contact info, `website_url`, `tracking_site_key` (UUID, used by the tracking snippet), optional `lead_id` link back to the leads table.
@@ -76,7 +76,7 @@ Once a lead becomes a paying client, the admin invites them to a portal where th
 **Routes** (`src/App.tsx`) — outside the marketing site's `Header`/`Footer`:
 - `/login` — shared login; also renders the password-set form when `passwordRecovery` is true.
 - `/portal` (customer) — `PortalDashboard` (live count + 7-day traffic chart), `/portal/requests` (`PortalChangeRequests` — submit form + own request list).
-- `/admin` — `/admin/customers` (list + invite form), `/admin/customers/:id` (per-customer analytics + requests), `/admin/change-requests` (cross-customer checklist with mark-done, business-name joined in), `/admin/leads` (existing leads table + "convert to customer" prefill).
+- `/admin` — `/admin/customers` (list + invite form), `/admin/customers/:id` (per-customer analytics + requests), `/admin/change-requests` (cross-customer checklist with mark-done, business-name joined in), `/admin/leads` (existing leads table + "convert to customer" prefill), `/admin/staff` (owner-only — see Staff & Roles below).
 - `/privacy`, `/terms` — static legal pages (`src/pages/Privacy`, `src/pages/Terms`), sharing a `LegalLayout`/`LegalSection` component (`src/components/LegalLayout.tsx`). Linked from `Footer.tsx`. Privacy Policy content is POPIA-oriented (South Africa's data protection law).
 - `*` (within the marketing site only) — `NotFound` (`src/pages/NotFound`), `noindex`'d via `useSEO`, so broken/typo'd URLs don't return a blank "soft 404" to Google.
 
@@ -84,12 +84,22 @@ Once a lead becomes a paying client, the admin invites them to a portal where th
 
 **Shared components** (used by both admin and portal — moved to `src/components/` mid-build once that became clear): `LiveVisitorCount.tsx`, `TrafficChart.tsx` (dependency-free CSS bar chart), `ChangeRequestList.tsx` (takes optional `customerId`/`canUpdateStatus`/`showBusinessName` props to serve both the customer's own list and the admin's cross-customer checklist).
 
-**6 serverless functions exist in total** (everything else is direct `supabase-js` from the browser, authorized by RLS):
+**8 serverless functions exist in total** (everything else is direct `supabase-js` from the browser, authorized by RLS):
 - `api/invite-customer.ts` — admin-only, uses `SUPABASE_SERVICE_ROLE_KEY` to create the auth user + customer + profile rows. Service role key can never reach the browser, so this can't be done client-side.
+- `api/invite-admin.ts`, `api/remove-admin.ts` — owner-only, see Staff & Roles below.
 - `api/track.ts` — see above.
 - `api/prospects-search.ts`, `api/prospects-send.ts`, `api/outreach-run.ts`, `api/prospects-bulk-send.ts` — see Cold Outreach below.
 
-All admin-only functions share **`api/_lib/requireAdmin.ts`**: pulls the `Bearer` token, calls `getSupabaseAdmin().auth.getUser(token)`, then checks `profiles.role === 'admin'`. Written inline three times before being factored out — reuse it for any new admin-only endpoint rather than re-copying the check.
+All admin-only functions share **`api/_lib/requireAdmin.ts`**: pulls the `Bearer` token, calls `getSupabaseAdmin().auth.getUser(token)`, then checks `profiles.role === 'admin' || profiles.role === 'owner'`. Written inline three times before being factored out — reuse it for any new admin-only endpoint rather than re-copying the check. Owner-only endpoints use the stricter **`api/_lib/requireOwner.ts`** instead (only `role === 'owner'` passes).
+
+### Staff & Roles
+
+Three `profiles.role` values now exist: `owner` (the agency's own account(s) — full access plus staff management), `admin` (invited staff — full day-to-day admin access: leads, customers, outreach, activity, but cannot invite or remove other admins), `customer` (unchanged). Added because a single hardcoded admin no longer matched the plan to run a back office with staff.
+
+- `/admin/staff` (`src/admin/AdminStaff.tsx`) — owner-only page: an invite form (email only) and a table of all `owner`/`admin` profiles with a "Remove access" button per `admin` row. Route-guarded twice: the nav link (`AdminLayout.tsx`) only renders for `profile.role === 'owner'`, and the page itself redirects non-owners to `/admin` — a direct link alone isn't enough to reach it.
+- `api/invite-admin.ts` — mirrors `invite-customer.ts`'s shape (`supabase.auth.admin.inviteUserByEmail` + insert a `profiles` row) but with `role: 'admin'` and no `customer_id`.
+- `api/remove-admin.ts` — deletes the target's `auth.users` row entirely (`supabase.auth.admin.deleteUser`, which cascades the `profiles` row via `ON DELETE CASCADE`) rather than just changing their role, so a removed admin can't sign back in at all. Refuses to touch a `role = 'owner'` row — this endpoint is for managing staff, not for owners removing each other or themselves by accident.
+- No self-service "become an owner" path exists, deliberately — promoting a second owner is a manual `UPDATE profiles SET role = 'owner'` against the database, same as the original single-admin bootstrap.
 
 **`tsconfig.api.json` gotcha** (bit the project twice): `module: nodenext` requires explicit `.js` extensions on relative imports in `api/*.ts` files, even though the source is `.ts` (e.g. `from "./_lib/db.js"`).
 

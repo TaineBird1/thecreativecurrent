@@ -1,11 +1,14 @@
 import type { VercelRequest } from "@vercel/node";
 import { getSupabaseAdmin } from "./supabaseAdmin.js";
 
-export type RequireAdminResult =
+export type RequireOwnerResult =
   | { authorized: true; userId: string }
   | { authorized: false; status: number; error: string };
 
-export async function requireAdmin(req: VercelRequest): Promise<RequireAdminResult> {
+// Stricter than requireAdmin.ts: only 'owner' passes, not 'admin'. Used by
+// the staff-management endpoints (invite/remove an admin) so an invited
+// admin can't turn around and invite or remove other admins themselves.
+export async function requireOwner(req: VercelRequest): Promise<RequireOwnerResult> {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
   if (!token) {
@@ -25,8 +28,7 @@ export async function requireAdmin(req: VercelRequest): Promise<RequireAdminResu
     .eq("id", userData.user.id)
     .single();
 
-  // 'owner' is a superset of 'admin' -- see sql/schema.sql's is_admin().
-  if (profile?.role !== "admin" && profile?.role !== "owner") {
+  if (profile?.role !== "owner") {
     return { authorized: false, status: 403, error: "forbidden" };
   }
 
