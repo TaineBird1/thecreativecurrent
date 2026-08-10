@@ -14,14 +14,25 @@ export function buildOutreachDraft(
    * reply. Optional because not every prospect has one -- a merely slow or
    * dated site has no single fact to name.
    */
-  defect?: string | null
+  defect?: string | null,
+  /**
+   * An AI-written opening paragraph (api/_lib/aiDraft.ts's
+   * generateAiOpening), grounded in the same `defect`/`reason` facts as the
+   * rule-based opener below. When present it replaces that opener entirely;
+   * when null (missing API key, a failed generation, or a caller that never
+   * asked for one), the rule-based opener runs exactly as before -- this
+   * parameter is additive, not a replacement for the fallback path.
+   */
+  openingOverride?: string | null
 ) {
   const subject = defect
     ? `Something's wrong with ${businessName}'s website`
     : `Quick look at ${businessName}'s online presence`;
 
   let opening: string;
-  if (reason === "poor_website" && defect) {
+  if (openingOverride) {
+    opening = openingOverride;
+  } else if (reason === "poor_website" && defect) {
     opening = `I came across ${businessName} and went to look at your website — ${defect}. I don't think that's doing you any favours with people trying to find you.`;
   } else if (reason === "poor_website") {
     opening = `I came across ${businessName} and had a look at your website — it looks like it could be working a lot harder for you. A few quick fixes to speed and mobile-friendliness could mean a lot more people actually stick around when they land on it.`;

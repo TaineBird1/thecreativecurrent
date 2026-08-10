@@ -41,6 +41,9 @@ const AdminOutreachStats = lazy(() =>
 const AdminOutreachCalls = lazy(() =>
   import("./admin/AdminOutreachCalls").then((m) => ({ default: m.AdminOutreachCalls }))
 );
+const AdminOutreachReplies = lazy(() =>
+  import("./admin/AdminOutreachReplies").then((m) => ({ default: m.AdminOutreachReplies }))
+);
 const AdminActivity = lazy(() => import("./admin/AdminActivity").then((m) => ({ default: m.AdminActivity })));
 const AdminStaff = lazy(() => import("./admin/AdminStaff").then((m) => ({ default: m.AdminStaff })));
 
@@ -87,6 +90,7 @@ function App() {
               <Route path="outreach/review" element={<AdminOutreachReview />} />
               <Route path="outreach/stats" element={<AdminOutreachStats />} />
               <Route path="outreach/calls" element={<AdminOutreachCalls />} />
+              <Route path="outreach/replies" element={<AdminOutreachReplies />} />
               <Route path="activity" element={<AdminActivity />} />
               <Route path="staff" element={<AdminStaff />} />
             </Route>

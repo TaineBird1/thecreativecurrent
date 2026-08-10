@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireAdmin } from "./_lib/requireAdmin.js";
 import { getSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 import { discoverPlaces, isMiddleClassPriceLevel } from "./_lib/placesDiscovery.js";
+import { generateAiOpening } from "./_lib/aiDraft.js";
 import { buildOutreachDraft } from "../src/lib/outreachTemplate.js";
 import { sendOutreachDigest } from "./_lib/email.js";
 import type { ProspectRunApiResponse } from "../src/lib/prospects.js";
@@ -85,8 +86,17 @@ async function runAllSearches() {
         // to send it. Lead with the specific fault when there is one -- "your
         // domain no longer resolves" is checkable in ten seconds, unlike a
         // generic opinion about their design.
+        const aiOpening = r.email
+          ? await generateAiOpening({
+              businessName: r.businessName,
+              category: search.category,
+              reason,
+              emailDefect: r.websiteEmailDefect,
+              address: r.address,
+            })
+          : null;
         const draft = r.email
-          ? buildOutreachDraft(r.businessName, search.category, reason, r.websiteEmailDefect)
+          ? buildOutreachDraft(r.businessName, search.category, reason, r.websiteEmailDefect, aiOpening)
           : null;
 
         const { error: insertError } = await supabase.from("prospects").insert({

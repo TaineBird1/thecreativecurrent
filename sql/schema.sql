@@ -247,6 +247,21 @@ ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT 'no_
 ALTER TABLE prospects DROP CONSTRAINT IF EXISTS prospects_reason_check;
 ALTER TABLE prospects ADD CONSTRAINT prospects_reason_check CHECK (reason IN ('no_website','poor_website'));
 
+-- Reply handling (api/check-replies.ts polls the admin's Gmail inbox via
+-- IMAP -- same app password as sending -- and matches replies back to a
+-- prospect by sender address). Only the latest reply is kept: this is a
+-- detect-and-suggest-a-response workflow, not a full threaded conversation
+-- history, so a second reply from the same prospect overwrites the first
+-- rather than appending.
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reply_body TEXT;
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reply_received_at TIMESTAMPTZ;
+-- The original message's RFC 822 Message-ID, so a sent reply can carry
+-- proper In-Reply-To/References headers and thread correctly in the
+-- recipient's inbox instead of arriving as an unrelated new message.
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reply_message_id TEXT;
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS ai_suggested_reply TEXT;
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reply_sent_at TIMESTAMPTZ;
+
 -- Saved searches (category + location) power the daily automated discovery
 -- job in api/outreach-run.ts -- nothing to run at 5am without these.
 CREATE TABLE IF NOT EXISTS saved_searches (

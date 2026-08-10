@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { StatusBadge } from "../../components/StatusBadge";
-import { buildOutreachDraft } from "../../lib/outreachTemplate";
-import { prospectStatusTone, type Prospect, type ProspectSendApiResponse } from "../../lib/prospects";
+import {
+  prospectStatusTone,
+  type Prospect,
+  type ProspectDraftApiResponse,
+  type ProspectSendApiResponse,
+} from "../../lib/prospects";
 
 export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onChange: () => void }) {
   const [email, setEmail] = useState(prospect.email ?? "");
@@ -28,27 +32,35 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
   }
 
   async function generateDraft() {
-    // `reason` and `email_defect` were both previously omitted, which meant
-    // this button always generated the "you don't currently have a website"
-    // opener (the default) even for a poor-website prospect, and threw away
-    // the specific fault found at discovery time. Both are wrong premises to
-    // send on, and the second is the whole reason the site check exists.
-    const draft = buildOutreachDraft(
-      prospect.business_name,
-      prospect.category,
-      prospect.reason,
-      prospect.email_defect
-    );
-    setSubject(draft.subject);
-    setBody(draft.body);
-    await updateFields(
-      {
-        draft_subject: draft.subject,
-        draft_body: draft.body,
-        status: prospect.status === "new" ? "drafted" : prospect.status,
-      },
-      "draft"
-    );
+    // Drafting moved server-side (api/prospects-draft.ts) so it can call the
+    // Claude API for a genuinely personalized opening, grounded in the same
+    // `reason`/`email_defect` facts the old client-side buildOutreachDraft()
+    // call used -- an API key can't live in this bundle. Falls back to the
+    // same rule-based opener on the server if the AI call fails, so this
+    // never leaves the button producing nothing.
+    setLoading("draft");
+    setError(null);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    try {
+      const res = await fetch("/api/prospects-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: prospect.id }),
+      });
+      const data: ProspectDraftApiResponse = await res.json();
+      if (!data.ok) {
+        setError(data.error);
+        return;
+      }
+      setSubject(data.prospect.draft_subject ?? "");
+      setBody(data.prospect.draft_body ?? "");
+      onChange();
+    } catch {
+      setError("Something went wrong generating this draft.");
+    } finally {
+      setLoading(null);
+    }
   }
 
   async function saveDraft() {

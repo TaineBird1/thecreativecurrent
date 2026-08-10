@@ -164,6 +164,40 @@ export async function sendOutreachEmail(
   await logEmail({ recipient: to, subject, type: "outreach", status: "sent", prospectId: opts.prospectId });
 }
 
+// A reply to a prospect who already wrote back -- api/prospects-send-reply.ts,
+// itself gated behind an explicit human approval of the exact text, same as
+// every other send in this system. Distinct from sendOutreachEmail in two
+// ways: it carries In-Reply-To/References so it threads correctly in the
+// recipient's inbox instead of arriving as an unrelated new message, and it
+// skips the POPIA opt-out footer -- that footer is for unsolicited direct
+// marketing, and a reply to a conversation the prospect started isn't that.
+export async function sendOutreachReply(
+  to: string,
+  subject: string,
+  body: string,
+  opts: { prospectId?: number; inReplyTo?: string | null } = {}
+) {
+  const transport = getGmailTransport();
+  const user = process.env.GMAIL_USER as string;
+  const displayName = process.env.OUTREACH_FROM_NAME || "The Creative Current";
+
+  try {
+    await transport.sendMail({
+      from: `${displayName} <${user}>`,
+      to,
+      subject,
+      text: body,
+      html: body.replace(/\n/g, "<br>"),
+      ...(opts.inReplyTo ? { inReplyTo: opts.inReplyTo, references: opts.inReplyTo } : {}),
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "send failed";
+    await logEmail({ recipient: to, subject, type: "outreach", status: "failed", error: message, prospectId: opts.prospectId });
+    throw new Error(message);
+  }
+  await logEmail({ recipient: to, subject, type: "outreach", status: "sent", prospectId: opts.prospectId });
+}
+
 // Sent once per daily cron run, only when it actually finds something --
 // so checking /admin/outreach/review can be a "when I get the email"
 // habit instead of a daily manual check. Only the cron path sends this;

@@ -151,6 +151,12 @@ export function AdminOutreach() {
         >
           Daily Review
         </Link>
+        <Link
+          to="/admin/outreach/replies"
+          className="shrink-0 rounded-lg border border-primary/40 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+        >
+          Replies
+        </Link>
       </div>
 
       <section className="rounded-lg border border-border bg-card">

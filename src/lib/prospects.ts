@@ -90,6 +90,13 @@ export type Prospect = {
   call_notes: string | null;
   last_called_at: string | null;
   call_attempts: number;
+  /** Set by api/check-replies.ts when a reply is matched to this prospect. */
+  reply_body: string | null;
+  reply_received_at: string | null;
+  /** The reply's RFC 822 Message-ID, so a sent response threads correctly. */
+  reply_message_id: string | null;
+  ai_suggested_reply: string | null;
+  reply_sent_at: string | null;
 };
 
 /**
@@ -144,6 +151,10 @@ export type ProspectSendApiResponse =
   | { ok: true; prospect: Prospect }
   | { ok: false; error: string };
 
+export type ProspectDraftApiResponse =
+  | { ok: true; prospect: Prospect; aiGenerated: boolean }
+  | { ok: false; error: string };
+
 export type ProspectRunApiResponse =
   | {
       ok: true;
@@ -157,4 +168,12 @@ export type ProspectRunApiResponse =
 
 export type ProspectBulkSendApiResponse =
   | { ok: true; sent: number[]; skipped: { id: number; reason: string }[] }
+  | { ok: false; error: string };
+
+export type CheckRepliesApiResponse =
+  | { ok: true; checked: number; matched: number; errors: string[] }
+  | { ok: false; error: string };
+
+export type ProspectSendReplyApiResponse =
+  | { ok: true; prospect: Prospect }
   | { ok: false; error: string };
