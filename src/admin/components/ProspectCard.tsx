@@ -1,13 +1,9 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { StatusBadge } from "../../components/StatusBadge";
 import { IconChevronDown, IconThumbsDown, IconThumbsUp } from "./icons";
-import {
-  prospectStatusTone,
-  type Prospect,
-  type ProspectDraftApiResponse,
-  type ProspectSendApiResponse,
-} from "../../lib/prospects";
+import { FOLLOW_UP_AFTER_DAYS, prospectStatusTone, type Prospect, type ProspectDraftApiResponse, type ProspectSendApiResponse } from "../../lib/prospects";
 
 function initials(businessName: string): string {
   const words = businessName.trim().split(/\s+/).filter(Boolean);
@@ -16,8 +12,22 @@ function initials(businessName: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+// Mirrors the eligibility check in AdminOutreachReview.tsx's loadFollowUps()
+// (and the guards api/prospects-followup-send.ts re-checks server-side)
+// exactly, so this badge never promises a follow-up that page wouldn't
+// actually offer: sent, never followed up, an email on file, and past the
+// window.
+function isFollowUpDue(prospect: Prospect): boolean {
+  if (prospect.status !== "sent") return false;
+  if (prospect.followed_up_at) return false;
+  if (!prospect.email || !prospect.sent_at) return false;
+  const cutoff = Date.now() - FOLLOW_UP_AFTER_DAYS * 24 * 60 * 60 * 1000;
+  return new Date(prospect.sent_at).getTime() < cutoff;
+}
+
 export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onChange: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const followUpDue = isFollowUpDue(prospect);
   const [email, setEmail] = useState(prospect.email ?? "");
   const [subject, setSubject] = useState(prospect.draft_subject ?? "");
   const [body, setBody] = useState(prospect.draft_body ?? "");
@@ -202,7 +212,12 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
                   {loading === "send" ? "Sending..." : "Send"}
                 </button>
               )}
-              {prospect.status === "sent" && (
+              {prospect.status === "sent" && followUpDue && (
+                <Link to="/admin/outreach/review" title="Follow up from Daily Review">
+                  <StatusBadge label="Follow-up due" tone="warning" />
+                </Link>
+              )}
+              {prospect.status === "sent" && !followUpDue && (
                 <span className="text-[11px] text-green-500">
                   Sent {prospect.sent_at ? new Date(prospect.sent_at).toLocaleDateString() : ""}
                 </span>
@@ -310,7 +325,12 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
                     {loading === "send" ? "Sending..." : "Approve & Send"}
                   </button>
                 )}
-                {prospect.status === "sent" && (
+                {prospect.status === "sent" && followUpDue && (
+                  <Link to="/admin/outreach/review" title="Follow up from Daily Review">
+                    <StatusBadge label="Follow-up due" tone="warning" />
+                  </Link>
+                )}
+                {prospect.status === "sent" && !followUpDue && (
                   <span className="text-xs text-green-500">
                     Sent {prospect.sent_at ? new Date(prospect.sent_at).toLocaleDateString() : ""}
                   </span>
