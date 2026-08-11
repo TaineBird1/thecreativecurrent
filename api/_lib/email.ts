@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import nodemailer, { type Transporter } from "nodemailer";
 import { getSupabaseAdmin } from "./supabaseAdmin.js";
-import type { LeadPayload } from "../../src/lib/leads.js";
+import type { AbandonedLeadPayload, LeadPayload } from "../../src/lib/leads.js";
 
 let client: Resend | null = null;
 
@@ -74,7 +74,7 @@ function buildBody(lead: LeadPayload, id?: number) {
 async function logEmail(params: {
   recipient: string;
   subject: string;
-  type: "outreach" | "lead_notification" | "other";
+  type: "outreach" | "lead_notification" | "abandoned_lead_notification" | "other";
   status: "sent" | "failed";
   error?: string;
   prospectId?: number;
@@ -120,6 +120,46 @@ export async function sendLeadNotification(lead: LeadPayload, id?: number) {
     throw new Error(error.message);
   }
   await logEmail({ recipient: to, subject, type: "lead_notification", status: "sent", leadId: id });
+}
+
+// Fires once, the first time api/leads.ts's `abandoned` branch inserts a
+// brand-new row -- not on every debounced refresh of the same draft, or this
+// would spam an email per keystroke pause. Deliberately urgent tone: unlike a
+// completed lead, this person is (or was, moments ago) still on the site, so
+// the window to catch them warm is short.
+export async function sendAbandonedLeadNotification(lead: AbandonedLeadPayload) {
+  const resend = getResend();
+  const from = process.env.LEADS_FROM_EMAIL;
+  const to = process.env.LEADS_NOTIFICATION_EMAIL;
+  if (!from || !to) {
+    throw new Error("LEADS_FROM_EMAIL or LEADS_NOTIFICATION_EMAIL is not set");
+  }
+
+  const subject = `Abandoned inquiry: ${lead.name} (${sourceLabels[lead.source]})`;
+  const rows: [string, string | undefined][] = [
+    ["Source", sourceLabels[lead.source]],
+    ["Name", lead.name],
+    ["Email", lead.email],
+    ["Phone", lead.phone],
+    ["Service", lead.service_type],
+    ["Company", lead.company_name],
+    ["Preferred date", lead.preferred_date],
+    ["Project details", lead.project_details],
+  ];
+  const body = [
+    "Someone started the inquiry form and gave real contact details, but left before submitting.",
+    "",
+    ...rows.filter(([, value]) => value !== undefined && value !== "").map(([label, value]) => `${label}: ${value}`),
+    "",
+    "Review and mark contacted: https://www.thecreativecurrent.co.za/admin/leads/abandoned",
+  ].join("\n");
+
+  const { error } = await resend.emails.send({ from: `The Creative Current <${from}>`, to, subject, text: body });
+  if (error) {
+    await logEmail({ recipient: to, subject, type: "abandoned_lead_notification", status: "failed", error: error.message });
+    throw new Error(error.message);
+  }
+  await logEmail({ recipient: to, subject, type: "abandoned_lead_notification", status: "sent" });
 }
 
 // Cold outreach: nothing calls this until a human has explicitly approved

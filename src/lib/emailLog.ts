@@ -1,4 +1,4 @@
-export const emailLogTypes = ["outreach", "lead_notification", "other"] as const;
+export const emailLogTypes = ["outreach", "lead_notification", "abandoned_lead_notification", "other"] as const;
 export type EmailLogType = (typeof emailLogTypes)[number];
 
 export const emailLogStatuses = ["sent", "failed"] as const;

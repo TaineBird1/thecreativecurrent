@@ -24,6 +24,9 @@ const PortalChangeRequests = lazy(() =>
 const AdminLayout = lazy(() => import("./admin/AdminLayout").then((m) => ({ default: m.AdminLayout })));
 const AdminOverview = lazy(() => import("./admin/AdminOverview").then((m) => ({ default: m.AdminOverview })));
 const AdminLeads = lazy(() => import("./admin/AdminLeads").then((m) => ({ default: m.AdminLeads })));
+const AdminAbandonedLeads = lazy(() =>
+  import("./admin/AdminAbandonedLeads").then((m) => ({ default: m.AdminAbandonedLeads }))
+);
 const AdminCustomers = lazy(() => import("./admin/AdminCustomers").then((m) => ({ default: m.AdminCustomers })));
 const AdminCustomerDetail = lazy(() =>
   import("./admin/AdminCustomerDetail").then((m) => ({ default: m.AdminCustomerDetail }))
@@ -83,6 +86,7 @@ function App() {
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminOverview />} />
               <Route path="leads" element={<AdminLeads />} />
+              <Route path="leads/abandoned" element={<AdminAbandonedLeads />} />
               <Route path="customers" element={<AdminCustomers />} />
               <Route path="customers/:id" element={<AdminCustomerDetail />} />
               <Route path="change-requests" element={<AdminChangeRequests />} />

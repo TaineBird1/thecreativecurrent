@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import type { LeadRow } from "../lib/leads";
 
@@ -34,9 +34,17 @@ export function AdminLeads() {
 
   return (
     <div className="space-y-10">
-      <div>
-        <h1 className="font-sans text-2xl font-bold">Leads</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Submissions from the site's contact forms.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-sans text-2xl font-bold">Leads</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Submissions from the site's contact forms.</p>
+        </div>
+        <Link
+          to="/admin/leads/abandoned"
+          className="shrink-0 rounded-lg border border-primary/40 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+        >
+          Abandoned Inquiries
+        </Link>
       </div>
 
       <section className="rounded-lg border border-border bg-card">

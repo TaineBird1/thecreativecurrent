@@ -5,6 +5,7 @@ import type { EmailLog } from "../lib/emailLog";
 const TYPE_LABELS: Record<string, string> = {
   outreach: "Outreach",
   lead_notification: "Lead notification",
+  abandoned_lead_notification: "Abandoned lead",
   other: "Other",
 };
 

@@ -315,3 +315,48 @@ ALTER TABLE email_log ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS email_log_select ON email_log;
 CREATE POLICY email_log_select ON email_log FOR SELECT USING (is_admin());
+
+-- Someone typed a real name, email, and phone into the Inquiry form (the
+-- multi-step form shared by /contact and /appointment-booking) but left
+-- before hitting the final Submit on the review step. Captured client-side
+-- (Inquiry.tsx, a debounced background POST plus one on page-hide) rather
+-- than waiting for a real submission -- that's the whole point, since a
+-- completed submission already becomes a normal row in `leads`. Kept as its
+-- own table rather than a status on `leads` because it is a fundamentally
+-- different kind of record: inferred from partial, possibly-still-changing
+-- input, not an explicit "send this" action. Written via the same privileged
+-- direct-Postgres connection api/leads.ts already uses for `leads`, so no
+-- INSERT policy is needed; UPDATE is needed so the admin page can mark one
+-- contacted or add a note directly via supabase-js.
+CREATE TABLE IF NOT EXISTS abandoned_leads (
+  id BIGSERIAL PRIMARY KEY,
+  source TEXT NOT NULL DEFAULT 'contact' CHECK (source IN ('home','pricing','contact','appointment')),
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  company_name TEXT,
+  service_type TEXT,
+  project_details TEXT,
+  preferred_date TEXT,
+  -- Which Inquiry.tsx step (0-indexed) they had reached when captured --
+  -- 2 is "Tell us about you" (where the contact fields live), 3 is the
+  -- final review step, so a 3 means they read their own submission back
+  -- and still didn't send it.
+  step_reached INTEGER NOT NULL DEFAULT 2,
+  contacted_at TIMESTAMPTZ,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE abandoned_leads ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS abandoned_leads_select ON abandoned_leads;
+CREATE POLICY abandoned_leads_select ON abandoned_leads FOR SELECT USING (is_admin());
+DROP POLICY IF EXISTS abandoned_leads_update ON abandoned_leads;
+CREATE POLICY abandoned_leads_update ON abandoned_leads FOR UPDATE USING (is_admin());
+
+-- A notification when a new abandoned entry is first captured needs its own
+-- email_log type, distinct from a real lead notification.
+ALTER TABLE email_log DROP CONSTRAINT IF EXISTS email_log_type_check;
+ALTER TABLE email_log ADD CONSTRAINT email_log_type_check
+  CHECK (type IN ('outreach','lead_notification','abandoned_lead_notification','other'));

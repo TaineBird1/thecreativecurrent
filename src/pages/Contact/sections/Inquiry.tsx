@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLeadSubmit } from "../../../hooks/useLeadSubmit";
 import { SubmissionSuccessConfirmation } from "./SubmissionSuccessConfirmation";
 import { InquiryCalendar, formatDateValue, parseDateValue } from "./InquiryCalendar";
@@ -96,6 +96,68 @@ export function Inquiry({ source = "contact" }: { source?: LeadSource }) {
     form.project_details.trim().length > 0;
 
   const stepValid = [step0Valid, true, step2Valid, true];
+
+  const abandonedTimerRef = useRef<number | null>(null);
+
+  // Fired in the background once real contact details exist, well before
+  // Submit -- the whole point is catching people who never click it.
+  // captureAbandoned de-dupes/updates server-side (see api/leads.ts), so
+  // calling this more than once for the same visitor is harmless.
+  async function captureAbandoned(state: FormState, currentStep: number) {
+    if (state.honeypot) return;
+    if (state.name.trim().length < 2 || !EMAIL_PATTERN.test(state.email) || !PHONE_PATTERN.test(state.phone)) return;
+    try {
+      await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          abandoned: true,
+          source,
+          name: state.name,
+          email: state.email,
+          phone: state.phone,
+          company_name: state.company_name,
+          service_type: state.services.join(", "),
+          project_details: state.project_details,
+          preferred_date: state.preferred_date,
+          step_reached: currentStep,
+          honeypot: state.honeypot,
+        }),
+      });
+    } catch {
+      // Best-effort: this fires with no visitor action to react to, so a
+      // failure here must stay silent rather than surface as a form error.
+    }
+  }
+
+  // Debounced 2.5s after the last relevant change, re-armed on every one --
+  // stops entirely once a real submission succeeds.
+  useEffect(() => {
+    if (success) return;
+    if (abandonedTimerRef.current) window.clearTimeout(abandonedTimerRef.current);
+    abandonedTimerRef.current = window.setTimeout(() => {
+      captureAbandoned(form, step);
+    }, 2500);
+    return () => {
+      if (abandonedTimerRef.current) window.clearTimeout(abandonedTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.name, form.email, form.phone, form.company_name, form.project_details, form.services, form.preferred_date, success]);
+
+  // The debounce alone can miss the last few seconds if the tab closes
+  // before it fires. pagehide covers navigation away, tab close, and
+  // refresh; keepalive lets the request survive the page actually unloading
+  // (fetch+keepalive, not sendBeacon -- see track.js for why sendBeacon
+  // silently drops a JSON POST).
+  useEffect(() => {
+    function handlePageHide() {
+      if (!success) captureAbandoned(form, step);
+    }
+    window.addEventListener("pagehide", handlePageHide);
+    return () => window.removeEventListener("pagehide", handlePageHide);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, step, success]);
 
   function goNext() {
     if (stepValid[step]) setStep((s) => Math.min(s + 1, steps.length - 1));
