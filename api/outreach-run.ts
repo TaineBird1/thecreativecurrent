@@ -109,6 +109,7 @@ async function runAllSearches() {
           website: r.website,
           email: r.email,
           page_speed_score: r.pageSpeedScore,
+          photo_reference: r.photoReference,
           reason,
           source: "places_api",
           status: draft ? "drafted" : "new",

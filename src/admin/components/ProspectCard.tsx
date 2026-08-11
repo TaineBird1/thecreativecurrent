@@ -71,6 +71,10 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
     await updateFields({ status: "approved" }, "approve");
   }
 
+  async function setInterested(value: boolean | null) {
+    await updateFields({ interested: value }, "interested");
+  }
+
   async function send() {
     setLoading("send");
     setError(null);
@@ -98,26 +102,68 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
   return (
     <div className="space-y-4 rounded-lg border border-border bg-black p-5">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate font-sans text-sm font-semibold text-foreground">{prospect.business_name}</h3>
-          <p className="truncate text-xs text-muted-foreground">
-            {prospect.category || "—"} {prospect.address ? `· ${prospect.address}` : ""}
-          </p>
-          <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
-            {prospect.phone && <span>{prospect.phone}</span>}
-            {prospect.maps_url && (
-              <a
-                href={prospect.maps_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                Maps
-              </a>
-            )}
+        <div className="flex min-w-0 gap-3">
+          {prospect.photo_reference && (
+            <img
+              src={`/api/prospects-search?ref=${encodeURIComponent(prospect.photo_reference)}`}
+              alt=""
+              className="h-14 w-14 shrink-0 rounded-lg border border-border object-cover"
+            />
+          )}
+          <div className="min-w-0">
+            <h3 className="truncate font-sans text-sm font-semibold text-foreground">{prospect.business_name}</h3>
+            <p className="truncate text-xs text-muted-foreground">
+              {prospect.category || "—"} {prospect.address ? `· ${prospect.address}` : ""}
+            </p>
+            <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
+              {prospect.phone && <span>{prospect.phone}</span>}
+              {prospect.email && <span className="truncate">{prospect.email}</span>}
+              {prospect.maps_url && (
+                <a
+                  href={prospect.maps_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Maps
+                </a>
+              )}
+            </div>
           </div>
         </div>
-        <StatusBadge label={prospect.status} tone={prospectStatusTone[prospect.status]} />
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <StatusBadge label={prospect.status} tone={prospectStatusTone[prospect.status]} />
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => setInterested(prospect.interested === true ? null : true)}
+              disabled={loading === "interested"}
+              title="Interested"
+              aria-pressed={prospect.interested === true}
+              className={`rounded-md border px-1.5 py-1 text-xs transition-colors disabled:opacity-50 ${
+                prospect.interested === true
+                  ? "border-green-500/40 bg-green-500/10 text-green-500"
+                  : "border-border text-muted-foreground hover:border-green-500/40 hover:text-green-500"
+              }`}
+            >
+              👍
+            </button>
+            <button
+              type="button"
+              onClick={() => setInterested(prospect.interested === false ? null : false)}
+              disabled={loading === "interested"}
+              title="Not interested"
+              aria-pressed={prospect.interested === false}
+              className={`rounded-md border px-1.5 py-1 text-xs transition-colors disabled:opacity-50 ${
+                prospect.interested === false
+                  ? "border-red-500/40 bg-red-500/10 text-red-500"
+                  : "border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500"
+              }`}
+            >
+              👎
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-2">

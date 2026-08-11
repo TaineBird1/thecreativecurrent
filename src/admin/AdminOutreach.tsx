@@ -1,14 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import { ProspectCard } from "./components/ProspectCard";
-import type {
-  Prospect,
-  ProspectSearchApiResponse,
-  ProspectSearchResult,
-  ProspectStatus,
-  SavedSearch,
-} from "../lib/prospects";
+import { PipelineBoard } from "./components/PipelineBoard";
+import type { Prospect, ProspectSearchApiResponse, ProspectSearchResult, SavedSearch } from "../lib/prospects";
 
 // Google's price_level: 0 Free, 1 Inexpensive, 2 Moderate, 3 Expensive,
 // 4 Very Expensive -- 2 (Moderate) is what the automated daily run treats
@@ -31,16 +25,13 @@ export function AdminOutreach() {
 
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<ProspectStatus | "">("");
 
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [savingSearch, setSavingSearch] = useState(false);
 
   async function loadProspects() {
     setLoading(true);
-    let query = supabase.from("prospects").select("*").order("created_at", { ascending: false });
-    if (statusFilter) query = query.eq("status", statusFilter);
-    const { data } = await query;
+    const { data } = await supabase.from("prospects").select("*").order("created_at", { ascending: false });
     setProspects((data as Prospect[]) ?? []);
     setLoading(false);
   }
@@ -52,10 +43,6 @@ export function AdminOutreach() {
 
   useEffect(() => {
     loadProspects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
-
-  useEffect(() => {
     loadSavedSearches();
   }, []);
 
@@ -96,6 +83,7 @@ export function AdminOutreach() {
       website: r.website,
       email: r.email,
       page_speed_score: r.pageSpeedScore,
+      photo_reference: r.photoReference,
       reason: "poor_website",
       source: "places_api",
     });
@@ -319,30 +307,20 @@ export function AdminOutreach() {
       </section>
 
       <section className="rounded-lg border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="font-sans text-sm font-semibold">Prospects ({prospects.length})</h2>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as ProspectStatus | "")}
-            className="h-9 rounded-lg border border-border bg-black px-3 text-xs text-foreground outline-none focus:border-primary"
-          >
-            <option value="">All statuses</option>
-            <option value="new">New</option>
-            <option value="drafted">Drafted</option>
-            <option value="approved">Approved</option>
-            <option value="sent">Sent</option>
-            <option value="replied">Replied</option>
-            <option value="won">Won</option>
-            <option value="lost">Lost</option>
-          </select>
+        <div className="border-b border-border px-6 py-4">
+          <h2 className="font-sans text-sm font-semibold">Pipeline ({prospects.length})</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Scroll sideways to see every stage. Mark a lead 👍/👎 to triage it — that's independent of what stage
+            it's in.
+          </p>
         </div>
-        <div className="space-y-4 p-6">
+        <div className="p-6">
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : prospects.length === 0 ? (
             <p className="text-sm text-muted-foreground">No prospects yet — search above to find some.</p>
           ) : (
-            prospects.map((p) => <ProspectCard key={p.id} prospect={p} onChange={loadProspects} />)
+            <PipelineBoard prospects={prospects} onChange={loadProspects} />
           )}
         </div>
       </section>

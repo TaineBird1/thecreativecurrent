@@ -97,6 +97,10 @@ export type Prospect = {
   reply_message_id: string | null;
   ai_suggested_reply: string | null;
   reply_sent_at: string | null;
+  /** Tri-state triage flag, independent of `status` -- null = undecided. */
+  interested: boolean | null;
+  /** Google Places photo_reference. Render via /api/prospects-search?ref=... */
+  photo_reference: string | null;
 };
 
 /**
@@ -141,6 +145,7 @@ export type ProspectSearchResult = {
   priceLevel: number | null;
   websiteHealth: WebsiteHealth | null;
   websiteHealthDetail: string | null;
+  photoReference: string | null;
 };
 
 export type ProspectSearchApiResponse =

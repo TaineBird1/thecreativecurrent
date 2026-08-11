@@ -28,6 +28,7 @@ type DetailsResponse = {
     website?: string;
     url?: string;
     price_level?: number;
+    photos?: { photo_reference: string }[];
   };
 };
 
@@ -49,6 +50,8 @@ export type DiscoveredPlace = {
   websiteHealthDetail: string | null;
   /** The same fault phrased for the recipient, to open the outreach email with. */
   websiteEmailDefect: string | null;
+  /** Google Places photo_reference for the business's first listed photo, if any. */
+  photoReference: string | null;
 };
 
 // Google's price_level enum: 0 Free, 1 Inexpensive, 2 Moderate, 3 Expensive,
@@ -81,7 +84,7 @@ export async function discoverPlaces(category: string, location: string, apiKey:
 
   return Promise.all(
     results.map(async (place) => {
-      const fields = "name,formatted_phone_number,formatted_address,website,url,place_id,price_level";
+      const fields = "name,formatted_phone_number,formatted_address,website,url,place_id,price_level,photos";
       const detailsUrl = `${DETAILS_URL}?place_id=${place.place_id}&fields=${fields}&key=${apiKey}`;
       const detailsRes = await fetch(detailsUrl);
       const detailsData = (await detailsRes.json()) as DetailsResponse;
@@ -142,6 +145,7 @@ export async function discoverPlaces(category: string, location: string, apiKey:
         websiteHealth,
         websiteHealthDetail,
         websiteEmailDefect,
+        photoReference: d.photos?.[0]?.photo_reference ?? null,
       };
     })
   );

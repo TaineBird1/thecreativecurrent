@@ -262,6 +262,20 @@ ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reply_message_id TEXT;
 ALTER TABLE prospects ADD COLUMN IF NOT EXISTS ai_suggested_reply TEXT;
 ALTER TABLE prospects ADD COLUMN IF NOT EXISTS reply_sent_at TIMESTAMPTZ;
 
+-- Pipeline board (AdminOutreach.tsx's kanban view, replacing the old flat
+-- filtered list). `interested` is deliberately a separate tri-state flag
+-- from `status` rather than folded into won/lost: status tracks where a
+-- prospect sits in the outreach *process* (drafted, sent, replied, ...),
+-- while interested is a quick yes/no/undecided triage call that can be made
+-- at any stage, independent of how far contact has progressed. NULL = not
+-- yet decided.
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS interested BOOLEAN;
+-- Google Places `photos[0].photo_reference` from the Details call, so the
+-- board can show a real storefront/listing photo. Never rendered directly
+-- with the API key attached -- api/prospects-search.ts's GET branch proxies
+-- the actual image fetch server-side so the key never reaches the browser.
+ALTER TABLE prospects ADD COLUMN IF NOT EXISTS photo_reference TEXT;
+
 -- Saved searches (category + location) power the daily automated discovery
 -- job in api/outreach-run.ts -- nothing to run at 5am without these.
 CREATE TABLE IF NOT EXISTS saved_searches (
