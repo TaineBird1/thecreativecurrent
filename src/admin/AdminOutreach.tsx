@@ -310,11 +310,11 @@ export function AdminOutreach() {
         <div className="border-b border-border px-6 py-4">
           <h2 className="font-sans text-sm font-semibold">Pipeline ({prospects.length})</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Scroll sideways to see every stage. Mark a lead 👍/👎 to triage it — that's independent of what stage
-            it's in.
+            Scroll sideways to see every stage, or a column vertically for the full list. Click a card to expand
+            it — thumbs up/down triage a lead independent of its stage.
           </p>
         </div>
-        <div className="p-6">
+        <div className="p-5">
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : prospects.length === 0 ? (

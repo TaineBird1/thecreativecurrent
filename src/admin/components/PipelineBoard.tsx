@@ -16,40 +16,44 @@ const PIPELINE_COLUMNS: { status: ProspectStatus; label: string }[] = [
 ];
 
 // Tailwind needs literal class names to find at build time -- interpolating
-// prospectStatusTone's value into a template string would silently produce
-// no styling, since nothing in the source would spell out e.g. "text-success".
-const columnLabelTone: Record<ProspectStatus, string> = {
-  new: "text-muted-foreground",
-  drafted: "text-orange-400",
-  approved: "text-primary",
-  sent: "text-green-500",
-  replied: "text-green-500",
-  won: "text-green-500",
-  lost: "text-muted-foreground",
-  no_answer: "text-muted-foreground",
-  callback: "text-orange-400",
+// a computed tone into a template string would silently produce no styling,
+// since nothing in the source would spell out e.g. "bg-green-500" as text.
+const columnDot: Record<ProspectStatus, string> = {
+  new: "bg-white/30",
+  drafted: "bg-orange-400",
+  approved: "bg-primary",
+  sent: "bg-blue-400",
+  replied: "bg-accent",
+  won: "bg-green-500",
+  lost: "bg-red-400/70",
+  no_answer: "bg-white/30",
+  callback: "bg-orange-400",
 };
 
 export function PipelineBoard({ prospects, onChange }: { prospects: Prospect[]; onChange: () => void }) {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2">
+    <div className="flex gap-3 overflow-x-auto pb-2">
       {PIPELINE_COLUMNS.map((col) => {
         const items = prospects.filter((p) => p.status === col.status);
         return (
-          <div key={col.status} className="w-[360px] shrink-0">
-            <div className="mb-3 flex items-center justify-between rounded-lg border border-border bg-black px-3 py-2">
-              <span
-                className={`font-sans text-xs font-semibold uppercase tracking-wide ${columnLabelTone[col.status]}`}
-              >
-                {col.label}
-              </span>
-              <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs text-muted-foreground">
+          <div
+            key={col.status}
+            className="flex max-h-[calc(100vh-260px)] w-[320px] shrink-0 flex-col rounded-xl border border-border bg-card"
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-3.5 py-3">
+              <div className="flex items-center gap-2">
+                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${columnDot[col.status]}`} />
+                <span className="font-sans text-xs font-semibold uppercase tracking-wide text-foreground">
+                  {col.label}
+                </span>
+              </div>
+              <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                 {items.length}
               </span>
             </div>
-            <div className="space-y-3">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2.5">
               {items.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
+                <p className="rounded-lg border border-dashed border-border px-3 py-8 text-center text-xs text-muted-foreground">
                   Nothing here
                 </p>
               ) : (
