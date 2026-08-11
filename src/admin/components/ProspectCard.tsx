@@ -120,7 +120,14 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-black transition-colors hover:border-white/20">
+    <div
+      draggable={!expanded}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", String(prospect.id));
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      className="overflow-hidden rounded-xl border border-border bg-black transition-colors hover:border-white/20 [&[draggable=true]]:cursor-grab [&[draggable=true]]:active:cursor-grabbing"
+    >
       <div className="flex items-start gap-3 p-3.5">
         {prospect.photo_reference ? (
           <img

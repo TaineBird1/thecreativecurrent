@@ -310,8 +310,9 @@ export function AdminOutreach() {
         <div className="border-b border-border px-6 py-4">
           <h2 className="font-sans text-sm font-semibold">Pipeline ({prospects.length})</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Scroll sideways to see every stage, or a column vertically for the full list. Click a card to expand
-            it — thumbs up/down triage a lead independent of its stage.
+            Drag a card to move it between stages — click to expand a card for details, thumbs up/down to triage
+            independent of stage. Sent and Replied are set automatically by actually emailing or hearing back, so
+            they can't be dragged into.
           </p>
         </div>
         <div className="p-5">

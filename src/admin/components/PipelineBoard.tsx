@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type DragEvent } from "react";
+import { supabase } from "../../lib/supabaseClient";
 import { ProspectCard } from "./ProspectCard";
 import { IconSearch, IconThumbsUp } from "./icons";
 import type { Prospect, ProspectStatus } from "../../lib/prospects";
@@ -32,9 +33,30 @@ const columnDot: Record<ProspectStatus, string> = {
   callback: "bg-orange-400",
 };
 
+// Only statuses that are a pure field flip accept a drag-drop. Sent and
+// Replied are the outcome of a real side effect (an email actually going
+// out, a reply actually arriving) tracked by prospects-send.ts and
+// check-replies.ts -- dragging a card there would mark it sent/replied
+// without either of those ever happening, silently corrupting the record
+// (no matching email_log row, no reply_body). Those columns are drag targets
+// for nothing; every other column is a legitimate manual correction.
+const DROPPABLE_STATUSES = new Set<ProspectStatus>(["new", "drafted", "approved", "won", "lost"]);
+
 export function PipelineBoard({ prospects, onChange }: { prospects: Prospect[]; onChange: () => void }) {
   const [query, setQuery] = useState("");
   const [onlyInterested, setOnlyInterested] = useState(false);
+  const [dragOverStatus, setDragOverStatus] = useState<ProspectStatus | null>(null);
+
+  async function handleDrop(status: ProspectStatus, e: DragEvent) {
+    e.preventDefault();
+    setDragOverStatus(null);
+    const id = Number(e.dataTransfer.getData("text/plain"));
+    if (!id) return;
+    const dragged = prospects.find((p) => p.id === id);
+    if (!dragged || dragged.status === status) return;
+    await supabase.from("prospects").update({ status }).eq("id", id);
+    onChange();
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -82,10 +104,25 @@ export function PipelineBoard({ prospects, onChange }: { prospects: Prospect[]; 
       <div className="flex gap-3 overflow-x-auto pb-2">
         {PIPELINE_COLUMNS.map((col) => {
           const items = filtered.filter((p) => p.status === col.status);
+          const droppable = DROPPABLE_STATUSES.has(col.status);
           return (
             <div
               key={col.status}
-              className="flex max-h-[calc(100vh-260px)] w-[320px] shrink-0 flex-col rounded-xl border border-border bg-card"
+              onDragOver={
+                droppable
+                  ? (e) => {
+                      e.preventDefault();
+                      setDragOverStatus(col.status);
+                    }
+                  : undefined
+              }
+              onDragLeave={
+                droppable ? () => setDragOverStatus((s) => (s === col.status ? null : s)) : undefined
+              }
+              onDrop={droppable ? (e) => handleDrop(col.status, e) : undefined}
+              className={`flex max-h-[calc(100vh-260px)] w-[320px] shrink-0 flex-col rounded-xl border bg-card transition-colors ${
+                dragOverStatus === col.status ? "border-primary" : "border-border"
+              }`}
             >
               <div className="flex shrink-0 items-center justify-between border-b border-border px-3.5 py-3">
                 <div className="flex items-center gap-2">
@@ -101,7 +138,7 @@ export function PipelineBoard({ prospects, onChange }: { prospects: Prospect[]; 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2.5">
                 {items.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-border px-3 py-8 text-center text-xs text-muted-foreground">
-                    {isFiltering ? "No matches" : "Nothing here"}
+                    {isFiltering ? "No matches" : droppable ? "Nothing here — drag a card in" : "Nothing here"}
                   </p>
                 ) : (
                   items.map((p) => <ProspectCard key={p.id} prospect={p} onChange={onChange} />)
