@@ -24,9 +24,6 @@ const PortalChangeRequests = lazy(() =>
 const AdminLayout = lazy(() => import("./admin/AdminLayout").then((m) => ({ default: m.AdminLayout })));
 const AdminOverview = lazy(() => import("./admin/AdminOverview").then((m) => ({ default: m.AdminOverview })));
 const AdminLeads = lazy(() => import("./admin/AdminLeads").then((m) => ({ default: m.AdminLeads })));
-const AdminAbandonedLeads = lazy(() =>
-  import("./admin/AdminAbandonedLeads").then((m) => ({ default: m.AdminAbandonedLeads }))
-);
 const AdminCustomers = lazy(() => import("./admin/AdminCustomers").then((m) => ({ default: m.AdminCustomers })));
 const AdminCustomerDetail = lazy(() =>
   import("./admin/AdminCustomerDetail").then((m) => ({ default: m.AdminCustomerDetail }))
@@ -48,7 +45,9 @@ const AdminOutreachReplies = lazy(() =>
   import("./admin/AdminOutreachReplies").then((m) => ({ default: m.AdminOutreachReplies }))
 );
 const AdminActivity = lazy(() => import("./admin/AdminActivity").then((m) => ({ default: m.AdminActivity })));
+const AdminInvoicing = lazy(() => import("./admin/AdminInvoicing").then((m) => ({ default: m.AdminInvoicing })));
 const AdminStaff = lazy(() => import("./admin/AdminStaff").then((m) => ({ default: m.AdminStaff })));
+const Invoice = lazy(() => import("./pages/Invoice/Invoice").then((m) => ({ default: m.Invoice })));
 
 function MarketingSite() {
   return (
@@ -86,7 +85,6 @@ function App() {
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminOverview />} />
               <Route path="leads" element={<AdminLeads />} />
-              <Route path="leads/abandoned" element={<AdminAbandonedLeads />} />
               <Route path="customers" element={<AdminCustomers />} />
               <Route path="customers/:id" element={<AdminCustomerDetail />} />
               <Route path="change-requests" element={<AdminChangeRequests />} />
@@ -96,9 +94,14 @@ function App() {
               <Route path="outreach/calls" element={<AdminOutreachCalls />} />
               <Route path="outreach/replies" element={<AdminOutreachReplies />} />
               <Route path="activity" element={<AdminActivity />} />
+              <Route path="invoicing" element={<AdminInvoicing />} />
               <Route path="staff" element={<AdminStaff />} />
             </Route>
           </Route>
+          {/* Public, unauthenticated -- no AuthProvider, no marketing Header/Footer.
+              An invoice is a document a customer opens from an email link, not a
+              page inside either app shell. */}
+          <Route path="/invoice/:id" element={<Invoice />} />
           <Route path="/*" element={<MarketingSite />} />
         </Routes>
       </Suspense>

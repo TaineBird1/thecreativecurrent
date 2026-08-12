@@ -120,7 +120,7 @@ export function AdminOutreachReplies() {
                 <p className="text-xs text-muted-foreground">{p.email}</p>
               </div>
 
-              <div className="rounded-lg border border-border bg-black p-3">
+              <div className="rounded-lg border border-border bg-background p-3">
                 <p className="mb-1 text-xs text-muted-foreground">Their reply</p>
                 <p className="whitespace-pre-wrap text-sm text-foreground">{p.reply_body}</p>
               </div>
@@ -154,7 +154,7 @@ export function AdminOutreachReplies() {
       )}
 
       {error && (
-        <p role="alert" className="text-sm text-red-500">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}

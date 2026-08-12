@@ -3,23 +3,31 @@ import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabaseClient";
 import { WvcLogo } from "../components/WvcLogo";
 import {
-  IconDashboard,
+  IconTrendingUp,
+  IconInbox,
+  IconGitBranch,
+  IconReceipt,
   IconUsers,
   IconClipboardList,
-  IconInbox,
-  IconSearch,
   IconActivity,
   IconShield,
   IconLogOut,
 } from "./components/icons";
 import { useSEO } from "../lib/seo";
 
+// Overview doubles as the income dashboard (MRR, invoiced/paid/outstanding)
+// rather than a separate "Income" page -- that's the literal "overview of
+// income for the business" ask. Pipeline keeps the /admin/outreach route
+// (renaming it would break every existing link/bookmark) but reads as its
+// own section in the nav, same as Leads now folds in what used to be a
+// separate Abandoned Inquiries page.
 const navItems = [
-  { label: "Overview", to: "/admin", icon: IconDashboard, end: true },
+  { label: "Overview", to: "/admin", icon: IconTrendingUp, end: true },
+  { label: "Leads", to: "/admin/leads", icon: IconInbox },
+  { label: "Pipeline", to: "/admin/outreach", icon: IconGitBranch },
+  { label: "Invoicing", to: "/admin/invoicing", icon: IconReceipt },
   { label: "Customers", to: "/admin/customers", icon: IconUsers },
   { label: "Change Requests", to: "/admin/change-requests", icon: IconClipboardList },
-  { label: "Leads", to: "/admin/leads", icon: IconInbox },
-  { label: "Outreach", to: "/admin/outreach", icon: IconSearch },
   { label: "Activity", to: "/admin/activity", icon: IconActivity },
 ];
 
@@ -34,7 +42,9 @@ export function AdminLayout() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">Loading…</div>
+      <div className="admin-theme flex min-h-screen items-center justify-center bg-background text-foreground">
+        Loading…
+      </div>
     );
   }
   if (!session || !profile) return <Navigate to="/login" replace />;
@@ -44,8 +54,8 @@ export function AdminLayout() {
   const items = profile.role === "owner" ? [...navItems, ownerNavItem] : navItems;
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-border">
+    <div className="admin-theme flex min-h-screen bg-background text-foreground">
+      <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-card">
         <div className="flex items-center gap-3 border-b border-border px-6 py-6">
           <WvcLogo className="h-8 w-8 rounded-full" />
           <div>
@@ -64,7 +74,7 @@ export function AdminLayout() {
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                 }`
               }
             >
@@ -79,7 +89,7 @@ export function AdminLayout() {
           <button
             type="button"
             onClick={() => supabase.auth.signOut()}
-            className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+            className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"
           >
             <IconLogOut className="size-4 shrink-0" />
             Sign Out

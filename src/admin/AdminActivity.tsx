@@ -73,7 +73,7 @@ export function AdminActivity() {
               </tr>
             )}
             {logs.map((log) => (
-              <tr key={log.id} className="hover:bg-white/5">
+              <tr key={log.id} className="hover:bg-foreground/5">
                 <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                   {new Date(log.created_at).toLocaleString()}
                 </td>

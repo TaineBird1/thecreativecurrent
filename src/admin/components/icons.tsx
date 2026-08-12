@@ -117,3 +117,32 @@ export function IconThumbsDown({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconReceipt({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+      <path d="M8 7h8M8 11h8M8 15h5" />
+    </svg>
+  );
+}
+
+export function IconTrendingUp({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+      <polyline points="16 7 22 7 22 13" />
+    </svg>
+  );
+}
+
+export function IconGitBranch({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <line x1="6" x2="6" y1="3" y2="15" />
+      <circle cx="18" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <path d="M18 9a9 9 0 0 1-9 9" />
+    </svg>
+  );
+}

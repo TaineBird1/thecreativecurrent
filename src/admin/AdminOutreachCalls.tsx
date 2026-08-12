@@ -154,7 +154,7 @@ export function AdminOutreachCalls() {
                 </div>
 
                 {p.email_defect && (
-                  <p className="mt-3 rounded-lg border border-border bg-black px-3 py-2 text-xs text-primary">
+                  <p className="mt-3 rounded-lg border border-border bg-background px-3 py-2 text-xs text-primary">
                     {p.email_defect}
                   </p>
                 )}
@@ -175,7 +175,7 @@ export function AdminOutreachCalls() {
                   onBlur={(e) => saveNotes(p.id, e.target.value)}
                   placeholder="Notes from the call…"
                   rows={2}
-                  className="mt-3 w-full rounded-lg border border-border bg-black px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  className="mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                 />
 
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -218,7 +218,7 @@ export function AdminOutreachCalls() {
                     value={emailDrafts[p.id] ?? ""}
                     onChange={(e) => setEmailDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))}
                     placeholder="Got their email on the call? Paste it here"
-                    className="min-w-0 flex-1 rounded-lg border border-border bg-black px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+                    className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary"
                   />
                   <button
                     type="button"

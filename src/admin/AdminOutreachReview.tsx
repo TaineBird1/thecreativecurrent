@@ -316,7 +316,7 @@ export function AdminOutreachReview() {
                       onChange={(e) => setEmails((prev) => ({ ...prev, [p.id]: e.target.value }))}
                       onBlur={(e) => saveEmail(p.id, e.target.value)}
                       placeholder="Add an email address to enable sending"
-                      className="w-full rounded-lg border border-border bg-black px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:border-primary"
                     />
                     <details className="text-xs text-muted-foreground">
                       <summary className="cursor-pointer">Preview draft</summary>

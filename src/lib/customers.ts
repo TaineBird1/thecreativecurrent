@@ -24,4 +24,9 @@ export type Customer = {
   lead_id: number | null;
   status: "active" | "inactive";
   created_at: string;
+  /** Retainer billing, see api/invoices.ts. Null amount/billing_day means not yet configured. */
+  retainer_amount: number | null;
+  retainer_currency: string;
+  billing_day: number | null;
+  billing_active: boolean;
 };

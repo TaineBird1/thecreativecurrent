@@ -22,14 +22,14 @@ const PIPELINE_COLUMNS: { status: ProspectStatus; label: string }[] = [
 // a computed tone into a template string would silently produce no styling,
 // since nothing in the source would spell out e.g. "bg-green-500" as text.
 const columnDot: Record<ProspectStatus, string> = {
-  new: "bg-white/30",
+  new: "bg-foreground/30",
   drafted: "bg-orange-400",
   approved: "bg-primary",
-  sent: "bg-blue-400",
+  sent: "bg-blue-500",
   replied: "bg-accent",
   won: "bg-green-500",
   lost: "bg-red-400/70",
-  no_answer: "bg-white/30",
+  no_answer: "bg-foreground/30",
   callback: "bg-orange-400",
 };
 
@@ -78,7 +78,7 @@ export function PipelineBoard({ prospects, onChange }: { prospects: Prospect[]; 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by business name…"
-            className="h-9 w-full rounded-lg border border-border bg-black pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary"
+            className="h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary"
           />
         </div>
         <button
@@ -131,7 +131,7 @@ export function PipelineBoard({ prospects, onChange }: { prospects: Prospect[]; 
                     {col.label}
                   </span>
                 </div>
-                <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                <span className="rounded-full bg-foreground/5 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                   {items.length}
                 </span>
               </div>

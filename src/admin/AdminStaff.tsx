@@ -50,10 +50,10 @@ export function AdminStaff() {
     }
 
     try {
-      const res = await fetch("/api/invite-admin", {
+      const res = await fetch("/api/staff", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ action: "invite", email }),
       });
       const data: InviteStaffApiResponse = await res.json();
       if (!res.ok || !data.ok) {
@@ -81,10 +81,10 @@ export function AdminStaff() {
     const token = sessionData.session?.access_token;
 
     try {
-      const res = await fetch("/api/remove-admin", {
+      const res = await fetch("/api/staff", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: member.id }),
+        body: JSON.stringify({ action: "remove", id: member.id }),
       });
       const data: RemoveStaffApiResponse = await res.json();
       if (!res.ok || !data.ok) {
@@ -125,7 +125,7 @@ export function AdminStaff() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="teammate@example.com"
-              className="h-11 rounded-lg border border-border bg-black px-4 text-foreground outline-none focus:border-primary"
+              className="h-11 rounded-lg border border-border bg-background px-4 text-foreground outline-none focus:border-primary"
             />
           </div>
           <button
@@ -137,7 +137,7 @@ export function AdminStaff() {
           </button>
         </form>
         {error && (
-          <p role="alert" className="px-6 pb-6 text-sm text-red-500">
+          <p role="alert" className="px-6 pb-6 text-sm text-destructive">
             {error}
           </p>
         )}
@@ -163,7 +163,7 @@ export function AdminStaff() {
               </thead>
               <tbody className="divide-y divide-border">
                 {staff.map((s) => (
-                  <tr key={s.id} className="transition-colors hover:bg-white/[0.03]">
+                  <tr key={s.id} className="transition-colors hover:bg-foreground/[0.03]">
                     <td className="px-6 py-4 text-foreground">{s.email}</td>
                     <td className="px-6 py-4">
                       <StatusBadge label={s.role} tone={s.role === "owner" ? "primary" : "neutral"} />
@@ -177,7 +177,7 @@ export function AdminStaff() {
                           type="button"
                           onClick={() => handleRemove(s)}
                           disabled={removingId === s.id}
-                          className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500 hover:text-white disabled:opacity-50"
+                          className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive hover:text-white disabled:opacity-50"
                         >
                           {removingId === s.id ? "Removing..." : "Remove access"}
                         </button>

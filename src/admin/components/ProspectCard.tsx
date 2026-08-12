@@ -119,6 +119,13 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
     }
   }
 
+  const convertPrefill = {
+    business_name: prospect.business_name,
+    contact_name: "",
+    contact_email: prospect.email ?? "",
+    website_url: prospect.website ?? "",
+  };
+
   return (
     <div
       draggable={!expanded}
@@ -126,7 +133,7 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
         e.dataTransfer.setData("text/plain", String(prospect.id));
         e.dataTransfer.effectAllowed = "move";
       }}
-      className="overflow-hidden rounded-xl border border-border bg-black transition-colors hover:border-white/20 [&[draggable=true]]:cursor-grab [&[draggable=true]]:active:cursor-grabbing"
+      className="overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-foreground/20 [&[draggable=true]]:cursor-grab [&[draggable=true]]:active:cursor-grabbing"
     >
       <div className="flex items-start gap-3 p-3.5">
         {prospect.photo_reference ? (
@@ -136,7 +143,7 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
             className="h-10 w-10 shrink-0 rounded-lg border border-border object-cover"
           />
         ) : (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-white/5 font-mono text-[11px] font-semibold text-muted-foreground">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-foreground/5 font-mono text-[11px] font-semibold text-muted-foreground">
             {initials(prospect.business_name)}
           </div>
         )}
@@ -153,7 +160,19 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 border-t border-white/5 px-3.5 py-2">
+      {prospect.status === "won" && (
+        <div className="border-t border-border px-3.5 py-2">
+          <Link
+            to="/admin/customers"
+            state={{ prefill: convertPrefill }}
+            className="text-xs font-semibold text-primary hover:underline"
+          >
+            Convert to Customer →
+          </Link>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2 border-t border-border px-3.5 py-2">
         <div className="flex gap-1">
           <button
             type="button"
@@ -163,8 +182,8 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
             aria-pressed={prospect.interested === true}
             className={`flex h-6 w-6 items-center justify-center rounded-md border transition-colors disabled:opacity-50 ${
               prospect.interested === true
-                ? "border-green-500/40 bg-green-500/10 text-green-500"
-                : "border-border text-muted-foreground hover:border-green-500/40 hover:text-green-500"
+                ? "border-green-500/40 bg-green-500/10 text-green-600"
+                : "border-border text-muted-foreground hover:border-green-500/40 hover:text-green-600"
             }`}
           >
             <IconThumbsUp className="h-3.5 w-3.5" />
@@ -177,8 +196,8 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
             aria-pressed={prospect.interested === false}
             className={`flex h-6 w-6 items-center justify-center rounded-md border transition-colors disabled:opacity-50 ${
               prospect.interested === false
-                ? "border-red-500/40 bg-red-500/10 text-red-500"
-                : "border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500"
+                ? "border-destructive/40 bg-destructive/10 text-destructive"
+                : "border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive"
             }`}
           >
             <IconThumbsDown className="h-3.5 w-3.5" />
@@ -225,7 +244,7 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
                 </Link>
               )}
               {prospect.status === "sent" && !followUpDue && (
-                <span className="text-[11px] text-green-500">
+                <span className="text-[11px] text-green-600">
                   Sent {prospect.sent_at ? new Date(prospect.sent_at).toLocaleDateString() : ""}
                 </span>
               )}
@@ -243,7 +262,7 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
       </div>
 
       {expanded && (
-        <div className="space-y-3 border-t border-white/5 bg-white/[0.02] p-3.5">
+        <div className="space-y-3 border-t border-border bg-foreground/[0.02] p-3.5">
           {(prospect.phone || prospect.maps_url) && (
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               {prospect.phone && <span>{prospect.phone}</span>}
@@ -338,7 +357,7 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
                   </Link>
                 )}
                 {prospect.status === "sent" && !followUpDue && (
-                  <span className="text-xs text-green-500">
+                  <span className="text-xs text-green-600">
                     Sent {prospect.sent_at ? new Date(prospect.sent_at).toLocaleDateString() : ""}
                   </span>
                 )}
@@ -347,7 +366,7 @@ export function ProspectCard({ prospect, onChange }: { prospect: Prospect; onCha
           )}
 
           {error && (
-            <p role="alert" className="text-xs text-red-500">
+            <p role="alert" className="text-xs text-destructive">
               {error}
             </p>
           )}

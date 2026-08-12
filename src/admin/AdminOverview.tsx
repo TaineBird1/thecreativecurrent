@@ -5,10 +5,10 @@ import { StatCard } from "./components/StatCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { LiveVisitorCount } from "../components/LiveVisitorCount";
 import { TrafficChart } from "../components/TrafficChart";
-import { IconUsers, IconClipboardList, IconInbox, IconActivity, IconSearch } from "./components/icons";
+import { IconUsers, IconClipboardList, IconInbox, IconReceipt, IconTrendingUp } from "./components/icons";
 import type { LeadRow } from "../lib/leads";
 import type { ChangeRequestStatus } from "../lib/changeRequests";
-import { prospectStatusTone, type Prospect } from "../lib/prospects";
+import { isInvoiceOverdue, type InvoiceWithCustomer } from "../lib/invoices";
 
 type RecentChangeRequest = {
   id: number;
@@ -24,16 +24,24 @@ const changeRequestTone: Record<ChangeRequestStatus, "neutral" | "primary" | "su
   done: "success",
 };
 
+function formatZAR(amount: number) {
+  return new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR", maximumFractionDigits: 0 }).format(
+    amount
+  );
+}
+
 export function AdminOverview() {
+  const [mrr, setMrr] = useState<number | null>(null);
+  const [invoicedThisMonth, setInvoicedThisMonth] = useState<number | null>(null);
+  const [paidThisMonth, setPaidThisMonth] = useState<number | null>(null);
+  const [outstanding, setOutstanding] = useState<number | null>(null);
+  const [overdueInvoices, setOverdueInvoices] = useState<InvoiceWithCustomer[]>([]);
+
   const [customerCount, setCustomerCount] = useState<number | null>(null);
   const [openRequestCount, setOpenRequestCount] = useState<number | null>(null);
-  const [leadCount, setLeadCount] = useState<number | null>(null);
   const [newLeadCount, setNewLeadCount] = useState<number | null>(null);
   const [recentLeads, setRecentLeads] = useState<LeadRow[]>([]);
   const [recentRequests, setRecentRequests] = useState<RecentChangeRequest[]>([]);
-  const [prospectCount, setProspectCount] = useState<number | null>(null);
-  const [readyToSendCount, setReadyToSendCount] = useState<number | null>(null);
-  const [recentProspects, setRecentProspects] = useState<Prospect[]>([]);
   const [ownSiteId, setOwnSiteId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,22 +49,35 @@ export function AdminOverview() {
     async function load() {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
 
       const [
+        { data: retainers },
+        { data: invoicedRows },
+        { data: paidRows },
+        { data: outstandingRows },
+        { data: overdueRows },
         { count: customers },
         { count: openRequests },
-        { count: leads },
         { count: newLeads },
         { data: leadRows },
         { data: requestRows },
         { data: ownSite },
-        { count: prospects },
-        { count: readyToSend },
-        { data: prospectRows },
       ] = await Promise.all([
+        supabase.from("customers").select("retainer_amount").eq("billing_active", true).not("retainer_amount", "is", null),
+        supabase.from("invoices").select("amount").gte("created_at", monthStart.toISOString()),
+        supabase.from("invoices").select("amount").gte("paid_at", monthStart.toISOString()).not("paid_at", "is", null),
+        supabase.from("invoices").select("amount").eq("status", "sent").is("paid_at", null),
+        supabase
+          .from("invoices")
+          .select("*, customers(business_name, contact_email)")
+          .eq("status", "sent")
+          .is("paid_at", null)
+          .order("due_date", { ascending: true }),
         supabase.from("customers").select("*", { count: "exact", head: true }).neq("status", "internal"),
         supabase.from("change_requests").select("*", { count: "exact", head: true }).in("status", ["submitted", "in_progress"]),
-        supabase.from("leads").select("*", { count: "exact", head: true }),
         supabase.from("leads").select("*", { count: "exact", head: true }).gte("created_at", weekAgo.toISOString()),
         supabase.from("leads").select("*").order("created_at", { ascending: false }).limit(5),
         supabase
@@ -65,21 +86,24 @@ export function AdminOverview() {
           .order("created_at", { ascending: false })
           .limit(5),
         supabase.from("customers").select("id").eq("status", "internal").maybeSingle(),
-        supabase.from("prospects").select("*", { count: "exact", head: true }),
-        supabase.from("prospects").select("*", { count: "exact", head: true }).eq("status", "approved"),
-        supabase.from("prospects").select("*").order("created_at", { ascending: false }).limit(5),
       ]);
+
+      const sum = (rows: { amount: number | string }[] | null) =>
+        (rows ?? []).reduce((total, r) => total + Number(r.amount), 0);
+
+      setMrr(sum(retainers as unknown as { amount: number | string }[]));
+      setInvoicedThisMonth(sum(invoicedRows));
+      setPaidThisMonth(sum(paidRows));
+      setOutstanding(sum(outstandingRows));
+      const overdue = ((overdueRows as InvoiceWithCustomer[]) ?? []).filter(isInvoiceOverdue);
+      setOverdueInvoices(overdue);
 
       setCustomerCount(customers ?? 0);
       setOpenRequestCount(openRequests ?? 0);
-      setLeadCount(leads ?? 0);
       setNewLeadCount(newLeads ?? 0);
       setRecentLeads((leadRows as LeadRow[]) ?? []);
       setRecentRequests((requestRows as unknown as RecentChangeRequest[]) ?? []);
       setOwnSiteId((ownSite as { id: number } | null)?.id ?? null);
-      setProspectCount(prospects ?? 0);
-      setReadyToSendCount(readyToSend ?? 0);
-      setRecentProspects((prospectRows as Prospect[]) ?? []);
       setLoading(false);
     }
     load();
@@ -89,10 +113,66 @@ export function AdminOverview() {
     <div className="space-y-10">
       <div>
         <h1 className="font-sans text-2xl font-bold">Overview</h1>
-        <p className="mt-1 text-sm text-muted-foreground">A snapshot of leads, clients, and open work.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Income, retainers, and what needs attention.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="MRR"
+          value={loading ? "—" : formatZAR(mrr ?? 0)}
+          icon={<IconTrendingUp className="size-4" />}
+          hint="Active retainers"
+        />
+        <StatCard
+          label="Invoiced"
+          value={loading ? "—" : formatZAR(invoicedThisMonth ?? 0)}
+          icon={<IconReceipt className="size-4" />}
+          hint="This month"
+        />
+        <StatCard
+          label="Paid"
+          value={loading ? "—" : formatZAR(paidThisMonth ?? 0)}
+          icon={<IconReceipt className="size-4" />}
+          hint="This month"
+        />
+        <StatCard
+          label="Outstanding"
+          value={loading ? "—" : formatZAR(outstanding ?? 0)}
+          icon={<IconReceipt className="size-4" />}
+          hint={`${overdueInvoices.length} overdue`}
+        />
+      </div>
+
+      <div className="rounded-lg border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="font-sans text-sm font-semibold">Overdue Invoices</h2>
+          <Link to="/admin/invoicing" className="text-xs text-primary hover:underline">
+            View all
+          </Link>
+        </div>
+        <div className="divide-y divide-border">
+          {!loading && overdueInvoices.length === 0 && (
+            <p className="px-6 py-6 text-sm text-muted-foreground">Nothing overdue.</p>
+          )}
+          {overdueInvoices.map((inv) => (
+            <div key={inv.id} className="flex items-center justify-between gap-3 px-6 py-4">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {inv.customers?.business_name ?? "—"}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {inv.invoice_number} · due {new Date(inv.due_date).toLocaleDateString()}
+                </p>
+              </div>
+              <span className="shrink-0 font-mono text-sm text-foreground">
+                {formatZAR(Number(inv.amount))}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Customers" value={loading ? "—" : (customerCount ?? 0)} icon={<IconUsers className="size-4" />} />
         <StatCard
           label="Open Requests"
@@ -100,19 +180,11 @@ export function AdminOverview() {
           icon={<IconClipboardList className="size-4" />}
           hint="Submitted or in progress"
         />
-        <StatCard label="Total Leads" value={loading ? "—" : (leadCount ?? 0)} icon={<IconInbox className="size-4" />} />
         <StatCard
           label="New Leads"
           value={loading ? "—" : (newLeadCount ?? 0)}
-          icon={<IconActivity className="size-4" />}
+          icon={<IconInbox className="size-4" />}
           hint="Last 7 days"
-        />
-        <StatCard label="Prospects" value={loading ? "—" : (prospectCount ?? 0)} icon={<IconSearch className="size-4" />} />
-        <StatCard
-          label="Ready to Send"
-          value={loading ? "—" : (readyToSendCount ?? 0)}
-          icon={<IconActivity className="size-4" />}
-          hint="Approved, awaiting send"
         />
       </div>
 
@@ -176,53 +248,11 @@ export function AdminOverview() {
                     )}
                     <p className="mt-0.5 truncate text-sm text-foreground">{req.description}</p>
                   </div>
-                  <StatusBadge
-                    label={req.status.replace("_", " ")}
-                    tone={changeRequestTone[req.status]}
-                  />
+                  <StatusBadge label={req.status.replace("_", " ")} tone={changeRequestTone[req.status]} />
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="font-sans text-sm font-semibold">Outreach Prospects</h2>
-          <Link to="/admin/outreach" className="text-xs text-primary hover:underline">
-            View all
-          </Link>
-        </div>
-        <div className="divide-y divide-border">
-          {!loading && recentProspects.length === 0 && (
-            <p className="px-6 py-6 text-sm text-muted-foreground">
-              No prospects yet — find some on the Outreach page.
-            </p>
-          )}
-          {recentProspects.map((p) => (
-            <div key={p.id} className="flex items-center justify-between gap-3 px-6 py-4">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{p.business_name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {p.category || "—"} {p.address ? `· ${p.address}` : ""}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                {p.phone && (
-                  <a href={`tel:${p.phone}`} className="text-xs text-primary hover:underline">
-                    Call
-                  </a>
-                )}
-                {p.email && (
-                  <a href={`mailto:${p.email}`} className="text-xs text-primary hover:underline">
-                    Email
-                  </a>
-                )}
-                <StatusBadge label={p.status} tone={prospectStatusTone[p.status]} />
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

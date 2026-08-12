@@ -56,7 +56,7 @@ export function RevenueTracker({ customerId }: { customerId: number }) {
       {!loading && recent.length === 0 && (
         <p className="mt-4 text-xs text-muted-foreground">
           No conversions reported yet. Revenue only shows up once your site calls{" "}
-          <code className="rounded bg-black/40 px-1 py-0.5">window.tccTrackConversion(value, label)</code> on a sale
+          <code className="rounded bg-foreground/10 px-1 py-0.5">window.tccTrackConversion(value, label)</code> on a sale
           or booking.
         </p>
       )}

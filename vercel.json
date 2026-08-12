@@ -5,6 +5,7 @@
   ],
   "crons": [
     { "path": "/api/outreach-run", "schedule": "0 5 * * *" },
-    { "path": "/api/check-replies", "schedule": "0 14 * * *" }
+    { "path": "/api/check-replies", "schedule": "0 14 * * *" },
+    { "path": "/api/invoices", "schedule": "0 6 * * *" }
   ]
 }

@@ -359,4 +359,63 @@ CREATE POLICY abandoned_leads_update ON abandoned_leads FOR UPDATE USING (is_adm
 -- email_log type, distinct from a real lead notification.
 ALTER TABLE email_log DROP CONSTRAINT IF EXISTS email_log_type_check;
 ALTER TABLE email_log ADD CONSTRAINT email_log_type_check
-  CHECK (type IN ('outreach','lead_notification','abandoned_lead_notification','other'));
+  CHECK (type IN ('outreach','lead_notification','abandoned_lead_notification','invoice','other'));
+ALTER TABLE email_log ADD COLUMN IF NOT EXISTS invoice_id BIGINT;
+
+-- Retainer billing: a customer with billing_active=true and a billing_day
+-- gets an invoice drafted automatically on that day of every month (see
+-- api/invoices.ts). billing_day is capped at 28 to sidestep month-length
+-- edge cases (there's no Feb 30th). retainer_currency defaults to ZAR since
+-- this is a South African agency billing South African clients; nothing in
+-- this system does currency conversion.
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS retainer_amount NUMERIC(10,2);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS retainer_currency TEXT NOT NULL DEFAULT 'ZAR';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS billing_day INTEGER CHECK (billing_day BETWEEN 1 AND 28);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS billing_active BOOLEAN NOT NULL DEFAULT false;
+
+-- customers previously had no UPDATE policy at all (creation always went
+-- through invite-customer.ts's service-role write, and nothing needed to
+-- edit a customer after that). Retainer setup is a plain field edit with no
+-- side effects, so it's done directly from AdminCustomers.tsx via
+-- supabase-js rather than spending one of the 12 function slots on it.
+DROP POLICY IF EXISTS customers_update ON customers;
+CREATE POLICY customers_update ON customers FOR UPDATE USING (is_admin());
+
+-- Retainer invoicing. Deliberately email-only, EFT-style -- nothing here
+-- ever charges a card. Every invoice sits at 'pending_approval' until an
+-- admin explicitly clicks Send (api/invoices.ts), same "nothing with
+-- real-world consequences goes out unattended" rule this project already
+-- applies to outreach drafts and replies. No 'overdue' status is stored --
+-- computed in the UI instead (status='sent' AND due_date < today AND
+-- paid_at IS NULL), avoiding a third cron just to relabel rows. No INSERT
+-- policy: rows are only ever created server-side via the privileged
+-- connection, same convention as leads/abandoned_leads/email_log.
+CREATE SEQUENCE IF NOT EXISTS invoice_number_seq;
+
+CREATE TABLE IF NOT EXISTS invoices (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id BIGINT NOT NULL REFERENCES customers(id),
+  invoice_number TEXT NOT NULL UNIQUE,
+  amount NUMERIC(10,2) NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'ZAR',
+  period_label TEXT,
+  status TEXT NOT NULL DEFAULT 'pending_approval' CHECK (status IN ('pending_approval','sent','paid','cancelled')),
+  due_date DATE NOT NULL,
+  notes TEXT,
+  sent_at TIMESTAMPTZ,
+  paid_at TIMESTAMPTZ,
+  -- Lets a customer view their invoice at a public, unguessable URL with no
+  -- login -- invoice_number is sequential and guessable, this isn't.
+  view_token UUID NOT NULL DEFAULT gen_random_uuid(),
+  -- Tracked so the admin can see a reminder was already sent (and when),
+  -- not to cap or automate anything -- reminders stay a manual button.
+  reminder_count INTEGER NOT NULL DEFAULT 0,
+  last_reminded_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS invoices_select ON invoices;
+CREATE POLICY invoices_select ON invoices FOR SELECT USING (is_admin());
+DROP POLICY IF EXISTS invoices_update ON invoices;
+CREATE POLICY invoices_update ON invoices FOR UPDATE USING (is_admin());

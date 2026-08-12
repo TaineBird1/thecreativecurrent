@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import nodemailer, { type Transporter } from "nodemailer";
 import { getSupabaseAdmin } from "./supabaseAdmin.js";
 import type { AbandonedLeadPayload, LeadPayload } from "../../src/lib/leads.js";
+import type { Invoice } from "../../src/lib/invoices.js";
 
 let client: Resend | null = null;
 
@@ -74,11 +75,12 @@ function buildBody(lead: LeadPayload, id?: number) {
 async function logEmail(params: {
   recipient: string;
   subject: string;
-  type: "outreach" | "lead_notification" | "abandoned_lead_notification" | "other";
+  type: "outreach" | "lead_notification" | "abandoned_lead_notification" | "invoice" | "other";
   status: "sent" | "failed";
   error?: string;
   prospectId?: number;
   leadId?: number;
+  invoiceId?: number;
 }) {
   try {
     const supabase = getSupabaseAdmin();
@@ -90,9 +92,18 @@ async function logEmail(params: {
       error: params.error ?? null,
       prospect_id: params.prospectId ?? null,
       lead_id: params.leadId ?? null,
+      invoice_id: params.invoiceId ?? null,
     });
   } catch (e) {
     console.error("Failed to write email_log row:", e);
+  }
+}
+
+function formatMoney(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("en-ZA", { style: "currency", currency }).format(amount);
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`;
   }
 }
 
@@ -291,4 +302,130 @@ export async function sendOutreachDigest(
     throw new Error(error.message);
   }
   await logEmail({ recipient: to, subject, type: "other", status: "sent" });
+}
+
+type InvoiceCustomer = { business_name: string; contact_email: string };
+
+// INVOICE_BANK_DETAILS is a multi-line env var (bank, account holder,
+// account number, branch code) -- never hardcoded, same reasoning as
+// GMAIL_APP_PASSWORD living in env rather than source. Real invoices can't
+// go out until it's set; this returns null rather than throwing so the
+// feature is still fully testable without it configured yet.
+function getBankDetails(): string | null {
+  return process.env.INVOICE_BANK_DETAILS?.trim() || null;
+}
+
+function invoiceViewUrl(invoice: Invoice) {
+  return `https://www.thecreativecurrent.co.za/invoice/${invoice.id}?t=${invoice.view_token}`;
+}
+
+function buildInvoiceBody(invoice: Invoice, customer: InvoiceCustomer, opts: { reminder?: boolean } = {}) {
+  const bankDetails = getBankDetails();
+  const lines = [
+    opts.reminder
+      ? `This is a reminder that invoice ${invoice.invoice_number} is still outstanding.`
+      : `A new invoice is ready for ${customer.business_name}.`,
+    "",
+    `Invoice: ${invoice.invoice_number}`,
+    `Amount: ${formatMoney(invoice.amount, invoice.currency)}`,
+    ...(invoice.period_label ? [`Period: ${invoice.period_label}`] : []),
+    `Due: ${new Date(invoice.due_date).toLocaleDateString()}`,
+    "",
+    `View invoice: ${invoiceViewUrl(invoice)}`,
+  ];
+  if (bankDetails) {
+    lines.push("", "Payment details:", bankDetails);
+  }
+  return lines.join("\n");
+}
+
+// Nothing calls this until an admin has explicitly clicked Send on an
+// already-generated invoice (see api/invoices.ts) -- same approval-before-
+// send rule this project applies to every other automated email. EFT-style:
+// this only ever asks for payment, it never charges anything itself.
+export async function sendInvoiceEmail(invoice: Invoice, customer: InvoiceCustomer) {
+  const resend = getResend();
+  const from = process.env.LEADS_FROM_EMAIL;
+  if (!from) {
+    throw new Error("LEADS_FROM_EMAIL is not set");
+  }
+
+  const subject = `Invoice ${invoice.invoice_number} — The Creative Current`;
+  const { error } = await resend.emails.send({
+    from: `The Creative Current <${from}>`,
+    to: customer.contact_email,
+    subject,
+    text: buildInvoiceBody(invoice, customer),
+  });
+  if (error) {
+    await logEmail({
+      recipient: customer.contact_email,
+      subject,
+      type: "invoice",
+      status: "failed",
+      error: error.message,
+      invoiceId: invoice.id,
+    });
+    throw new Error(error.message);
+  }
+  await logEmail({ recipient: customer.contact_email, subject, type: "invoice", status: "sent", invoiceId: invoice.id });
+}
+
+// Admin-triggered only -- a "Send reminder" button on an overdue invoice,
+// never scheduled or automatic. reminder_count/last_reminded_at are updated
+// by the caller (api/invoices.ts), not here.
+export async function sendInvoiceReminderEmail(invoice: Invoice, customer: InvoiceCustomer) {
+  const resend = getResend();
+  const from = process.env.LEADS_FROM_EMAIL;
+  if (!from) {
+    throw new Error("LEADS_FROM_EMAIL is not set");
+  }
+
+  const subject = `Reminder: Invoice ${invoice.invoice_number} still outstanding`;
+  const { error } = await resend.emails.send({
+    from: `The Creative Current <${from}>`,
+    to: customer.contact_email,
+    subject,
+    text: buildInvoiceBody(invoice, customer, { reminder: true }),
+  });
+  if (error) {
+    await logEmail({
+      recipient: customer.contact_email,
+      subject,
+      type: "invoice",
+      status: "failed",
+      error: error.message,
+      invoiceId: invoice.id,
+    });
+    throw new Error(error.message);
+  }
+  await logEmail({ recipient: customer.contact_email, subject, type: "invoice", status: "sent", invoiceId: invoice.id });
+}
+
+// Sent once per generation run (cron or "Generate now"), only when it
+// actually created something -- to the owner, never the customer. Nothing
+// customer-facing goes out until Send is clicked on each one individually.
+export async function sendInvoiceReadyNotification(created: { businessName: string; amount: number; currency: string }[]) {
+  const resend = getResend();
+  const from = process.env.LEADS_FROM_EMAIL;
+  const to = process.env.LEADS_NOTIFICATION_EMAIL;
+  if (!from || !to) {
+    throw new Error("LEADS_FROM_EMAIL or LEADS_NOTIFICATION_EMAIL is not set");
+  }
+
+  const subject = `${created.length} invoice${created.length === 1 ? "" : "s"} ready for approval`;
+  const body = [
+    `${created.length} retainer invoice${created.length === 1 ? "" : "s"} generated and waiting for your review.`,
+    "",
+    ...created.map((c) => `- ${c.businessName}: ${formatMoney(c.amount, c.currency)}`),
+    "",
+    "Review and send: https://www.thecreativecurrent.co.za/admin/invoicing",
+  ].join("\n");
+
+  const { error } = await resend.emails.send({ from: `The Creative Current <${from}>`, to, subject, text: body });
+  if (error) {
+    await logEmail({ recipient: to, subject, type: "invoice", status: "failed", error: error.message });
+    throw new Error(error.message);
+  }
+  await logEmail({ recipient: to, subject, type: "invoice", status: "sent" });
 }

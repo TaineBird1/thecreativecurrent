@@ -12,6 +12,10 @@
   --color-chart-1: hsl(190 100% 50%);
   --color-chart-3: #ff1493;
   --color-chart-4: #ff8c00;
+  /* No error/destructive token existed before the admin rebuild -- every
+     error state hardcoded text-red-500 instead. Additive here; only the
+     rebuilt admin pages consume it. */
+  --color-destructive: #dc2626;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
@@ -29,6 +33,31 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans);
   color-scheme: dark;
+}
+
+/* Scoped light theme for the /admin back office only -- the marketing site
+   and customer /portal keep the dark brand theme above. Applied as a class
+   on AdminLayout.tsx's root wrapper; every /admin/* route inherits it since
+   they all render inside that layout. Because almost every admin component
+   already uses semantic token classes (bg-card, border-border, text-
+   foreground, text-primary, ...) rather than literal Tailwind colors,
+   redefining these custom properties re-themes the whole surface without
+   touching each component's markup. */
+.admin-theme {
+  color-scheme: light;
+  --color-background: #f7f8fa;
+  --color-foreground: #111827;
+  /* Deepened from the brand's #00d9ff -- that cyan has ~1.3:1 contrast on
+     white and is unusable for text/borders/icons on a light background. */
+  --color-primary: #0891b2;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #c026d3;
+  --color-muted-foreground: #6b7280;
+  --color-card: #ffffff;
+  --color-border: #e5e7eb;
+  --color-chart-1: #0891b2;
+  --color-chart-3: #db2777;
+  --color-chart-4: #ea580c;
 }
 
 @keyframes ticker {

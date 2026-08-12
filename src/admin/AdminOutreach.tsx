@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { PipelineBoard } from "./components/PipelineBoard";
 import type { Prospect, ProspectSearchApiResponse, ProspectSearchResult, SavedSearch } from "../lib/prospects";
@@ -119,32 +119,56 @@ export function AdminOutreach() {
 
   return (
     <div className="space-y-10">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-sans text-2xl font-bold">Outreach</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Find local businesses whose website needs updating and have a contactable email on file, draft a
-            personalized email, and review it before anything sends.
-          </p>
-        </div>
-        <Link
-          to="/admin/outreach/calls"
-          className="shrink-0 rounded-lg border border-primary/40 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+      <div>
+        <h1 className="font-sans text-2xl font-bold">Pipeline</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Find local businesses whose website needs updating and have a contactable email on file, draft a
+          personalized email, and review it before anything sends.
+        </p>
+      </div>
+
+      <div className="flex gap-1 border-b border-border">
+        <NavLink
+          to="/admin/outreach"
+          end
+          className={({ isActive }) =>
+            `border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              isActive ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`
+          }
         >
-          Call List
-        </Link>
-        <Link
+          Pipeline
+        </NavLink>
+        <NavLink
           to="/admin/outreach/review"
-          className="shrink-0 rounded-lg border border-primary/40 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+          className={({ isActive }) =>
+            `border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              isActive ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`
+          }
         >
           Daily Review
-        </Link>
-        <Link
+        </NavLink>
+        <NavLink
+          to="/admin/outreach/calls"
+          className={({ isActive }) =>
+            `border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              isActive ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`
+          }
+        >
+          Call List
+        </NavLink>
+        <NavLink
           to="/admin/outreach/replies"
-          className="shrink-0 rounded-lg border border-primary/40 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+          className={({ isActive }) =>
+            `border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              isActive ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`
+          }
         >
           Replies
-        </Link>
+        </NavLink>
       </div>
 
       <section className="rounded-lg border border-border bg-card">
@@ -162,7 +186,7 @@ export function AdminOutreach() {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder="e.g. plumbers"
-              className="h-11 rounded-lg border border-border bg-black px-4 text-foreground outline-none focus:border-primary"
+              className="h-11 rounded-lg border border-border bg-background px-4 text-foreground outline-none focus:border-primary"
             />
           </div>
           <div className="grid gap-2">
@@ -174,7 +198,7 @@ export function AdminOutreach() {
               required
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="h-11 rounded-lg border border-border bg-black px-4 text-foreground outline-none focus:border-primary"
+              className="h-11 rounded-lg border border-border bg-background px-4 text-foreground outline-none focus:border-primary"
             />
           </div>
           <button
@@ -199,13 +223,13 @@ export function AdminOutreach() {
             {savedSearches.map((s) => (
               <span
                 key={s.id}
-                className="flex items-center gap-2 rounded-full border border-border bg-black px-3 py-1 text-xs text-muted-foreground"
+                className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground"
               >
                 {s.category} in {s.location}
                 <button
                   type="button"
                   onClick={() => removeSavedSearch(s.id)}
-                  className="text-muted-foreground hover:text-red-400"
+                  className="text-muted-foreground hover:text-destructive"
                   aria-label={`Remove saved search ${s.category} in ${s.location}`}
                 >
                   ×
@@ -216,7 +240,7 @@ export function AdminOutreach() {
         )}
 
         {searchError && (
-          <p role="alert" className="px-6 pb-6 text-sm text-red-500">
+          <p role="alert" className="px-6 pb-6 text-sm text-destructive">
             {searchError}
           </p>
         )}
@@ -236,7 +260,7 @@ export function AdminOutreach() {
                   {needsUpdateResults.map((r) => (
                     <div
                       key={r.placeId}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border bg-black px-4 py-3"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-4 py-3"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-foreground">{r.businessName}</p>
