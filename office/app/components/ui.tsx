@@ -150,5 +150,7 @@ export function relativeTime(at: number): string {
 }
 
 export function rand(n: number): string {
-  return `R${n.toLocaleString("en-ZA")}`;
+  // en-ZA groups with a space ("R1 100"), which in a tight KPI strip reads as
+  // two separate numbers. Comma grouping keeps one number looking like one.
+  return `R${n.toLocaleString("en-US")}`;
 }

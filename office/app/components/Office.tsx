@@ -10,40 +10,69 @@ type Bot = NonNullable<ReturnType<typeof useQuery<typeof api.bots.list>>>[number
 /**
  * The office floor.
  *
- * Rendered as an SVG floor plane with HTML desks positioned on top by an
- * isometric projection computed in JS. Chosen over a CSS 3D transform because
- * the desks need to stay upright and legible: with `rotateX/rotateZ` on a
- * parent, every child has to be counter-rotated, and text ends up soft. This
- * way the floor is genuinely 2.5D and the people on it are crisp.
+ * The room — floor, walls, rugs, desks, chairs, monitors — is drawn in SVG from
+ * one isometric projection. The people are HTML positioned on top of it, so
+ * their names stay crisp and they stay clickable. A CSS 3D transform on a
+ * parent would have been less code and would have meant counter-rotating every
+ * label and reading soft text at an angle.
  *
- * Below `lg` the whole thing collapses to a vertical list of desk cards, which
- * is what actually works on a phone.
+ * Two things learned from the first version, which was unreadable:
+ *
+ *  - Desks need separating on BOTH diagonals. In this projection, two points
+ *    with a similar (x + y) land at the same height and two with a similar
+ *    (x - y) land at the same horizontal position. Spreading on one axis only
+ *    stacks people on top of each other.
+ *  - Speech bubbles only appear when a bot has something to say. Nine bubbles
+ *    all reading "Waiting for the day to start" was most of the clutter, and
+ *    told you nothing.
+ *
+ * Below xl the whole thing becomes a vertical list of desk cards, which is what
+ * actually works on a narrow screen.
  */
 
-const ZONES = [
-  { id: "leadership", label: "Leadership", sub: "corner office", x: 0, y: 0, w: 46, h: 44, tint: "#2a211a" },
-  { id: "revenue", label: "Revenue", sub: "pays for everything", x: 50, y: 0, w: 50, h: 52, tint: "#231f1c" },
-  { id: "marketing", label: "Marketing", sub: "studio side", x: 0, y: 48, w: 58, h: 52, tint: "#241b20" },
-  { id: "client_success", label: "Client Success", sub: "by reception", x: 62, y: 56, w: 38, h: 44, tint: "#1e2220" },
-] as const;
+// ── The projection ──────────────────────────────────────────────────────────
+const VB = { w: 100, h: 68 };
+const SPREAD_X = 46;
+const SPREAD_Y = 24;
+const HORIZON = 11;
 
-/** Isometric projection: floor space (0-100, 0-100) to screen percentages. */
-function project(x: number, y: number): { left: number; top: number } {
+function iso(x: number, y: number): { u: number; v: number } {
   const nx = x / 100;
   const ny = y / 100;
-  return {
-    left: 50 + (nx - ny) * 42,
-    top: 12 + (nx + ny) * 33,
-  };
+  return { u: 50 + (nx - ny) * SPREAD_X, v: HORIZON + (nx + ny) * SPREAD_Y };
 }
 
+const pt = (p: { u: number; v: number }) => `${p.u.toFixed(2)},${p.v.toFixed(2)}`;
+
+/** The four corners of a floor rectangle, as an isometric diamond. */
+function slab(x0: number, y0: number, x1: number, y1: number): string {
+  return [iso(x0, y0), iso(x1, y0), iso(x1, y1), iso(x0, y1)].map(pt).join(" ");
+}
+
+// ── The rooms ───────────────────────────────────────────────────────────────
+// Each rug is drawn around wherever its people actually sit, so it can never
+// drift away from them.
+const ZONES = [
+  { id: "leadership", label: "Leadership", box: [0, 0, 40, 40], tint: "#2e2319", edge: "#4a3a28" },
+  { id: "revenue", label: "Revenue", box: [52, 0, 100, 58], tint: "#28211b", edge: "#453a2e" },
+  { id: "marketing", label: "Marketing", box: [0, 52, 58, 100], tint: "#291c24", edge: "#472f3f" },
+  { id: "client_success", label: "Client success", box: [64, 64, 100, 100], tint: "#1d2422", edge: "#2d443d" },
+] as const;
+
 const STATUS = {
-  idle: { ring: "#6d6159", label: "Idle", tone: "text-faint", anim: "anim-breathe" },
-  working: { ring: "#ffb547", label: "Working", tone: "text-lamp", anim: "anim-typing" },
-  waiting_on_boss: { ring: "#f0603c", label: "Waiting on you", tone: "text-rust", anim: "anim-handup" },
-  blocked: { ring: "#f0603c", label: "Blocked", tone: "text-rust", anim: "" },
-  off_shift: { ring: "#3a302a", label: "Off shift", tone: "text-faint", anim: "" },
+  idle: { ring: "#6d6159", label: "Idle", tone: "text-faint", anim: "anim-breathe", screen: "#231c17" },
+  working: { ring: "#ffb547", label: "Working", tone: "text-lamp", anim: "anim-typing", screen: "#0d3d4a" },
+  waiting_on_boss: { ring: "#f0603c", label: "Waiting on you", tone: "text-rust", anim: "anim-handup", screen: "#3d1a12" },
+  blocked: { ring: "#f0603c", label: "Blocked", tone: "text-rust", anim: "", screen: "#2a1512" },
+  off_shift: { ring: "#3a302a", label: "Off shift", tone: "text-faint", anim: "", screen: "#17120f" },
 } as const;
+
+/** Only these three have anything worth saying out loud. */
+const SPEAKS = new Set(["working", "waiting_on_boss", "blocked"]);
+
+const DESK_W = 8;
+const DESK_D = 5.5;
+const DESK_LIP = 1.5;
 
 export function Office() {
   const bots = useQuery(api.bots.list);
@@ -70,20 +99,24 @@ export function Office() {
     );
   }
 
+  // Painter's algorithm: everything further back is drawn first, so a desk at
+  // the front of the room overlaps the one behind it and not the other way round.
+  const inDepthOrder = [...bots].sort(
+    (a, b) => iso(a.desk.x, a.desk.y).v - iso(b.desk.x, b.desk.y).v,
+  );
+
   return (
     <>
-      {/* ── Desktop: the isometric floor ────────────────────────────────── */}
-      <div className="relative hidden lg:block">
-        <div className="relative mx-auto aspect-[16/10] w-full max-w-[1100px]">
-          <FloorPlane />
-          {bots.map((bot) => (
-            <Desk key={bot._id} bot={bot} onOpen={() => setOpenBot(bot.key)} />
+      <div className="relative hidden xl:block">
+        <div className="relative mx-auto aspect-[100/68] w-full">
+          <Room bots={inDepthOrder} />
+          {inDepthOrder.map((bot) => (
+            <Person key={bot._id} bot={bot} onOpen={() => setOpenBot(bot.key)} />
           ))}
         </div>
       </div>
 
-      {/* ── Mobile: the same information, stacked ───────────────────────── */}
-      <div className="space-y-2 lg:hidden">
+      <div className="space-y-2 xl:hidden">
         {ZONES.map((zone) => {
           const inZone = bots.filter((b) => b.desk.zone === zone.id);
           if (inZone.length === 0) return null;
@@ -107,58 +140,113 @@ export function Office() {
   );
 }
 
-function FloorPlane() {
+// ── The room ────────────────────────────────────────────────────────────────
+function Room({ bots }: { bots: Bot[] }) {
+  const WALL_H = 13;
+  const back = iso(0, 0);
+  const rightEnd = iso(100, 0);
+  const leftEnd = iso(0, 100);
+
   return (
-    <svg viewBox="0 0 100 62" className="absolute inset-0 h-full w-full" aria-hidden>
+    <svg viewBox={`0 0 ${VB.w} ${VB.h}`} className="absolute inset-0 h-full w-full" aria-hidden>
       <defs>
-        <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#241d18" />
-          <stop offset="100%" stopColor="#14100d" />
+        <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#15110e" />
+          <stop offset="100%" stopColor="#241c16" />
         </linearGradient>
-        <radialGradient id="lampPool" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#ffb547" stopOpacity="0.18" />
+        <linearGradient id="floorGrad" x1="0.5" y1="0" x2="0.5" y2="1">
+          <stop offset="0%" stopColor="#1e1813" />
+          <stop offset="100%" stopColor="#120e0b" />
+        </linearGradient>
+        <radialGradient id="lampPool">
+          <stop offset="0%" stopColor="#ffb547" stopOpacity="0.16" />
+          <stop offset="70%" stopColor="#ffb547" stopOpacity="0.04" />
           <stop offset="100%" stopColor="#ffb547" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="windowGlow">
+          <stop offset="0%" stopColor="#2b3b5c" />
+          <stop offset="100%" stopColor="#10151f" />
         </radialGradient>
       </defs>
 
-      {/* The floor itself — one big diamond. */}
-      <polygon points="50,4 96,37 50,58 4,37" fill="url(#floorGrad)" />
+      {/* Two back walls, so the floor reads as a room and not a rug in space. */}
       <polygon
-        points="50,4 96,37 50,58 4,37"
+        points={`${pt(back)} ${pt(rightEnd)} ${rightEnd.u},${rightEnd.v - WALL_H} ${back.u},${back.v - WALL_H}`}
+        fill="url(#wallGrad)"
+      />
+      <polygon
+        points={`${pt(back)} ${pt(leftEnd)} ${leftEnd.u},${leftEnd.v - WALL_H} ${back.u},${back.v - WALL_H}`}
+        fill="url(#wallGrad)"
+      />
+      {/* Skirting, where wall meets floor. */}
+      <polyline
+        points={`${pt(leftEnd)} ${pt(back)} ${pt(rightEnd)}`}
         fill="none"
-        stroke="#453931"
-        strokeWidth="0.25"
-        opacity="0.55"
+        stroke="#4a3b2e"
+        strokeWidth="0.3"
+        opacity="0.8"
       />
 
+      {/* Windows on the right wall — a studio at night, not a bunker. */}
+      {[0.28, 0.58].map((t, i) => {
+        const a = { u: back.u + (rightEnd.u - back.u) * t, v: back.v + (rightEnd.v - back.v) * t };
+        const b = {
+          u: back.u + (rightEnd.u - back.u) * (t + 0.16),
+          v: back.v + (rightEnd.v - back.v) * (t + 0.16),
+        };
+        return (
+          <g key={i}>
+            <polygon
+              points={`${a.u},${a.v - 3} ${b.u},${b.v - 3} ${b.u},${b.v - 10.5} ${a.u},${a.v - 10.5}`}
+              fill="url(#windowGlow)"
+              stroke="#3a2f26"
+              strokeWidth="0.25"
+            />
+            <line
+              x1={(a.u + b.u) / 2}
+              y1={(a.v + b.v) / 2 - 3}
+              x2={(a.u + b.u) / 2}
+              y2={(a.v + b.v) / 2 - 10.5}
+              stroke="#3a2f26"
+              strokeWidth="0.2"
+            />
+          </g>
+        );
+      })}
+
+      {/* The floor. */}
+      <polygon points={slab(0, 0, 100, 100)} fill="url(#floorGrad)" />
+
+      {/* Floorboards. Nothing says "floor" like floor lines. */}
+      {Array.from({ length: 9 }, (_, i) => (i + 1) * 10).map((n) => (
+        <g key={n} stroke="#3a2e25" strokeWidth="0.12" opacity="0.4">
+          <line x1={iso(n, 0).u} y1={iso(n, 0).v} x2={iso(n, 100).u} y2={iso(n, 100).v} />
+          <line x1={iso(0, n).u} y1={iso(0, n).v} x2={iso(100, n).u} y2={iso(100, n).v} />
+        </g>
+      ))}
+
+      {/* Zone rugs, drawn around wherever their people actually sit. */}
       {ZONES.map((zone) => {
-        const a = project(zone.x, zone.y);
-        const b = project(zone.x + zone.w, zone.y);
-        const c = project(zone.x + zone.w, zone.y + zone.h);
-        const d = project(zone.x, zone.y + zone.h);
-        const pts = [a, b, c, d]
-          .map((p) => `${p.left},${(p.top / 100) * 62}`)
-          .join(" ");
-        const centre = project(zone.x + zone.w / 2, zone.y + zone.h / 2);
+        const [x0, y0, x1, y1] = zone.box;
+        const centre = iso((x0 + x1) / 2, (y0 + y1) / 2);
         return (
           <g key={zone.id}>
-            <polygon points={pts} fill={zone.tint} opacity="0.85" />
-            <polygon points={pts} fill="none" stroke="#453931" strokeWidth="0.15" opacity="0.7" />
-            <ellipse
-              cx={centre.left}
-              cy={(centre.top / 100) * 62}
-              rx="16"
-              ry="9"
-              fill="url(#lampPool)"
-              className="anim-lamp"
+            <polygon points={slab(x0, y0, x1, y1)} fill={zone.tint} opacity="0.9" />
+            <polygon
+              points={slab(x0, y0, x1, y1)}
+              fill="none"
+              stroke={zone.edge}
+              strokeWidth="0.22"
+              opacity="0.7"
             />
             <text
-              x={centre.left}
-              y={(centre.top / 100) * 62 + 11}
+              x={centre.u}
+              y={centre.v}
               textAnchor="middle"
-              fontSize="1.5"
-              fill="#6d6159"
-              letterSpacing="0.3"
+              fontSize="1.9"
+              fill="#7a6a5d"
+              opacity="0.5"
+              letterSpacing="0.45"
               style={{ textTransform: "uppercase" }}
             >
               {zone.label}
@@ -166,60 +254,151 @@ function FloorPlane() {
           </g>
         );
       })}
+
+      {/* Furniture, back to front. */}
+      {bots.map((bot) => (
+        <Desk key={bot._id} bot={bot} />
+      ))}
     </svg>
   );
 }
 
-function Desk({ bot, onOpen }: { bot: Bot; onOpen: () => void }) {
-  const zone = ZONES.find((z) => z.id === bot.desk.zone) ?? ZONES[0];
-  const pos = project(zone.x + (zone.w * bot.desk.x) / 100, zone.y + (zone.h * bot.desk.y) / 100);
+function Desk({ bot }: { bot: Bot }) {
+  const { x, y } = bot.desk;
+  const status = STATUS[bot.status];
+  const off = bot.status === "off_shift";
+  const working = bot.status === "working";
+
+  const top = iso(x - DESK_W, y - DESK_D);
+  const right = iso(x + DESK_W, y - DESK_D);
+  const bottom = iso(x + DESK_W, y + DESK_D);
+  const left = iso(x - DESK_W, y + DESK_D);
+  const backEdge = iso(x, y - DESK_D);
+  const frontEdge = iso(x, y + DESK_D);
+
+  return (
+    <g opacity={off ? 0.4 : 1}>
+      {/* Pool of lamplight on the desk. */}
+      <ellipse
+        cx={frontEdge.u}
+        cy={frontEdge.v - 1}
+        rx="13"
+        ry="7"
+        fill="url(#lampPool)"
+        className={working ? "anim-lamp" : ""}
+      />
+
+      {/* Chair, in front of the desk. */}
+      <ellipse cx={frontEdge.u} cy={frontEdge.v + 3.4} rx="2.6" ry="1.35" fill="#241d18" />
+      <ellipse cx={frontEdge.u} cy={frontEdge.v + 3.0} rx="2.6" ry="1.35" fill="#33291f" />
+
+      {/* Desk: the two front faces give it thickness. */}
+      <polygon
+        points={`${pt(left)} ${pt(bottom)} ${bottom.u},${bottom.v + DESK_LIP} ${left.u},${left.v + DESK_LIP}`}
+        fill="#251d16"
+      />
+      <polygon
+        points={`${pt(bottom)} ${pt(right)} ${right.u},${right.v + DESK_LIP} ${bottom.u},${bottom.v + DESK_LIP}`}
+        fill="#1d1711"
+      />
+      <polygon
+        points={`${pt(top)} ${pt(right)} ${pt(bottom)} ${pt(left)}`}
+        fill="#3b2f24"
+        stroke="#503f30"
+        strokeWidth="0.18"
+      />
+
+      {/* Monitor, standing at the back edge. Its screen is the status light. */}
+      <rect
+        x={backEdge.u - 3.1}
+        y={backEdge.v - 5.6}
+        width="6.2"
+        height="4.2"
+        rx="0.45"
+        fill="#100c09"
+        stroke="#4a3b2e"
+        strokeWidth="0.18"
+      />
+      <rect
+        x={backEdge.u - 2.6}
+        y={backEdge.v - 5.15}
+        width="5.2"
+        height="3.3"
+        rx="0.25"
+        fill={status.screen}
+      />
+      {working && (
+        <rect
+          x={backEdge.u - 2.1}
+          y={backEdge.v - 4.5}
+          width="0.5"
+          height="1.1"
+          fill="#7fe4ff"
+          className="anim-typing"
+        />
+      )}
+      <rect x={backEdge.u - 0.5} y={backEdge.v - 1.4} width="1" height="1.1" fill="#2b2119" />
+      <rect x={backEdge.u - 1.6} y={backEdge.v - 0.5} width="3.2" height="0.5" rx="0.2" fill="#2b2119" />
+    </g>
+  );
+}
+
+// ── The people ──────────────────────────────────────────────────────────────
+function Person({ bot, onOpen }: { bot: Bot; onOpen: () => void }) {
   const status = STATUS[bot.status];
   const needsYou = bot.status === "waiting_on_boss" || bot.openEscalations > 0;
+  const speaks = SPEAKS.has(bot.status);
+
+  // Stand them at the back edge of their own desk, so they read as sitting at it.
+  const at = iso(bot.desk.x, bot.desk.y - DESK_D);
+  const left = at.u;
+  const top = (at.v / VB.h) * 100;
 
   return (
     <button
       onClick={onOpen}
-      style={{ left: `${pos.left}%`, top: `${pos.top}%`, zIndex: Math.round(pos.top) }}
-      className="group absolute w-[132px] -translate-x-1/2 -translate-y-full text-left focus:outline-none"
+      style={{ left: `${left}%`, top: `${top}%`, zIndex: Math.round(at.v * 10) }}
+      className="group absolute w-[112px] -translate-x-1/2 -translate-y-full text-left focus:outline-none"
+      aria-label={`${bot.name} — ${status.label}`}
     >
-      {/* Speech bubble — what they're doing right now, in 8 words or less. */}
-      {bot.status !== "off_shift" && (
-        <div className="anim-in mb-1.5 rounded-xl border border-edge bg-panel-2/95 px-2.5 py-1.5 text-[10.5px] leading-snug text-cream shadow-lg">
+      {speaks && (
+        <div className="anim-in relative mb-1.5 rounded-xl border border-edge bg-panel-2/95 px-2.5 py-1.5 text-[10.5px] leading-snug text-cream shadow-xl">
           {bot.currentTask}
           <span className="absolute -bottom-1 left-6 h-2 w-2 rotate-45 border-b border-r border-edge bg-panel-2" />
         </div>
       )}
 
       <div
-        className={`relative rounded-xl border bg-panel/95 p-2 shadow-xl transition group-hover:border-lamp/60 group-focus-visible:border-lamp ${
-          bot.status === "off_shift" ? "border-edge opacity-45" : "border-edge"
+        className={`relative rounded-xl border bg-panel/90 px-2 py-1.5 backdrop-blur-[2px] transition group-hover:-translate-y-0.5 group-hover:border-lamp/60 group-focus-visible:border-lamp ${
+          bot.status === "off_shift" ? "border-edge opacity-50" : "border-edge shadow-lg"
         }`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <span
             style={{ ["--ring-color" as string]: status.ring, borderColor: status.ring }}
-            className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border-2 bg-ink text-base ${status.anim} ${
+            className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 bg-ink text-sm ${status.anim} ${
               needsYou ? "anim-ring" : ""
             }`}
           >
             {bot.avatar}
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-[12px] font-semibold leading-tight">{bot.name}</span>
-            <span className={`block truncate text-[10px] leading-tight ${status.tone}`}>
+            <span className="block truncate text-[11.5px] font-semibold leading-tight">
+              {bot.name}
+            </span>
+            <span className={`block truncate text-[9.5px] leading-tight ${status.tone}`}>
               {status.label}
             </span>
           </span>
         </div>
 
         {needsYou && (
-          <span className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-rust text-[10px] font-bold text-white shadow">
+          <span className="absolute -right-1.5 -top-1.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-rust text-[9.5px] font-bold text-white shadow">
             {bot.openEscalations || "!"}
           </span>
         )}
 
-        {/* Budget meter — how much of today's free quota this desk has spent. */}
-        <span className="mt-1.5 block h-0.5 w-full overflow-hidden rounded-full bg-edge">
+        <span className="mt-1 block h-0.5 w-full overflow-hidden rounded-full bg-edge">
           <span
             className="block h-full rounded-full transition-all"
             style={{

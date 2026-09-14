@@ -19,7 +19,7 @@ export default function OfficePage() {
     <div className="min-h-screen">
       <Header />
 
-      <main className="mx-auto grid max-w-[1600px] gap-4 p-4 lg:grid-cols-[1fr_340px]">
+      <main className="mx-auto grid max-w-[1800px] gap-4 p-4 xl:grid-cols-[1fr_360px]">
         <div className="space-y-4">
           <div className="rounded-2xl border border-edge bg-gradient-to-b from-panel to-ink p-2">
             <Office />
@@ -65,7 +65,7 @@ export default function OfficePage() {
           )}
         </div>
 
-        <aside className="h-[520px] lg:sticky lg:top-[108px] lg:h-[calc(100vh-128px)]">
+        <aside className="h-[520px] xl:sticky xl:top-[108px] xl:h-[calc(100vh-128px)]">
           <ActivityFeed />
         </aside>
       </main>
