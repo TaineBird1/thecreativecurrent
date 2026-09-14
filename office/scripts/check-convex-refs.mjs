@@ -38,12 +38,15 @@ const files = walk(convexDir);
 
 // module path ("leads", "agents/outreach") -> { name -> kind }
 const exports = new Map();
+// module paths that start with "use node"
+const nodeModules = new Set();
 const EXPORT_RE =
   /export\s+const\s+(\w+)\s*=\s*(query|mutation|action|internalQuery|internalMutation|internalAction)\s*\(/g;
 
 for (const file of files) {
   const modPath = relative(convexDir, file).replace(/\.ts$/, "").replace(/\\/g, "/");
   const src = readFileSync(file, "utf8");
+  if (/^\s*["']use node["']/.test(src)) nodeModules.add(modPath);
   const found = new Map();
   let m;
   while ((m = EXPORT_RE.exec(src)) !== null) found.set(m[1], m[2]);
@@ -73,6 +76,26 @@ for (const dir of ["app", "worker", "packages"]) {
 }
 
 const problems = [];
+
+// A Convex module marked "use node" may export ONLY actions. A query or
+// mutation in one fails the WHOLE deploy — not just that file — with
+// "Only actions can be defined in Node.js", and it fails at `npx convex dev`,
+// long after every local check has passed.
+//
+// This rule exists because exactly that happened: convex/auth.ts needed
+// node:crypto for HMAC signing, so it was "use node", and its two session
+// functions took the entire deploy down with them. The fix was to split the
+// database work out into convex/authStore.ts.
+for (const modPath of nodeModules) {
+  for (const [name, kind] of exports.get(modPath) ?? []) {
+    if (!kind.toLowerCase().includes("action")) {
+      problems.push(
+        `convex/${modPath}.ts: "${name}" is a ${kind}, but the file is "use node" — ` +
+          `a Node module may only export actions. Move it to a separate non-node file.`,
+      );
+    }
+  }
+}
 // The lookbehind keeps URLs out of it: "https://api.resend.com" is not a
 // Convex reference, and neither is anything reached through a path segment.
 const REF_RE = /(?<![\w./-])(api|internal)\.([\w.]+)\b/g;
@@ -115,9 +138,12 @@ for (const file of [...files, ...new Set(appFiles)]) {
 
 const total = [...exports.values()].reduce((n, m) => n + m.size, 0);
 if (problems.length === 0) {
-  console.log(`Convex refs OK — ${total} functions across ${exports.size} modules, every reference resolves.`);
+  console.log(
+    `Convex refs OK — ${total} functions across ${exports.size} modules, every reference resolves.\n` +
+      `Node runtime OK — ${nodeModules.size} "use node" modules, all actions-only.`,
+  );
 } else {
-  console.error(`\n${problems.length} bad Convex reference(s):\n`);
+  console.error(`\n${problems.length} Convex problem(s):\n`);
   for (const p of [...new Set(problems)]) console.error(`  ${p}`);
   console.error("");
   process.exit(1);

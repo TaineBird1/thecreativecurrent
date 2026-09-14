@@ -100,6 +100,18 @@ export const runNow = action({
 speech bubble, and turning "out of budget" and "stopped mid-run" into states you
 can read on the office floor. Don't reimplement any of that.
 
+**The `"use node"` trap.** A bot runner needs `"use node"` at the top, and a
+Convex module marked that way may export **only actions**. Put a query or a
+mutation in one and the WHOLE deploy fails — not just that file — with
+*"Only actions can be defined in Node.js"*. It fails at `npx convex dev`, long
+after every local check has passed.
+
+This bit the first deploy: `convex/auth.ts` needed `node:crypto` for HMAC
+signing, so it was `"use node"`, and its two session functions took the whole
+push down with them. The fix was to split the database work into
+`convex/authStore.ts`. `pnpm check:refs` now catches this before you deploy —
+if you need a query or mutation alongside Node code, it goes in its own file.
+
 **4. Schedule it** — `convex/crons.ts`. Write the cron in **UTC** and put the
 SAST time in the comment. SAST is UTC+2 all year.
 

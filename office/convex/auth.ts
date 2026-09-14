@@ -14,12 +14,16 @@
  * What this is not: it does not protect against someone with your laptop open.
  * If you want real accounts later, swap this for Convex Auth — no bot code
  * touches it.
+ *
+ * Why the session rows live in convex/authStore.ts and not here: this file is
+ * `"use node"` (node:crypto, for HMAC and a constant-time compare), and a
+ * Node-runtime Convex module may only export ACTIONS. A query or mutation in
+ * here fails the entire deploy, not just this file.
  */
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { v } from "convex/values";
-import { action, internalMutation, internalQuery } from "./_generated/server";
+import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { stamps, alive } from "./lib/soft";
 
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -52,7 +56,7 @@ export const login = action({
 
     const nonce = randomBytes(24).toString("hex");
     const token = `${nonce}.${sign(nonce, secret)}`;
-    await ctx.runMutation(internal.auth.storeSession, {
+    await ctx.runMutation(internal.authStore.storeSession, {
       token,
       expiresAt: Date.now() + TOKEN_TTL_MS,
     });
@@ -70,30 +74,7 @@ export const check = action({
     if (!nonce || !signature) return { ok: false };
     if (sign(nonce, secret) !== signature) return { ok: false };
 
-    const session = await ctx.runQuery(internal.auth.findSession, { token });
+    const session = await ctx.runQuery(internal.authStore.findSession, { token });
     return { ok: Boolean(session && session.expiresAt > Date.now()) };
-  },
-});
-
-export const storeSession = internalMutation({
-  args: { token: v.string(), expiresAt: v.number() },
-  handler: async (ctx, args) => {
-    // Housekeeping: drop expired rows rather than letting them accumulate.
-    const stale = alive(await ctx.db.query("sessions").collect()).filter(
-      (s) => s.expiresAt < Date.now(),
-    );
-    for (const s of stale) await ctx.db.patch(s._id, { deletedAt: Date.now(), updatedAt: Date.now() });
-    await ctx.db.insert("sessions", { ...args, ...stamps() });
-  },
-});
-
-export const findSession = internalQuery({
-  args: { token: v.string() },
-  handler: async (ctx, { token }) => {
-    const row = await ctx.db
-      .query("sessions")
-      .withIndex("by_token", (q) => q.eq("token", token))
-      .unique();
-    return row && row.deletedAt === undefined ? row : null;
   },
 });
