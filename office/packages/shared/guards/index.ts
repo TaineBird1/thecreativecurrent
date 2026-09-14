@@ -8,7 +8,7 @@
  * about what to do with a hit; convex/outbound.ts owns the rest, because they
  * need database and context access.
  */
-import { checkMoney, type GuardResult } from "./money";
+import { checkMoney } from "./money";
 import { checkClaims } from "./claims";
 
 export { checkMoney } from "./money";
@@ -55,4 +55,3 @@ export function gateAll(parts: Record<string, string | undefined>): GateVerdict 
   return { clear: true, reason: "", matches: [] };
 }
 
-export type { GuardResult };

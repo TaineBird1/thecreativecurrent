@@ -10,7 +10,7 @@
     "build": "pnpm prompts:build && next build",
     "start": "npx serve out",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/typecheck.mjs",
     "prompts:build": "node scripts/build-prompts.mjs",
     "seed": "convex run seed:run",
     "pricing:sync": "node scripts/sync-pricing.mjs",
@@ -20,7 +20,8 @@
     "deploy": "pnpm prompts:build && convex deploy && next build",
     "check:refs": "node scripts/check-convex-refs.mjs",
     "check:syntax": "node scripts/check-syntax.mjs",
-    "verify": "pnpm prompts:build && pnpm check:syntax && pnpm check:refs && pnpm test && pnpm test:llm"
+    "verify": "pnpm prompts:build && pnpm check:syntax && pnpm check:refs && pnpm typecheck && pnpm test && pnpm test:llm",
+    "stub:generated": "node scripts/stub-generated.mjs"
   },
   "dependencies": {
     "convex": "^1.17.0",

@@ -152,8 +152,16 @@ export const flagRequestCost = internalMutation({
 
 export const untriagedRequests = query({
   args: {},
-  handler: async (ctx) =>
-    alive(
+  handler: async (ctx) => {
+    const rows = alive(
       await ctx.db.query("changeRequests").withIndex("by_status", (q) => q.eq("status", "open")).collect(),
-    ),
+    );
+    // The business name is joined in because the Approvals card this feeds
+    // says "Ballito Roofing asked for X", not "a client asked for X".
+    const clients = new Map(alive(await ctx.db.query("clients").collect()).map((c) => [c._id, c]));
+    return rows.map((r) => ({
+      ...r,
+      businessName: clients.get(r.clientId)?.businessName ?? "A client",
+    }));
+  },
 });

@@ -202,7 +202,7 @@ async function triageRequests(ctx: Parameters<typeof withRun>[0], runId: string)
     const approvalId = await ctx.runMutation(internal.approvals.create, {
       kind: "change_request_cost",
       botKey: "clientsuccess",
-      title: `${request.businessName ?? "A client"}: ${parsed.summary ?? request.description.slice(0, 60)}`,
+      title: `${request.businessName}: ${parsed.summary ?? request.description.slice(0, 60)}`,
       body: [
         `**They asked for:** ${request.description}`,
         "",

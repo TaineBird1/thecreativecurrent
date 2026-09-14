@@ -48,7 +48,9 @@ export const list = query({
     );
 
     // Registry order, so the floor plan never reshuffles itself.
-    const order = new Map(BOTS.map((b, i) => [b.key, i]));
+    // Keyed as string, not BotKey — bot.key on a database row is a plain
+    // string, and a row for a bot no longer in the registry must still sort.
+    const order = new Map<string, number>(BOTS.map((b, i) => [b.key, i]));
     return withExtras.sort((a, b) => (order.get(a.key) ?? 99) - (order.get(b.key) ?? 99));
   },
 });

@@ -19,7 +19,9 @@ import { parseJson } from "../../packages/shared/llm/router";
 import { sastDay, DAY_MS } from "../lib/time";
 import { BOTS } from "../../packages/agents/registry";
 
-const VALID_BOTS = new Set(BOTS.map((b) => b.key));
+// Typed as strings, not BotKey: the whole job here is checking an arbitrary
+// string the model produced against the real roster.
+const VALID_BOTS = new Set<string>(BOTS.map((b) => b.key));
 
 /** The 07:00 SAST run: plan any new goals, re-plan failures, write the stand-up. */
 export const run = internalAction({
