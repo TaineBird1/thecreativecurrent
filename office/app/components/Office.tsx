@@ -151,21 +151,34 @@ function Room({ bots }: { bots: Bot[] }) {
     <svg viewBox={`0 0 ${VB.w} ${VB.h}`} className="absolute inset-0 h-full w-full" aria-hidden>
       <defs>
         <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#15110e" />
-          <stop offset="100%" stopColor="#241c16" />
+          <stop offset="0%" stopColor="#1b1612" />
+          <stop offset="100%" stopColor="#2e251d" />
         </linearGradient>
         <linearGradient id="floorGrad" x1="0.5" y1="0" x2="0.5" y2="1">
-          <stop offset="0%" stopColor="#1e1813" />
-          <stop offset="100%" stopColor="#120e0b" />
+          <stop offset="0%" stopColor="#2b231b" />
+          <stop offset="100%" stopColor="#191310" />
         </linearGradient>
         <radialGradient id="lampPool">
-          <stop offset="0%" stopColor="#ffb547" stopOpacity="0.16" />
-          <stop offset="70%" stopColor="#ffb547" stopOpacity="0.04" />
+          <stop offset="0%" stopColor="#ffc46b" stopOpacity="0.30" />
+          <stop offset="55%" stopColor="#ffb547" stopOpacity="0.11" />
           <stop offset="100%" stopColor="#ffb547" stopOpacity="0" />
         </radialGradient>
+        <radialGradient id="lampPoolHot">
+          <stop offset="0%" stopColor="#ffd089" stopOpacity="0.52" />
+          <stop offset="55%" stopColor="#ffb547" stopOpacity="0.20" />
+          <stop offset="100%" stopColor="#ffb547" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="ambient">
+          <stop offset="0%" stopColor="#ffb86b" stopOpacity="0.09" />
+          <stop offset="100%" stopColor="#ffb86b" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="windowSpill">
+          <stop offset="0%" stopColor="#6d8cc4" stopOpacity="0.16" />
+          <stop offset="100%" stopColor="#6d8cc4" stopOpacity="0" />
+        </radialGradient>
         <radialGradient id="windowGlow">
-          <stop offset="0%" stopColor="#2b3b5c" />
-          <stop offset="100%" stopColor="#10151f" />
+          <stop offset="0%" stopColor="#47608f" />
+          <stop offset="100%" stopColor="#151c2b" />
         </radialGradient>
       </defs>
 
@@ -217,9 +230,14 @@ function Room({ bots }: { bots: Bot[] }) {
       {/* The floor. */}
       <polygon points={slab(0, 0, 100, 100)} fill="url(#floorGrad)" />
 
+      {/* Light spilling in from the windows, and a warm wash over the room. A
+          dark room only reads as lit if something is actually casting light. */}
+      <ellipse cx={iso(78, 14).u} cy={iso(78, 14).v} rx="30" ry="17" fill="url(#windowSpill)" />
+      <ellipse cx={50} cy={HORIZON + SPREAD_Y} rx="52" ry="30" fill="url(#ambient)" />
+
       {/* Floorboards. Nothing says "floor" like floor lines. */}
       {Array.from({ length: 9 }, (_, i) => (i + 1) * 10).map((n) => (
-        <g key={n} stroke="#3a2e25" strokeWidth="0.12" opacity="0.4">
+        <g key={n} stroke="#4c3c2d" strokeWidth="0.13" opacity="0.55">
           <line x1={iso(n, 0).u} y1={iso(n, 0).v} x2={iso(n, 100).u} y2={iso(n, 100).v} />
           <line x1={iso(0, n).u} y1={iso(0, n).v} x2={iso(100, n).u} y2={iso(100, n).v} />
         </g>
@@ -228,7 +246,10 @@ function Room({ bots }: { bots: Bot[] }) {
       {/* Zone rugs, drawn around wherever their people actually sit. */}
       {ZONES.map((zone) => {
         const [x0, y0, x1, y1] = zone.box;
-        const centre = iso((x0 + x1) / 2, (y0 + y1) / 2);
+        // The label sits on the rug's left corner, not its middle. In the
+        // middle it was directly behind the desks and unreadable — which is
+        // exactly where a centroid puts it, since that is where people sit.
+        const tag = iso(x0, y1);
         return (
           <g key={zone.id}>
             <polygon points={slab(x0, y0, x1, y1)} fill={zone.tint} opacity="0.9" />
@@ -236,17 +257,18 @@ function Room({ bots }: { bots: Bot[] }) {
               points={slab(x0, y0, x1, y1)}
               fill="none"
               stroke={zone.edge}
-              strokeWidth="0.22"
-              opacity="0.7"
+              strokeWidth="0.25"
+              opacity="0.9"
             />
             <text
-              x={centre.u}
-              y={centre.v}
-              textAnchor="middle"
-              fontSize="1.9"
-              fill="#7a6a5d"
-              opacity="0.5"
-              letterSpacing="0.45"
+              x={tag.u + 1.4}
+              y={tag.v + 0.7}
+              textAnchor="start"
+              fontSize="1.85"
+              fontWeight="600"
+              fill="#b5a290"
+              opacity="0.85"
+              letterSpacing="0.4"
               style={{ textTransform: "uppercase" }}
             >
               {zone.label}
@@ -282,29 +304,29 @@ function Desk({ bot }: { bot: Bot }) {
       <ellipse
         cx={frontEdge.u}
         cy={frontEdge.v - 1}
-        rx="13"
-        ry="7"
-        fill="url(#lampPool)"
+        rx="14"
+        ry="7.5"
+        fill={working ? "url(#lampPoolHot)" : "url(#lampPool)"}
         className={working ? "anim-lamp" : ""}
       />
 
       {/* Chair, in front of the desk. */}
       <ellipse cx={frontEdge.u} cy={frontEdge.v + 3.4} rx="2.6" ry="1.35" fill="#241d18" />
-      <ellipse cx={frontEdge.u} cy={frontEdge.v + 3.0} rx="2.6" ry="1.35" fill="#33291f" />
+      <ellipse cx={frontEdge.u} cy={frontEdge.v + 3.0} rx="2.6" ry="1.35" fill="#443628" />
 
       {/* Desk: the two front faces give it thickness. */}
       <polygon
         points={`${pt(left)} ${pt(bottom)} ${bottom.u},${bottom.v + DESK_LIP} ${left.u},${left.v + DESK_LIP}`}
-        fill="#251d16"
+        fill="#33281e"
       />
       <polygon
         points={`${pt(bottom)} ${pt(right)} ${right.u},${right.v + DESK_LIP} ${bottom.u},${bottom.v + DESK_LIP}`}
-        fill="#1d1711"
+        fill="#271f17"
       />
       <polygon
         points={`${pt(top)} ${pt(right)} ${pt(bottom)} ${pt(left)}`}
-        fill="#3b2f24"
-        stroke="#503f30"
+        fill="#4d3d2d"
+        stroke="#6f5943"
         strokeWidth="0.18"
       />
 
