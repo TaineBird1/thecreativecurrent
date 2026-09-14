@@ -1,0 +1,449 @@
+"use node";
+/**
+ * Sipho — Lead Generation.
+ *
+ * The split of labour here is deliberate and is the answer to the data-caution
+ * rule:
+ *
+ *   Contact details are extracted DETERMINISTICALLY (regex, in contacts.ts).
+ *   Judgement is made by the LLM, on PSEUDONYMISED text.
+ *
+ * Doing it the other way round — asking the model to "pull out the phone number"
+ * — would mean posting a real person's mobile to a free tier that may train on
+ * it, and would also invent numbers when it could not find one. Regex cannot
+ * hallucinate a phone number, and the model never needs to see one.
+ */
+import { v } from "convex/values";
+import { action, internalAction } from "./../_generated/server";
+import { api, internal } from "./../_generated/api";
+import { withRun, think } from "../lib/run";
+import { parseJson } from "../../packages/shared/llm/router";
+import { fetchPage, stripTags, title as pageTitle, emails as findEmails, links } from "../../packages/shared/tools/html";
+import {
+  NOT_FOUND,
+  dedupeKey as makeDedupeKey,
+  extractDomain,
+  findNumbers,
+  isReachable,
+  pickEmail,
+  splitNumbers,
+} from "../../packages/shared/tools/contacts";
+import { auditSite, scoreLead, type Fault } from "../../packages/shared/tools/faults";
+import { prepareForLlm } from "../../packages/shared/guards/pii";
+import { TIER_CATEGORIES, LOCATIONS, sourcesForTier } from "../../packages/shared/tools/sources";
+
+/** Below this, Outreach's time is better spent elsewhere. */
+const QUALIFY_FLOOR = 40;
+/** Per run. Keeps well inside the daily LLM budget and inside politeness. */
+const MAX_CANDIDATES_PER_RUN = 12;
+
+interface Judgement {
+  tier: 1 | 2 | 3;
+  qualified: boolean;
+  score: number;
+  discardReason: string | null;
+  category: string;
+  contactName: string;
+  faults: Fault[];
+  facebookActivity: string | null;
+  reasoning: string;
+}
+
+/** The daily run. Rotates category and location so it doesn't re-scrape one page forever. */
+export const run = internalAction({
+  args: { trigger: v.optional(v.union(v.literal("cron"), v.literal("manual"))) },
+  handler: async (ctx, { trigger }): Promise<string> => {
+    const outcome = await withRun(
+      ctx,
+      { botKey: "leadgen", trigger: trigger ?? "cron", bubble: "Looking for new leads" },
+      async (handle) => {
+        const { tier, category, location } = rotation();
+        await handle.say(`Searching ${category} in ${location}`);
+
+        const workerOnline = await isWorkerOnline(ctx);
+        const sources = sourcesForTier(tier, workerOnline);
+        if (!workerOnline) {
+          // Say so rather than quietly finding less. The two best sources
+          // (Maps, Facebook) both need the browser.
+          await ctx.runMutation(internal.escalations.raise, {
+            botKey: "leadgen",
+            title: "The local worker isn't running",
+            detail:
+              "Google Maps and Facebook Pages both need a real browser, which runs on your PC. Start it with `pnpm worker` in the office folder. Directory sources still work without it, but they find fewer and worse leads.",
+            severity: "info",
+          });
+        }
+
+        const candidates: { url: string; sourceId: string }[] = [];
+        for (const source of sources) {
+          if (await handle.stopped()) return "Stopped mid-run.";
+          if (source.needsBrowser) {
+            await ctx.runMutation(internal.scrapeJobs.enqueue, {
+              type: source.id === "facebook_page" ? "facebook_page" : "directory",
+              payload: { sourceId: source.id, url: source.search(category, location), category, location, tier },
+              priority: 2,
+            });
+            continue;
+          }
+          const found = await harvestListingUrls(source.search(category, location), source.id);
+          candidates.push(...found);
+        }
+
+        // Anything the worker finished since the last run.
+        const fromWorker = await ctx.runQuery(api.scrapeJobs.completedResults, { limit: 40 });
+        for (const job of fromWorker) {
+          for (const url of (job.result?.urls ?? []) as string[]) {
+            candidates.push({ url, sourceId: job.payload?.sourceId ?? "worker" });
+          }
+        }
+
+        if (candidates.length === 0) {
+          return `Nothing new found for ${category} in ${location}. Directory pages returned no usable listings${workerOnline ? "" : " and the local worker is offline"}.`;
+        }
+
+        let added = 0;
+        let discarded = 0;
+        let skipped = 0;
+
+        for (const candidate of candidates.slice(0, MAX_CANDIDATES_PER_RUN)) {
+          if (await handle.stopped()) break;
+          const result = await processCandidate(ctx, {
+            url: candidate.url,
+            sourceId: candidate.sourceId,
+            tierHint: tier,
+            categoryHint: category,
+            location,
+            runId: handle.runId,
+          });
+          if (result === "added") added++;
+          else if (result === "discarded") discarded++;
+          else skipped++;
+        }
+
+        return `${added} new lead${added === 1 ? "" : "s"} in ${location}, ${discarded} discarded off-niche, ${skipped} already known.`;
+      },
+    );
+    return outcome.summary;
+  },
+});
+
+/**
+ * Enrich and audit one business URL. Exposed so Taine can paste a site or a
+ * Facebook page in and get a full lead back immediately — which also makes the
+ * bot useful on a day when every directory has changed its markup.
+ */
+export const addByUrl = action({
+  args: { url: v.string(), tierHint: v.optional(v.union(v.literal(1), v.literal(2), v.literal(3))) },
+  handler: async (ctx, { url, tierHint }): Promise<string> => {
+    const outcome = await withRun(
+      ctx,
+      { botKey: "leadgen", trigger: "manual", bubble: "Checking a business you sent" },
+      async (handle) => {
+        const result = await processCandidate(ctx, {
+          url,
+          sourceId: "manual",
+          tierHint: tierHint ?? 1,
+          categoryHint: "",
+          location: "",
+          runId: handle.runId,
+        });
+        return result === "added"
+          ? "Added and audited."
+          : result === "discarded"
+            ? "Looked at it and discarded it — see the lead for the reason."
+            : "Already on the list.";
+      },
+    );
+    return outcome.summary;
+  },
+});
+
+async function processCandidate(
+  ctx: Parameters<typeof withRun>[0],
+  args: {
+    url: string;
+    sourceId: string;
+    tierHint: 1 | 2 | 3;
+    categoryHint: string;
+    location: string;
+    runId: string;
+  },
+): Promise<"added" | "discarded" | "skipped"> {
+  const page = await fetchPage(args.url);
+  if (!page.ok && !page.html) return "skipped";
+
+  const text = stripTags(page.html);
+  const businessName = guessBusinessName(page.html, args.url);
+  const websiteUrl = guessOwnWebsite(page, args.url);
+  const hasWebsite = websiteUrl !== NOT_FOUND;
+
+  // ── Deterministic contact extraction. No model involved. ──────────────────
+  const { mobile, landline } = splitNumbers(findNumbers(text));
+  const emailGuess = pickEmail(findEmails(page.html), hasWebsite ? websiteUrl : args.url);
+  const facebookUrl =
+    links(page.html, page.finalUrl).find((l) => /facebook\.com\/[^/]+\/?$/.test(l)) ?? NOT_FOUND;
+  const suburb = guessSuburb(text, args.location);
+  const address = guessAddress(text);
+
+  const dedupe = makeDedupeKey(businessName, suburb, hasWebsite ? websiteUrl : args.url);
+  const existing = await ctx.runQuery(api.leads.findByDedupeKey, { dedupeKey: dedupe });
+  if (existing) return "skipped";
+
+  // ── Site fault audit ──────────────────────────────────────────────────────
+  let faults: Fault[] = [];
+  let loadSeconds: number | undefined;
+  if (hasWebsite) {
+    const site = websiteUrl === page.finalUrl ? page : await fetchPage(websiteUrl);
+    if (site.html) {
+      const audit = auditSite({
+        url: websiteUrl,
+        finalUrl: site.finalUrl,
+        html: site.html,
+        seconds: site.seconds,
+        status: site.status,
+      });
+      faults = audit.faults;
+      loadSeconds = site.seconds;
+    }
+  }
+
+  // ── Judgement, on pseudonymised text ──────────────────────────────────────
+  const { safe } = prepareForLlm(text.slice(0, 6000), [businessName]);
+  const judgement = await judge(ctx, {
+    businessName,
+    hasWebsite,
+    faults,
+    tierHint: args.tierHint,
+    categoryHint: args.categoryHint,
+    safeText: safe,
+    runId: args.runId,
+  });
+
+  const reachableChannels = [mobile, landline, emailGuess.email, facebookUrl].filter(
+    (f) => f && f !== NOT_FOUND,
+  ).length;
+
+  const lead = {
+    businessName,
+    contactName: judgement.contactName || NOT_FOUND,
+    tier: judgement.tier,
+    category: judgement.category || args.categoryHint || "unknown",
+    mobile,
+    landline,
+    email: emailGuess.email,
+    emailStatus: emailGuess.status,
+    facebookUrl,
+    websiteUrl,
+    address,
+    suburb,
+    hasWebsite,
+    faults: faults.length > 0 ? faults : judgement.faults,
+    loadSeconds,
+    facebookActivity: judgement.facebookActivity ?? undefined,
+    source: args.sourceId,
+    sourceUrl: args.url,
+    dedupeKey: dedupe,
+  };
+
+  // A lead with no way to reach them is not a lead. Logged, not silently dropped.
+  if (!isReachable(lead)) {
+    await ctx.runMutation(internal.leads.create, {
+      ...lead,
+      score: 0,
+      status: "discarded" as const,
+      discardReason: "No reachable contact method — no mobile, landline, email or Facebook page.",
+    });
+    return "discarded";
+  }
+
+  if (!judgement.qualified) {
+    await ctx.runMutation(internal.leads.create, {
+      ...lead,
+      score: judgement.score,
+      status: "discarded" as const,
+      discardReason: judgement.discardReason ?? "Off-niche.",
+    });
+    return "discarded";
+  }
+
+  const score = scoreLead({
+    tier: judgement.tier,
+    hasWebsite,
+    faults: lead.faults,
+    reachableChannels,
+    facebookActive: Boolean(judgement.facebookActivity),
+  });
+
+  await ctx.runMutation(internal.leads.create, {
+    ...lead,
+    score,
+    status: score >= QUALIFY_FLOOR ? ("qualified" as const) : ("discarded" as const),
+    discardReason:
+      score >= QUALIFY_FLOOR
+        ? undefined
+        : `Scored ${score}, under the ${QUALIFY_FLOOR} floor — not worth Outreach's time.`,
+  });
+
+  // Screenshots need a real browser. Queue it; the worker picks it up.
+  if (hasWebsite && score >= QUALIFY_FLOOR) {
+    await ctx.runMutation(internal.scrapeJobs.enqueue, {
+      type: "audit_site",
+      payload: { url: websiteUrl, businessName },
+      priority: 1,
+    });
+  }
+
+  return score >= QUALIFY_FLOOR ? "added" : "discarded";
+}
+
+async function judge(
+  ctx: Parameters<typeof withRun>[0],
+  args: {
+    businessName: string;
+    hasWebsite: boolean;
+    faults: Fault[];
+    tierHint: 1 | 2 | 3;
+    categoryHint: string;
+    safeText: string;
+    runId: string;
+  },
+): Promise<Judgement> {
+  const prompt = [
+    `Business: ${args.businessName}`,
+    `Has a website: ${args.hasWebsite ? "yes" : "no"}`,
+    args.categoryHint ? `We were searching for: ${args.categoryHint}` : "",
+    args.faults.length
+      ? `Faults already measured on their site:\n${args.faults.map((f) => `- ${f.code}: ${f.detail}`).join("\n")}`
+      : "No site faults measured.",
+    "",
+    "Page text (contact details have been replaced with tokens — leave them alone, you do not need them):",
+    args.safeText,
+    "",
+    "Decide the tier, whether to qualify or discard, and why. Return the JSON shape from your instructions.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  // Bulk judgement runs on the cheap model — this is exactly the "cheap/bulk
+  // work" the tier split exists for.
+  const { text } = await think(ctx, {
+    botKey: "leadgen",
+    purpose: "qualify_lead",
+    user: prompt,
+    runId: args.runId,
+    tier: "cheap",
+    temperature: 0.2,
+    maxOutputTokens: 1200,
+  });
+
+  const raw = parseJson<Partial<Judgement>>(text);
+  return {
+    tier: (raw.tier === 1 || raw.tier === 2 || raw.tier === 3 ? raw.tier : args.tierHint),
+    qualified: raw.qualified ?? false,
+    score: typeof raw.score === "number" ? raw.score : 0,
+    discardReason: raw.discardReason ?? null,
+    category: raw.category ?? args.categoryHint,
+    contactName: raw.contactName ?? NOT_FOUND,
+    faults: Array.isArray(raw.faults) ? raw.faults : [],
+    facebookActivity: raw.facebookActivity ?? null,
+    reasoning: raw.reasoning ?? "",
+  };
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Rotate through tier/category/location by day, so runs don't repeat themselves. */
+function rotation(): { tier: 1 | 2 | 3; category: string; location: string } {
+  const dayNumber = Math.floor(Date.now() / 86_400_000);
+  // Tier 1 is the priority niche, so it gets four days in five.
+  const tier: 1 | 2 | 3 = dayNumber % 5 === 3 ? 2 : dayNumber % 5 === 4 ? 3 : 1;
+  const categories = TIER_CATEGORIES[tier];
+  return {
+    tier,
+    category: categories[dayNumber % categories.length],
+    location: LOCATIONS[dayNumber % LOCATIONS.length],
+  };
+}
+
+/**
+ * Pull plausible listing URLs off a directory search page.
+ *
+ * Unavoidably heuristic — every directory has its own markup and changes it
+ * without warning. When it finds nothing, the run says so rather than
+ * pretending the area is exhausted.
+ */
+async function harvestListingUrls(
+  searchUrl: string,
+  sourceId: string,
+): Promise<{ url: string; sourceId: string }[]> {
+  const page = await fetchPage(searchUrl);
+  if (!page.html) return [];
+  const host = extractDomain(page.finalUrl);
+  const all = links(page.html, page.finalUrl);
+
+  return all
+    .filter((l) => extractDomain(l) === host)
+    .filter((l) => /\/(?:listing|business|company|profile|member|accommodation|p|b)\//i.test(l))
+    .filter((l) => !/\?(?:page|sort|filter)=/i.test(l))
+    .slice(0, 20)
+    .map((url) => ({ url, sourceId }));
+}
+
+function guessBusinessName(html: string, url: string): string {
+  const h1 = /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1];
+  if (h1) {
+    const cleaned = stripTags(h1).trim();
+    if (cleaned.length > 2 && cleaned.length < 90) return cleaned;
+  }
+  const t = pageTitle(html);
+  if (t) return t.split(/[|\-–—:]/)[0].trim().slice(0, 90);
+  return extractDomain(url) ?? url;
+}
+
+/** The business's own site, as linked from a directory listing. */
+function guessOwnWebsite(page: { html: string; finalUrl: string }, sourceUrl: string): string {
+  const host = extractDomain(page.finalUrl);
+  const candidates = links(page.html, page.finalUrl).filter((l) => {
+    const d = extractDomain(l);
+    return (
+      d &&
+      d !== host &&
+      !/facebook|instagram|twitter|x\.com|linkedin|youtube|tiktok|whatsapp|google|maps|pinterest|apple/.test(d)
+    );
+  });
+  // A directory listing that IS the business's own site (a manual add).
+  if (candidates.length === 0) {
+    return host && !/snupit|yellowpages|sa-venues|lekkeslaap|safarinow|nightsbridge|masterbuilders/.test(host)
+      ? page.finalUrl
+      : NOT_FOUND;
+  }
+  return candidates[0];
+}
+
+function guessSuburb(text: string, fallback: string): string {
+  for (const loc of LOCATIONS) {
+    if (new RegExp(`\\b${loc}\\b`, "i").test(text)) return loc;
+  }
+  return fallback || NOT_FOUND;
+}
+
+function guessAddress(text: string): string {
+  const m =
+    /\b\d{1,4}[A-Za-z]?\s+[A-Z][\w'-]*(?:\s+[A-Z][\w'-]*){0,3}\s+(?:Street|St|Road|Rd|Avenue|Ave|Drive|Dr|Crescent|Lane|Close|Way|Boulevard)\b[^.]{0,40}/.exec(
+      text,
+    );
+  return m ? m[0].trim().replace(/\s+/g, " ") : NOT_FOUND;
+}
+
+async function isWorkerOnline(ctx: Parameters<typeof withRun>[0]): Promise<boolean> {
+  const settings = await ctx.runQuery(api.settings.get, {});
+  const last = settings?.workerLastSeenAt ?? 0;
+  return Date.now() - last < 5 * 60_000;
+}
+
+/** The manual "Run now" button on the Leads screen. */
+export const runNow = action({
+  args: {},
+  handler: async (ctx): Promise<string> =>
+    await ctx.runAction(internal.agents.leadgen.run, { trigger: "manual" }),
+});

@@ -1,0 +1,9 @@
+node_modules/
+.next/
+out/
+.env.local
+.env*.local
+.convex/
+worker/.state.json
+packages/agents/prompts.generated.ts
+*.tsbuildinfo

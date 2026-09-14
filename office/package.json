@@ -1,0 +1,43 @@
+{
+  "name": "tcc-office",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Creative Current Office - a virtual office of AI employees",
+  "scripts": {
+    "dev": "concurrently -n next,convex -c cyan,magenta \"next dev\" \"convex dev\"",
+    "dev:next": "next dev",
+    "dev:convex": "convex dev",
+    "build": "pnpm prompts:build && next build",
+    "start": "npx serve out",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "prompts:build": "node scripts/build-prompts.mjs",
+    "seed": "convex run seed:run",
+    "pricing:sync": "node scripts/sync-pricing.mjs",
+    "worker": "node worker/index.mjs",
+    "test": "node --test scripts/tests/*.test.mjs",
+    "test:llm": "node scripts/test-llm-fallback.mjs",
+    "deploy": "pnpm prompts:build && convex deploy && next build",
+    "check:refs": "node scripts/check-convex-refs.mjs",
+    "check:syntax": "node scripts/check-syntax.mjs",
+    "verify": "pnpm prompts:build && pnpm check:syntax && pnpm check:refs && pnpm test && pnpm test:llm"
+  },
+  "dependencies": {
+    "convex": "^1.17.0",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "cheerio": "^1.0.0",
+    "concurrently": "^9.1.0",
+    "playwright": "^1.49.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.0.0"
+}
