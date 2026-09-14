@@ -52,7 +52,7 @@ export const BOTS: BotDef[] = [
     blurb:
       "Turns your goals into tasks, assigns them, chases them, and writes your morning stand-up.",
     avatar: "🧭",
-    desk: { zone: "leadership", x: 28, y: 10 },
+    desk: { zone: "leadership", x: 22, y: 2 },
     tools: ["plan_goal", "assign_task", "replan_task", "write_standup", "read_kpis"],
     scheduleCron: "0 5 * * *", // 07:00 SAST
     scheduleLabel: "Daily 07:00 SAST + on demand",
@@ -67,7 +67,7 @@ export const BOTS: BotDef[] = [
     blurb:
       "Competitor research, the weekly KPI report, and the content calendar everyone else works from.",
     avatar: "📊",
-    desk: { zone: "leadership", x: 10, y: 28 },
+    desk: { zone: "leadership", x: 2, y: 22 },
     tools: ["fetch_page", "summarise_competitor", "weekly_kpis", "build_content_calendar"],
     scheduleCron: "0 4 * * 1", // Monday 06:00 SAST
     scheduleLabel: "Mondays 06:00 SAST + ad-hoc",
@@ -82,7 +82,7 @@ export const BOTS: BotDef[] = [
     blurb:
       "Finds trade businesses that are invisible online, enriches every contact field, and audits their site for faults.",
     avatar: "🔎",
-    desk: { zone: "revenue", x: 62, y: 8 },
+    desk: { zone: "revenue", x: 60, y: 6 },
     tools: [
       "search_directories",
       "fetch_page",
@@ -104,7 +104,7 @@ export const BOTS: BotDef[] = [
     blurb:
       "Writes the first email one at a time, follows up on day 3 and day 8, stops dead on a reply, and books the call.",
     avatar: "✉️",
-    desk: { zone: "revenue", x: 84, y: 22 },
+    desk: { zone: "revenue", x: 98, y: 34 },
     tools: [
       "draft_first_email",
       "draft_followup",
@@ -126,7 +126,7 @@ export const BOTS: BotDef[] = [
     blurb:
       "Turns your call notes into a proposal and contract. Always stops at Approvals — never sends.",
     avatar: "📄",
-    desk: { zone: "revenue", x: 92, y: 46 },
+    desk: { zone: "revenue", x: 80, y: 52 },
     tools: ["draft_proposal", "draft_contract", "read_pricing"],
     scheduleLabel: "On demand only",
     scheduleEnabled: true,
@@ -140,7 +140,7 @@ export const BOTS: BotDef[] = [
     blurb:
       "Blog, LinkedIn, Instagram, the newsletter and video scripts. Drafts only — you post.",
     avatar: "✍️",
-    desk: { zone: "marketing", x: 8, y: 62 },
+    desk: { zone: "marketing", x: 6, y: 60 },
     tools: ["read_calendar", "draft_content", "save_draft"],
     scheduleCron: "0 7 * * 1,3", // Mon & Wed 09:00 SAST
     scheduleLabel: "Mondays & Wednesdays 09:00 SAST",
@@ -155,7 +155,7 @@ export const BOTS: BotDef[] = [
     blurb:
       "Keyword research from free sources, on-page audits, ad copy. Any spend suggestion goes to Approvals.",
     avatar: "📈",
-    desk: { zone: "marketing", x: 22, y: 84 },
+    desk: { zone: "marketing", x: 34, y: 98 },
     tools: [
       "google_autocomplete",
       "scrape_paa",
@@ -176,7 +176,7 @@ export const BOTS: BotDef[] = [
     blurb:
       "Thumbnails, social images, brand graphics and storyboards. No rendered video — no free option exists.",
     avatar: "🎨",
-    desk: { zone: "marketing", x: 46, y: 92 },
+    desk: { zone: "marketing", x: 52, y: 80 },
     tools: ["generate_image", "draft_storyboard", "save_media"],
     scheduleCron: "0 9 * * 4", // Thursday 11:00 SAST
     scheduleLabel: "Thursdays 11:00 SAST",
@@ -191,7 +191,7 @@ export const BOTS: BotDef[] = [
     blurb:
       "Watches client sites, writes the monthly health check, drafts renewals and check-ins. Costs go to Approvals.",
     avatar: "🤝",
-    desk: { zone: "client_success", x: 84, y: 84 },
+    desk: { zone: "client_success", x: 88, y: 88 },
     tools: [
       "ping_site",
       "health_check",

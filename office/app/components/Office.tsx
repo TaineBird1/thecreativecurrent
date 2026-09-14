@@ -31,10 +31,10 @@ type Bot = NonNullable<ReturnType<typeof useQuery<typeof api.bots.list>>>[number
  */
 
 // ── The projection ──────────────────────────────────────────────────────────
-const VB = { w: 100, h: 68 };
+const VB = { w: 100, h: 72 };
 const SPREAD_X = 46;
-const SPREAD_Y = 24;
-const HORIZON = 11;
+const SPREAD_Y = 26;
+const HORIZON = 10;
 
 function iso(x: number, y: number): { u: number; v: number } {
   const nx = x / 100;
@@ -53,9 +53,9 @@ function slab(x0: number, y0: number, x1: number, y1: number): string {
 // Each rug is drawn around wherever its people actually sit, so it can never
 // drift away from them.
 const ZONES = [
-  { id: "leadership", label: "Leadership", box: [0, 0, 40, 40], tint: "#2e2319", edge: "#4a3a28" },
-  { id: "revenue", label: "Revenue", box: [52, 0, 100, 58], tint: "#28211b", edge: "#453a2e" },
-  { id: "marketing", label: "Marketing", box: [0, 52, 58, 100], tint: "#291c24", edge: "#472f3f" },
+  { id: "leadership", label: "Leadership", box: [0, 0, 36, 36], tint: "#2e2319", edge: "#4a3a28" },
+  { id: "revenue", label: "Revenue", box: [52, 0, 100, 55], tint: "#28211b", edge: "#453a2e" },
+  { id: "marketing", label: "Marketing", box: [0, 52, 55, 100], tint: "#291c24", edge: "#472f3f" },
   { id: "client_success", label: "Client success", box: [64, 64, 100, 100], tint: "#1d2422", edge: "#2d443d" },
 ] as const;
 
@@ -69,6 +69,25 @@ const STATUS = {
 
 /** Only these three have anything worth saying out loud. */
 const SPEAKS = new Set(["working", "waiting_on_boss", "blocked"]);
+
+/**
+ * How each person looks. Shirt colour follows their department so a glance at
+ * the room tells you which pod is busy; skin and hair vary per person because
+ * nine identical figures is not a team, it is a pattern.
+ */
+const LOOK: Record<string, { skin: string; hair: string; shirt: string; sleeve: string }> = {
+  orchestrator: { skin: "#8d5a3b", hair: "#1e1611", shirt: "#c98c3e", sleeve: "#a2702e" },
+  strategy: { skin: "#c69166", hair: "#2c211a", shirt: "#b8823a", sleeve: "#946527" },
+  leadgen: { skin: "#7a4a2e", hair: "#151110", shirt: "#2f7f8c", sleeve: "#226370" },
+  outreach: { skin: "#a86c45", hair: "#251b15", shirt: "#37929e", sleeve: "#27707c" },
+  proposal: { skin: "#d2a179", hair: "#3b2b1e", shirt: "#2a6f7d", sleeve: "#1e5763" },
+  content: { skin: "#8d5a3b", hair: "#1d1511", shirt: "#9c4f96", sleeve: "#7d3d79" },
+  seo: { skin: "#b98559", hair: "#2b2018", shirt: "#8a4a8e", sleeve: "#6d3a70" },
+  design: { skin: "#6f4327", hair: "#130f0d", shirt: "#a85a9e", sleeve: "#874880" },
+  clientsuccess: { skin: "#a06a44", hair: "#221913", shirt: "#3f8a63", sleeve: "#2f6d4d" },
+};
+
+const DEFAULT_LOOK = { skin: "#a06a44", hair: "#221913", shirt: "#6f6259", sleeve: "#544a43" };
 
 const DESK_W = 8;
 const DESK_D = 5.5;
@@ -111,7 +130,7 @@ export function Office() {
         <div className="relative mx-auto aspect-[100/68] w-full">
           <Room bots={inDepthOrder} />
           {inDepthOrder.map((bot) => (
-            <Person key={bot._id} bot={bot} onOpen={() => setOpenBot(bot.key)} />
+            <NamePlate key={bot._id} bot={bot} onOpen={() => setOpenBot(bot.key)} />
           ))}
         </div>
       </div>
@@ -279,28 +298,38 @@ function Room({ bots }: { bots: Bot[] }) {
 
       {/* Furniture, back to front. */}
       {bots.map((bot) => (
-        <Desk key={bot._id} bot={bot} />
+        <Workstation key={bot._id} bot={bot} />
       ))}
     </svg>
   );
 }
 
-function Desk({ bot }: { bot: Bot }) {
+/**
+ * One workstation, drawn back to front: chair, then the person, then the desk
+ * in front of them so it hides their lap and they read as seated, then the
+ * monitor on the desk beside them.
+ */
+function Workstation({ bot }: { bot: Bot }) {
   const { x, y } = bot.desk;
   const status = STATUS[bot.status];
   const off = bot.status === "off_shift";
   const working = bot.status === "working";
+  const look = LOOK[bot.key] ?? DEFAULT_LOOK;
 
   const top = iso(x - DESK_W, y - DESK_D);
   const right = iso(x + DESK_W, y - DESK_D);
   const bottom = iso(x + DESK_W, y + DESK_D);
   const left = iso(x - DESK_W, y + DESK_D);
-  const backEdge = iso(x, y - DESK_D);
   const frontEdge = iso(x, y + DESK_D);
 
+  // Behind the desk, facing us. The desk is drawn afterwards and covers them
+  // from the waist down, which is what makes them look like they are sitting.
+  const seat = iso(x + 1, y - DESK_D - 2);
+  // The monitor lives on the desk beside them, not in front of their face.
+  const screen = iso(x - 5.5, y - 2.5);
+
   return (
-    <g opacity={off ? 0.4 : 1}>
-      {/* Pool of lamplight on the desk. */}
+    <g opacity={off ? 0.42 : 1}>
       <ellipse
         cx={frontEdge.u}
         cy={frontEdge.v - 1}
@@ -310,11 +339,41 @@ function Desk({ bot }: { bot: Bot }) {
         className={working ? "anim-lamp" : ""}
       />
 
-      {/* Chair, in front of the desk. */}
-      <ellipse cx={frontEdge.u} cy={frontEdge.v + 3.4} rx="2.6" ry="1.35" fill="#241d18" />
-      <ellipse cx={frontEdge.u} cy={frontEdge.v + 3.0} rx="2.6" ry="1.35" fill="#443628" />
+      {/* Chair back, behind them. */}
+      <rect
+        x={seat.u - 2.05}
+        y={seat.v - 2.95}
+        width="4.1"
+        height="3.7"
+        rx="1.05"
+        fill="#2a221b"
+        stroke="#3d3228"
+        strokeWidth="0.14"
+      />
 
-      {/* Desk: the two front faces give it thickness. */}
+      <g className={working ? "anim-typing" : off ? "" : "anim-breathe"}>
+        {/* Torso and shoulders. */}
+        <path
+          d={`M ${seat.u - 1.9} ${seat.v + 0.9}
+              Q ${seat.u - 1.75} ${seat.v - 1.4} ${seat.u} ${seat.v - 1.65}
+              Q ${seat.u + 1.75} ${seat.v - 1.4} ${seat.u + 1.9} ${seat.v + 0.9} Z`}
+          fill={look.shirt}
+        />
+        {/* Arms, reaching towards the desk. */}
+        <ellipse cx={seat.u - 1.72} cy={seat.v - 0.1} rx="0.55" ry="1.05" fill={look.sleeve} />
+        <ellipse cx={seat.u + 1.72} cy={seat.v - 0.1} rx="0.55" ry="1.05" fill={look.sleeve} />
+        {/* Neck, head, hair. */}
+        <rect x={seat.u - 0.4} y={seat.v - 2.3} width="0.8" height="0.9" fill={look.skin} />
+        <circle cx={seat.u} cy={seat.v - 2.85} r="0.95" fill={look.skin} />
+        <path
+          d={`M ${seat.u - 0.95} ${seat.v - 2.92}
+              a 0.95 0.95 0 0 1 1.9 0
+              q -0.95 -0.5 -1.9 0 Z`}
+          fill={look.hair}
+        />
+      </g>
+
+      {/* Desk: two front faces give it thickness. */}
       <polygon
         points={`${pt(left)} ${pt(bottom)} ${bottom.u},${bottom.v + DESK_LIP} ${left.u},${left.v + DESK_LIP}`}
         fill="#33281e"
@@ -330,10 +389,10 @@ function Desk({ bot }: { bot: Bot }) {
         strokeWidth="0.18"
       />
 
-      {/* Monitor, standing at the back edge. Its screen is the status light. */}
+      {/* Monitor. Its screen is the status light. */}
       <rect
-        x={backEdge.u - 3.1}
-        y={backEdge.v - 5.6}
+        x={screen.u - 3.1}
+        y={screen.v - 5.4}
         width="6.2"
         height="4.2"
         rx="0.45"
@@ -342,8 +401,8 @@ function Desk({ bot }: { bot: Bot }) {
         strokeWidth="0.18"
       />
       <rect
-        x={backEdge.u - 2.6}
-        y={backEdge.v - 5.15}
+        x={screen.u - 2.6}
+        y={screen.v - 4.95}
         width="5.2"
         height="3.3"
         rx="0.25"
@@ -351,86 +410,88 @@ function Desk({ bot }: { bot: Bot }) {
       />
       {working && (
         <rect
-          x={backEdge.u - 2.1}
-          y={backEdge.v - 4.5}
+          x={screen.u - 2.1}
+          y={screen.v - 4.3}
           width="0.5"
           height="1.1"
           fill="#7fe4ff"
           className="anim-typing"
         />
       )}
-      <rect x={backEdge.u - 0.5} y={backEdge.v - 1.4} width="1" height="1.1" fill="#2b2119" />
-      <rect x={backEdge.u - 1.6} y={backEdge.v - 0.5} width="3.2" height="0.5" rx="0.2" fill="#2b2119" />
+      <rect x={screen.u - 0.5} y={screen.v - 1.2} width="1" height="1" fill="#2b2119" />
+      <rect x={screen.u - 1.6} y={screen.v - 0.3} width="3.2" height="0.5" rx="0.2" fill="#2b2119" />
     </g>
   );
 }
 
 // ── The people ──────────────────────────────────────────────────────────────
-function Person({ bot, onOpen }: { bot: Bot; onOpen: () => void }) {
+/**
+ * The plaque on the front of the desk: who they are and what they do.
+ *
+ * The role is on the floor rather than only inside the desk drawer, because
+ * "Sipho" tells you nothing on its own and the point of the room is to be
+ * readable at a glance. The speech bubble goes above their head, not above the
+ * plaque, so it reads as the person talking.
+ */
+function NamePlate({ bot, onOpen }: { bot: Bot; onOpen: () => void }) {
   const status = STATUS[bot.status];
   const needsYou = bot.status === "waiting_on_boss" || bot.openEscalations > 0;
   const speaks = SPEAKS.has(bot.status);
 
-  // Stand them at the back edge of their own desk, so they read as sitting at it.
-  const at = iso(bot.desk.x, bot.desk.y - DESK_D);
-  const left = at.u;
-  const top = (at.v / VB.h) * 100;
+  const plate = iso(bot.desk.x, bot.desk.y + DESK_D);
+  const head = iso(bot.desk.x + 1, bot.desk.y - DESK_D - 2);
 
   return (
-    <button
-      onClick={onOpen}
-      style={{ left: `${left}%`, top: `${top}%`, zIndex: Math.round(at.v * 10) }}
-      className="group absolute w-[112px] -translate-x-1/2 -translate-y-full text-left focus:outline-none"
-      aria-label={`${bot.name} — ${status.label}`}
-    >
+    <>
       {speaks && (
-        <div className="anim-in relative mb-1.5 rounded-xl border border-edge bg-panel-2/95 px-2.5 py-1.5 text-[10.5px] leading-snug text-cream shadow-xl">
+        <div
+          style={{
+            left: `${head.u}%`,
+            top: `${((head.v - 4.1) / VB.h) * 100}%`,
+            zIndex: Math.round(plate.v * 10) + 1,
+          }}
+          className="anim-in pointer-events-none absolute w-[132px] -translate-x-1/2 -translate-y-full rounded-xl border border-edge bg-panel-2/95 px-2.5 py-1.5 text-[10.5px] leading-snug text-cream shadow-xl"
+        >
           {bot.currentTask}
-          <span className="absolute -bottom-1 left-6 h-2 w-2 rotate-45 border-b border-r border-edge bg-panel-2" />
+          <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-edge bg-panel-2" />
         </div>
       )}
 
-      <div
-        className={`relative rounded-xl border bg-panel/90 px-2 py-1.5 backdrop-blur-[2px] transition group-hover:-translate-y-0.5 group-hover:border-lamp/60 group-focus-visible:border-lamp ${
-          bot.status === "off_shift" ? "border-edge opacity-50" : "border-edge shadow-lg"
-        }`}
+      <button
+        onClick={onOpen}
+        title={bot.blurb}
+        style={{
+          left: `${plate.u}%`,
+          top: `${(plate.v / VB.h) * 100}%`,
+          zIndex: Math.round(plate.v * 10),
+        }}
+        className="group absolute -translate-x-1/2 -translate-y-[38%] focus:outline-none"
+        aria-label={`${bot.name}, ${bot.role} — ${status.label}`}
       >
-        <div className="flex items-center gap-1.5">
-          <span
-            style={{ ["--ring-color" as string]: status.ring, borderColor: status.ring }}
-            className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 bg-ink text-sm ${status.anim} ${
-              needsYou ? "anim-ring" : ""
-            }`}
-          >
-            {bot.avatar}
+        <span
+          className={`relative block whitespace-nowrap rounded-lg border bg-panel/95 px-2.5 py-1 text-left shadow-lg backdrop-blur-[2px] transition group-hover:-translate-y-0.5 group-hover:border-lamp/70 group-focus-visible:border-lamp ${
+            bot.status === "off_shift" ? "border-edge opacity-55" : "border-edge-2"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <span
+              style={{ ["--ring-color" as string]: status.ring, background: status.ring }}
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${needsYou ? "anim-ring" : ""}`}
+              title={status.label}
+            />
+            <span className="text-[11.5px] font-semibold leading-tight text-cream">{bot.name}</span>
+            <span className="text-[10px] leading-none">{bot.avatar}</span>
           </span>
-          <span className="min-w-0">
-            <span className="block truncate text-[11.5px] font-semibold leading-tight">
-              {bot.name}
-            </span>
-            <span className={`block truncate text-[9.5px] leading-tight ${status.tone}`}>
-              {status.label}
-            </span>
-          </span>
-        </div>
+          <span className="mt-0.5 block text-[9.5px] leading-tight text-muted">{bot.role}</span>
 
-        {needsYou && (
-          <span className="absolute -right-1.5 -top-1.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-rust text-[9.5px] font-bold text-white shadow">
-            {bot.openEscalations || "!"}
-          </span>
-        )}
-
-        <span className="mt-1 block h-0.5 w-full overflow-hidden rounded-full bg-edge">
-          <span
-            className="block h-full rounded-full transition-all"
-            style={{
-              width: `${Math.min(100, (bot.budgetUsed / Math.max(1, bot.budgetLimit)) * 100)}%`,
-              background: bot.budgetUsed >= bot.budgetLimit ? "#f0603c" : "#ffb547",
-            }}
-          />
+          {needsYou && (
+            <span className="absolute -right-1.5 -top-1.5 grid h-[18px] w-[18px] place-items-center rounded-full bg-rust text-[9.5px] font-bold text-white shadow">
+              {bot.openEscalations || "!"}
+            </span>
+          )}
         </span>
-      </div>
-    </button>
+      </button>
+    </>
   );
 }
 
