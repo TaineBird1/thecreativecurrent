@@ -403,9 +403,26 @@ export const logReply = action({
   },
 });
 
+/** Bot names that must never reach a prospect. */
+const BOT_NAMES = ["Lerato", "Nomsa", "Thabo", "Sipho", "Anele", "Zanele", "Kagiso", "Naledi", "Bongi"];
+
 function withSignature(body: string): string {
+  let text = body.trim();
+
+  // The prompt says not to sign off, but a model that does it anyway would put
+  // two different names on one email — "Regards, Lerato" above "Taine" — and
+  // the prospect is being written to by Taine. Strip any sign-off that ends on
+  // a bot's name rather than trusting the instruction held.
+  const signOff = new RegExp(
+    `\\n+\\s*(?:regards|kind regards|best|best regards|thanks|cheers|all the best|warm regards)[,.]?\\s*\\n+\\s*(?:${BOT_NAMES.join("|")})\\s*$`,
+    "i",
+  );
+  text = text.replace(signOff, "");
+  // Or a bare name on the last line.
+  text = text.replace(new RegExp(`\\n+\\s*(?:${BOT_NAMES.join("|")})\\s*$`, "i"), "");
+
   // POPIA: an opt-out line on every unsolicited message, every time.
-  return `${body.trim()}\n\n—\nTaine\nThe Creative Current · Durban\nthecreativecurrent.co.za\n\nIf you'd rather I didn't email again, just reply "no thanks" and I'll take you off.`;
+  return `${text.trim()}\n\n—\nTaine\nThe Creative Current · Durban\nthecreativecurrent.co.za\n\nIf you'd rather I didn't email again, just reply "no thanks" and I'll take you off.`;
 }
 
 export const runNow = action({
