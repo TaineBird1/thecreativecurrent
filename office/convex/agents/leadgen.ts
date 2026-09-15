@@ -138,15 +138,28 @@ export const run = internalAction({
           });
         }
 
-        // Anything the worker finished since the last run.
+        // Anything the worker finished since the last run. Google Maps comes
+        // back as whole businesses read off the rendered page; everything else
+        // as candidate links.
         const fromWorker = await ctx.runQuery(api.scrapeJobs.completedResults, { limit: 40 });
+        const businesses: { biz: ScrapedBusiness; sourceId: string }[] = [];
         for (const job of fromWorker) {
+          const sourceId = job.payload?.sourceId ?? "worker";
           for (const url of (job.result?.urls ?? []) as string[]) {
-            candidates.push({ url, sourceId: job.payload?.sourceId ?? "worker" });
+            candidates.push({ url, sourceId });
+          }
+          for (const biz of (job.result?.businesses ?? []) as ScrapedBusiness[]) {
+            businesses.push({ biz, sourceId });
           }
         }
+        if (fromWorker.length > 0) {
+          await ctx.runMutation(internal.scrapeJobs.markConsumed, {
+            ids: fromWorker.map((j) => j._id),
+          });
+          tried.push(`worker: ${businesses.length} businesses, ${candidates.length} links`);
+        }
 
-        if (candidates.length === 0) {
+        if (candidates.length === 0 && businesses.length === 0) {
           return `${steer ? "Looked where you asked. " : ""}Nothing found for ${category} in ${location}. ${tried.join(", ") || "No sources ran"}.${workerOnline ? "" : " The local worker is offline, so Google Maps and Facebook were skipped — those are the two best sources."} Logs → Tools shows what each directory returned.`;
         }
 
@@ -154,7 +167,23 @@ export const run = internalAction({
         let discarded = 0;
         let skipped = 0;
 
-        for (const candidate of candidates.slice(0, MAX_CANDIDATES_PER_RUN)) {
+        for (const { biz, sourceId } of businesses.slice(0, MAX_CANDIDATES_PER_RUN)) {
+          if (await handle.stopped()) break;
+          await handle.say(`Checking ${biz.name.slice(0, 26)}`);
+          const result = await processBusiness(ctx, {
+            biz,
+            sourceId,
+            tierHint: tier,
+            categoryHint: category,
+            location,
+            runId: handle.runId,
+          });
+          if (result === "added") added++;
+          else if (result === "discarded") discarded++;
+          else skipped++;
+        }
+
+        for (const candidate of candidates.slice(0, Math.max(0, MAX_CANDIDATES_PER_RUN - businesses.length))) {
           if (await handle.stopped()) break;
           const result = await processCandidate(ctx, {
             url: candidate.url,
@@ -207,6 +236,168 @@ export const addByUrl = action({
     return outcome.summary;
   },
 });
+
+/** One business as the worker read it off a rendered results page. */
+export interface ScrapedBusiness {
+  name: string;
+  website: string | null;
+  mapsUrl?: string;
+  /** The result card's raw text — the address and phone live in here. */
+  cardText?: string;
+}
+
+/**
+ * Turn a business the worker actually read into a lead.
+ *
+ * Separate from processCandidate because there is nothing to fetch first: the
+ * name, and often the website, are already known. Only the business's OWN site
+ * is fetched, and only to audit it. Refetching the Maps page server-side is
+ * what made every result collapse into one duplicate — Maps needs JavaScript,
+ * so the fetch returned an empty shell and every business ended up with the
+ * same derived name.
+ *
+ * A business with no website is not a failure here. It is the strongest signal
+ * in the brief: trading, reachable, and invisible online.
+ */
+async function processBusiness(
+  ctx: Parameters<typeof withRun>[0],
+  args: {
+    biz: ScrapedBusiness;
+    sourceId: string;
+    tierHint: 1 | 2 | 3;
+    categoryHint: string;
+    location: string;
+    runId: string;
+  },
+): Promise<"added" | "discarded" | "skipped"> {
+  const { biz } = args;
+  const cardText = biz.cardText ?? "";
+  const hasWebsite = Boolean(biz.website);
+  const websiteUrl = biz.website ?? NOT_FOUND;
+
+  const suburb = guessSuburb(cardText, args.location);
+  const dedupe = makeDedupeKey(biz.name, suburb, websiteUrl);
+  const existing = await ctx.runQuery(api.leads.findByDedupeKey, { dedupeKey: dedupe });
+  if (existing) return "skipped";
+
+  // Phone and address come off the card; anything else needs their own site.
+  const { mobile: cardMobile, landline: cardLandline } = splitNumbers(findNumbers(cardText));
+  let mobile = cardMobile;
+  let landline = cardLandline;
+  let emailGuess = pickEmail([], websiteUrl);
+  let facebookUrl = NOT_FOUND;
+  let faults: Fault[] = [];
+  let loadSeconds: number | undefined;
+  let siteText = "";
+
+  if (hasWebsite) {
+    const site = await fetchPage(websiteUrl);
+    if (site.html) {
+      siteText = stripTags(site.html);
+      const numbers = splitNumbers(findNumbers(siteText));
+      if (mobile === NOT_FOUND) mobile = numbers.mobile;
+      if (landline === NOT_FOUND) landline = numbers.landline;
+      emailGuess = pickEmail(findEmails(site.html), websiteUrl);
+      facebookUrl =
+        links(site.html, site.finalUrl).find((l) => /facebook\.com\/[^/]+\/?$/.test(l)) ?? NOT_FOUND;
+
+      const audit = auditSite({
+        url: websiteUrl,
+        finalUrl: site.finalUrl,
+        html: site.html,
+        seconds: site.seconds,
+        status: site.status,
+      });
+      faults = audit.faults;
+      loadSeconds = site.seconds;
+    }
+  }
+
+  const { safe } = prepareForLlm(`${cardText}\n\n${siteText}`.slice(0, 6000), [biz.name]);
+  const judgement = await judge(ctx, {
+    businessName: biz.name,
+    hasWebsite,
+    faults,
+    tierHint: args.tierHint,
+    categoryHint: args.categoryHint,
+    safeText: safe,
+    runId: args.runId,
+  });
+
+  const reachableChannels = [mobile, landline, emailGuess.email, facebookUrl].filter(
+    (f) => f && f !== NOT_FOUND,
+  ).length;
+
+  const lead = {
+    businessName: biz.name,
+    contactName: judgement.contactName || NOT_FOUND,
+    tier: judgement.tier,
+    category: judgement.category || args.categoryHint || "unknown",
+    mobile,
+    landline,
+    email: emailGuess.email,
+    emailStatus: emailGuess.status,
+    facebookUrl,
+    websiteUrl,
+    address: guessAddress(cardText) !== NOT_FOUND ? guessAddress(cardText) : guessAddress(siteText),
+    suburb,
+    hasWebsite,
+    faults: faults.length > 0 ? faults : judgement.faults,
+    loadSeconds,
+    facebookActivity: judgement.facebookActivity ?? undefined,
+    source: args.sourceId,
+    sourceUrl: biz.mapsUrl ?? websiteUrl,
+    dedupeKey: dedupe,
+  };
+
+  if (!isReachable(lead)) {
+    await ctx.runMutation(internal.leads.create, {
+      ...lead,
+      score: 0,
+      status: "discarded" as const,
+      discardReason: "No reachable contact method — no mobile, landline, email or Facebook page.",
+    });
+    return "discarded";
+  }
+
+  if (!judgement.qualified) {
+    await ctx.runMutation(internal.leads.create, {
+      ...lead,
+      score: judgement.score,
+      status: "discarded" as const,
+      discardReason: judgement.discardReason ?? "Off-niche.",
+    });
+    return "discarded";
+  }
+
+  const score = scoreLead({
+    tier: judgement.tier,
+    hasWebsite,
+    faults: lead.faults,
+    reachableChannels,
+    facebookActive: Boolean(judgement.facebookActivity),
+  });
+
+  await ctx.runMutation(internal.leads.create, {
+    ...lead,
+    score,
+    status: score >= QUALIFY_FLOOR ? ("qualified" as const) : ("discarded" as const),
+    discardReason:
+      score >= QUALIFY_FLOOR
+        ? undefined
+        : `Scored ${score}, under the ${QUALIFY_FLOOR} floor — not worth Outreach's time.`,
+  });
+
+  if (hasWebsite && score >= QUALIFY_FLOOR) {
+    await ctx.runMutation(internal.scrapeJobs.enqueue, {
+      type: "audit_site",
+      payload: { url: websiteUrl, businessName: biz.name },
+      priority: 1,
+    });
+  }
+
+  return score >= QUALIFY_FLOOR ? "added" : "discarded";
+}
 
 async function processCandidate(
   ctx: Parameters<typeof withRun>[0],

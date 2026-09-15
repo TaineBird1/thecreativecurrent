@@ -176,9 +176,104 @@ async function upload(buffer, contentType) {
 }
 
 /**
- * Directory and Facebook search pages. These are the sources Meta and Google
- * actively defend, so this returns whatever it can see and says nothing when it
- * sees nothing — it never pretends the area is exhausted.
+ * Google Maps: read the business details straight off the results panel.
+ *
+ * Returning Maps URLs, which is what this used to do, is useless — Maps needs
+ * JavaScript, so anything fetching one of those links server-side gets an
+ * empty shell, derives the same meaningless name from it every time, and
+ * dedupes every result into a single row. The browser is here precisely
+ * because it can read the rendered page; it should send back the business, not
+ * a link to a page only it can read.
+ *
+ * Selectors are structural rather than class-based. Google's class names are
+ * obfuscated and rotate; role="feed" and /maps/place/ hrefs have been stable
+ * far longer.
+ */
+async function scrapeMaps(payload) {
+  const b = await getBrowser();
+  const context = await b.newContext({
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+    viewport: { width: 1366, height: 900 },
+    locale: "en-ZA",
+  });
+
+  try {
+    const page = await context.newPage();
+    await page.goto(payload.url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT });
+
+    // Google throws a consent wall at fresh browser profiles in some regions.
+    for (const label of ["Accept all", "I agree", "Reject all"]) {
+      const button = page.getByRole("button", { name: label });
+      if (await button.count().catch(() => 0)) {
+        await button.first().click({ timeout: 4000 }).catch(() => {});
+        await page.waitForTimeout(1500);
+        break;
+      }
+    }
+
+    const feed = await page.waitForSelector('div[role="feed"]', { timeout: 12_000 }).catch(() => null);
+    if (!feed) {
+      return {
+        businesses: [],
+        note: "No results feed on the page — Google may have served a consent wall or a captcha.",
+      };
+    }
+
+    // Maps loads results as you scroll. Three nudges is a couple of dozen
+    // businesses, which is plenty and stays polite.
+    for (let i = 0; i < 3; i++) {
+      await page.evaluate(() => {
+        const f = document.querySelector('div[role="feed"]');
+        if (f) f.scrollBy(0, f.scrollHeight);
+      });
+      await page.waitForTimeout(1400);
+    }
+
+    const businesses = await page.evaluate(() => {
+      const f = document.querySelector('div[role="feed"]');
+      if (!f) return [];
+      const out = [];
+      for (const card of Array.from(f.children)) {
+        const placeLink = card.querySelector('a[href*="/maps/place/"]');
+        if (!placeLink) continue;
+        const name = (placeLink.getAttribute("aria-label") || "").trim();
+        if (!name) continue;
+
+        // The only non-Google link on a card is the business's own site.
+        const website =
+          Array.from(card.querySelectorAll('a[href^="http"]'))
+            .map((a) => a.href)
+            .find((h) => !/^https?:\/\/[^/]*google\.[a-z.]+\//i.test(h)) || null;
+
+        const text = (card.innerText || "").replace(/\s+/g, " ").trim();
+        out.push({
+          name,
+          website,
+          mapsUrl: placeLink.href,
+          // Raw card text: the address and phone are in here, and Convex
+          // already has tested extractors for both. No point writing them twice.
+          cardText: text.slice(0, 400),
+        });
+      }
+      return out;
+    });
+
+    // Same business can appear twice as you scroll.
+    const seen = new Set();
+    const unique = businesses.filter((x) => !seen.has(x.name) && seen.add(x.name));
+
+    return { businesses: unique.slice(0, 25), note: `${unique.length} businesses read off the results panel` };
+  } finally {
+    await context.close();
+  }
+}
+
+/**
+ * Everything else: pull candidate links off a rendered search page.
+ *
+ * Facebook in practice returns nothing without a login, and says so rather
+ * than looking broken.
  */
 async function harvestUrls(payload) {
   const b = await getBrowser();
@@ -192,24 +287,24 @@ async function harvestUrls(payload) {
     await page.goto(payload.url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT });
     await page.waitForTimeout(2500); // let client-rendered results settle
 
-    const urls = await page.evaluate(() => {
-      const origin = location.origin;
-      return Array.from(document.querySelectorAll("a[href]"))
+    const urls = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("a[href]"))
         .map((a) => a.href)
         .filter((h) => h.startsWith("http"))
-        .filter((h) => !h.startsWith(`${origin}/#`))
-        .slice(0, 200);
-    });
-
-    // Business links, not navigation. Crude, and deliberately so — the
-    // qualification step is what actually decides, not this filter.
-    const interesting = [...new Set(urls)].filter(
-      (u) =>
-        /\/(listing|business|company|profile|member|accommodation|place|pages)\//i.test(u) ||
-        /facebook\.com\/[A-Za-z0-9._-]+\/?$/.test(u),
+        .slice(0, 300),
     );
 
-    return { urls: interesting.slice(0, 25), scanned: urls.length };
+    const interesting = [...new Set(urls)].filter(
+      (u) =>
+        /\/(listing|business|company|profile|member|accommodation|pages)\//i.test(u) ||
+        /facebook\.com\/[A-Za-z0-9._-]{3,}\/?$/.test(u),
+    );
+
+    const note = /facebook\.com/.test(payload.url) && interesting.length === 0
+      ? "Facebook returned nothing, which is normal without a login — it is listed as an unreliable source for exactly this reason."
+      : `${interesting.length} of ${urls.length} links looked like businesses`;
+
+    return { urls: interesting.slice(0, 25), scanned: urls.length, note };
   } finally {
     await context.close();
   }
@@ -231,12 +326,15 @@ async function tick() {
     if (stopping) break;
     const label = `${job.type} ${job.payload?.url ?? ""}`.slice(0, 80);
     try {
+      const isMaps = /google\.[a-z.]+\/maps/.test(job.payload?.url ?? "");
       const result =
-        job.type === "audit_site" ? await auditSite(job.payload) : await harvestUrls(job.payload);
+        job.type === "audit_site"
+          ? await auditSite(job.payload)
+          : isMaps
+            ? await scrapeMaps(job.payload)
+            : await harvestUrls(job.payload);
       await convex.mutation("scrapeJobs:complete", { id: job.id, result });
-      console.log(
-        `  done  ${label}${result.urls ? ` — ${result.urls.length} of ${result.scanned} links looked like businesses` : ""}`,
-      );
+      console.log(`  done  ${label}${result.note ? ` — ${result.note}` : ""}`);
     } catch (err) {
       await convex.mutation("scrapeJobs:fail", { id: job.id, error: err.message });
       console.log(`  fail  ${label} — ${err.message}`);

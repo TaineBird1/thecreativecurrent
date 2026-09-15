@@ -121,9 +121,18 @@ export const completedResults = query({
     const rows = alive(
       await ctx.db.query("scrapeJobs").withIndex("by_status", (q) => q.eq("status", "done")).collect(),
     );
-    // Only jobs finished since the last lead-gen run are interesting.
     const cutoff = Date.now() - 26 * 60 * 60_000;
-    return rows.filter((j) => j.updatedAt > cutoff).slice(0, limit ?? 20);
+    return rows
+      .filter((j) => j.consumedAt === undefined && j.updatedAt > cutoff)
+      .slice(0, limit ?? 20);
+  },
+});
+
+/** Taken. Without this every run re-works the same batch and reports it all as already known. */
+export const markConsumed = internalMutation({
+  args: { ids: v.array(v.id("scrapeJobs")) },
+  handler: async (ctx, { ids }) => {
+    for (const id of ids) await ctx.db.patch(id, { consumedAt: Date.now(), ...touch() });
   },
 });
 

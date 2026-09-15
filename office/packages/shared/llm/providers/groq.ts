@@ -18,16 +18,12 @@ export const callGroq: ProviderCall = async (args) => {
   }
 };
 
-const send: ProviderCall = async ({
-  system,
-  user,
-  model,
-  json,
-  temperature,
-  maxOutputTokens,
-  apiKey,
-  signal,
-}) => {
+/** `json` is passed separately so the retry can turn it off without lying about the request. */
+async function send(
+  args: Parameters<ProviderCall>[0],
+  json: boolean,
+): ReturnType<ProviderCall> {
+  const { system, user, model, temperature, maxOutputTokens, apiKey, signal } = args;
   const res = await fetch(ENDPOINT, {
     method: "POST",
     headers: {
@@ -73,4 +69,4 @@ const send: ProviderCall = async ({
     completionTokens: u.completion_tokens ?? 0,
     totalTokens: u.total_tokens ?? 0,
   };
-};
+}
