@@ -13,3 +13,13 @@ packages/agents/prompts.generated.ts
 convex/_generated/
 convex/CLAUDE.md
 convex/AGENTS.md
+
+# The parent repo ignores "logs" — the usual Node rule for log files — and that
+# pattern matches ANY directory of that name, including the Logs screen at
+# app/logs/. The page was silently never committed and 404'd on a fresh
+# checkout while working perfectly here.
+#
+# Git will not descend into an excluded directory, so the directory has to be
+# un-excluded before its contents can be.
+!/app/logs/
+!/app/logs/**
