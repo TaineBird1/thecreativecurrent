@@ -106,6 +106,7 @@ export const run = internalAction({
         }
 
         const candidates: { url: string; sourceId: string }[] = [];
+        const tried: string[] = [];
         for (const source of sources) {
           if (await handle.stopped()) return "Stopped mid-run.";
           if (source.needsBrowser) {
@@ -116,8 +117,25 @@ export const run = internalAction({
             });
             continue;
           }
-          const found = await harvestListingUrls(source.search(category, location), source.id);
-          candidates.push(...found);
+          const started = Date.now();
+          const harvest = await harvestListingUrls(source.search(category, location), source.id);
+          candidates.push(...harvest.found);
+          tried.push(`${source.label}: ${harvest.found.length}`);
+
+          // Every source records what it actually saw. When a directory
+          // redesigns, this is the difference between "no leads today" and
+          // knowing which source broke and what its URLs look like now.
+          await ctx.runMutation(internal.logs.recordToolCall, {
+            botKey: "leadgen",
+            tool: `search:${source.id}`,
+            args: `${category} in ${location}`,
+            status: harvest.error ? "error" : harvest.found.length > 0 ? "ok" : "blocked",
+            durationMs: Date.now() - started,
+            result: harvest.error
+              ? undefined
+              : `${harvest.found.length} of ${harvest.sameHost} same-host links looked like businesses (${harvest.totalLinks} links on the page, HTTP ${harvest.status}). Paths seen: ${harvest.sample.join(" ") || "none"}`,
+            error: harvest.error,
+          });
         }
 
         // Anything the worker finished since the last run.
@@ -129,7 +147,7 @@ export const run = internalAction({
         }
 
         if (candidates.length === 0) {
-          return `${steer ? "Looked where you asked. " : ""}Nothing new found for ${category} in ${location}. Directory pages returned no usable listings${workerOnline ? "" : " and the local worker is offline"}.`;
+          return `${steer ? "Looked where you asked. " : ""}Nothing found for ${category} in ${location}. ${tried.join(", ") || "No sources ran"}.${workerOnline ? "" : " The local worker is offline, so Google Maps and Facebook were skipped — those are the two best sources."} Logs → Tools shows what each directory returned.`;
         }
 
         let added = 0;
@@ -480,28 +498,74 @@ function rotation(): { tier: 1 | 2 | 3; category: string; location: string } {
   };
 }
 
+/** What a directory page actually gave us, so a miss can be diagnosed. */
+interface Harvest {
+  found: { url: string; sourceId: string }[];
+  status: number;
+  totalLinks: number;
+  sameHost: number;
+  /** A few paths we saw but rejected — the fix for a broken source starts here. */
+  sample: string[];
+  error?: string;
+}
+
 /**
  * Pull plausible listing URLs off a directory search page.
  *
- * Unavoidably heuristic — every directory has its own markup and changes it
- * without warning. When it finds nothing, the run says so rather than
- * pretending the area is exhausted.
+ * Unavoidably heuristic: every directory has its own markup and redesigns
+ * without telling anyone. Two passes, so a redesign degrades instead of
+ * zeroing the source — first the URL shapes these sites are known to use, then,
+ * if that finds nothing, anything that merely looks like a detail page. Junk
+ * getting through the second pass is cheap: qualification discards it. Missing
+ * every real business is not.
  */
-async function harvestListingUrls(
-  searchUrl: string,
-  sourceId: string,
-): Promise<{ url: string; sourceId: string }[]> {
+function looksLikeDetailPage(url: string): boolean {
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+  if (path === "/" || path.length < 6) return false;
+  // Navigation, not businesses.
+  if (/\/(?:about|contact|privacy|terms|login|register|blog|news|help|faq|category|categories|search|tag|page)\b/i.test(path)) {
+    return false;
+  }
+  if (/\.(?:jpg|png|svg|css|js|pdf|xml)$/i.test(path)) return false;
+  const segments = path.split("/").filter(Boolean);
+  // A business page is a slug: two or more words joined by hyphens.
+  return segments.some((seg) => /[a-z0-9]+-[a-z0-9-]{3,}/i.test(seg)) || segments.length >= 2;
+}
+
+async function harvestListingUrls(searchUrl: string, sourceId: string): Promise<Harvest> {
   const page = await fetchPage(searchUrl);
-  if (!page.html) return [];
+  if (!page.html) {
+    return {
+      found: [],
+      status: page.status,
+      totalLinks: 0,
+      sameHost: 0,
+      sample: [],
+      error: page.error ?? `no HTML (status ${page.status})`,
+    };
+  }
+
   const host = extractDomain(page.finalUrl);
   const all = links(page.html, page.finalUrl);
+  const sameHost = all.filter((l) => extractDomain(l) === host && !/\?(?:page|sort|filter)=/i.test(l));
 
-  return all
-    .filter((l) => extractDomain(l) === host)
-    .filter((l) => /\/(?:listing|business|company|profile|member|accommodation|p|b)\//i.test(l))
-    .filter((l) => !/\?(?:page|sort|filter)=/i.test(l))
-    .slice(0, 20)
-    .map((url) => ({ url, sourceId }));
+  const known = sameHost.filter((l) =>
+    /\/(?:listing|listings|business|businesses|company|companies|profile|member|members|pro|accommodation|place)\//i.test(l),
+  );
+  const matched = known.length > 0 ? known : sameHost.filter(looksLikeDetailPage);
+
+  return {
+    found: matched.slice(0, 20).map((url) => ({ url, sourceId })),
+    status: page.status,
+    totalLinks: all.length,
+    sameHost: sameHost.length,
+    sample: [...new Set(sameHost.map((l) => { try { return new URL(l).pathname; } catch { return l; } }))].slice(0, 6),
+  };
 }
 
 function guessBusinessName(html: string, url: string): string {
