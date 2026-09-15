@@ -1,6 +1,6 @@
 "use client";
 
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAuthedAction, useAuthedMutation, useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
 import { Header } from "../components/Header";
@@ -13,12 +13,12 @@ const TIERS = {
 } as const;
 
 export default function ClientsPage() {
-  const clients = useQuery(api.clients.list);
-  const requests = useQuery(api.clients.changeRequests);
-  const sweep = useAction(api.agents.clientsuccess.sweepNow);
-  const draftEmail = useAction(api.agents.clientsuccess.draftEmail);
-  const setRequestStatus = useMutation(api.clients.setRequestStatus);
-  const create = useMutation(api.clients.create);
+  const clients = useAuthedQuery(api.clients.list);
+  const requests = useAuthedQuery(api.clients.changeRequests);
+  const sweep = useAuthedAction(api.agents.clientsuccess.sweepNow);
+  const draftEmail = useAuthedAction(api.agents.clientsuccess.draftEmail);
+  const setRequestStatus = useAuthedMutation(api.clients.setRequestStatus);
+  const create = useAuthedMutation(api.clients.create);
 
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");

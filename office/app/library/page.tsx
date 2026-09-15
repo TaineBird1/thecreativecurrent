@@ -1,6 +1,6 @@
 "use client";
 
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAuthedAction, useAuthedMutation, useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
 import { Header } from "../components/Header";
@@ -9,12 +9,12 @@ import { Button, Card, Empty, PaidStub, Pill, relativeTime } from "../components
 const KINDS = ["blog", "linkedin", "instagram", "newsletter", "video_script", "ad_copy", "proposal", "contract"] as const;
 
 export default function LibraryPage() {
-  const drafts = useQuery(api.library.drafts, { limit: 200 });
-  const media = useQuery(api.library.media, { limit: 60 });
-  const markPosted = useMutation(api.library.markPosted);
-  const write = useAction(api.agents.content.write);
-  const image = useAction(api.agents.design.image);
-  const storyboard = useAction(api.agents.design.storyboard);
+  const drafts = useAuthedQuery(api.library.drafts, { limit: 200 });
+  const media = useAuthedQuery(api.library.media, { limit: 60 });
+  const markPosted = useAuthedMutation(api.library.markPosted);
+  const write = useAuthedAction(api.agents.content.write);
+  const image = useAuthedAction(api.agents.design.image);
+  const storyboard = useAuthedAction(api.agents.design.storyboard);
 
   const [tab, setTab] = useState<"drafts" | "media">("drafts");
   const [kind, setKind] = useState<string>("");

@@ -9,6 +9,7 @@
  */
 import type { ActionCtx } from "../_generated/server";
 import { api, internal } from "../_generated/api";
+import { machineArgs } from "./machine";
 import type { Id } from "../_generated/dataModel";
 import { HaltedError } from "./settings";
 import { checkHalt, haltMessage, isHalted } from "./killSwitch";
@@ -58,7 +59,7 @@ export async function withRun(
   const halt = await checkHalt(ctx);
   if (halt.halted) return { ok: false, summary: haltMessage(halt) };
 
-  const bot = await ctx.runQuery(api.bots.byKey, { key: opts.botKey });
+  const bot = await ctx.runQuery(api.bots.byKey, { ...machineArgs(),  key: opts.botKey });
   if (!bot) return { ok: false, summary: `No bot called "${opts.botKey}".` };
   if (bot.status === "off_shift" && opts.trigger === "cron") {
     return { ok: false, summary: `${bot.name} is off shift.` };
@@ -210,9 +211,9 @@ export async function think(
     maxOutputTokens?: number;
   },
 ): Promise<{ text: string; provider: string; fellBack: boolean }> {
-  const bot = await ctx.runQuery(api.bots.byKey, { key: args.botKey });
+  const bot = await ctx.runQuery(api.bots.byKey, { ...machineArgs(),  key: args.botKey });
   if (!bot) throw new Error(`No bot called "${args.botKey}".`);
-  const result = await ctx.runAction(api.llm.complete, {
+  const result = await ctx.runAction(api.llm.complete, { ...machineArgs(), 
     botKey: args.botKey,
     purpose: args.purpose,
     system: bot.systemPrompt,

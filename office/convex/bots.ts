@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
+import { authedQuery, authedMutation } from "./lib/authed";
 import { stamps, touch, alive } from "./lib/soft";
 import { botStatus } from "./schema";
 import { readSettings } from "./lib/settings";
@@ -7,7 +8,7 @@ import { sastDay } from "./lib/time";
 import { BOTS } from "../packages/agents/registry";
 
 /** The office floor. One subscription drives every desk. */
-export const list = query({
+export const list = authedQuery({
   args: {},
   handler: async (ctx) => {
     const bots = alive(await ctx.db.query("bots").collect());
@@ -55,7 +56,7 @@ export const list = query({
   },
 });
 
-export const byKey = query({
+export const byKey = authedQuery({
   args: { key: v.string() },
   handler: async (ctx, { key }) =>
     await ctx.db.query("bots").withIndex("by_key", (q) => q.eq("key", key)).unique(),
@@ -100,7 +101,7 @@ function trimBubble(text: string): string {
 }
 
 /** Edit a bot's system prompt. Marks it as yours — re-seeding will not overwrite it. */
-export const updatePrompt = mutation({
+export const updatePrompt = authedMutation({
   args: { key: v.string(), systemPrompt: v.string() },
   handler: async (ctx, { key, systemPrompt }) => {
     const bot = await ctx.db.query("bots").withIndex("by_key", (q) => q.eq("key", key)).unique();
@@ -111,7 +112,7 @@ export const updatePrompt = mutation({
 });
 
 /** Revert to the prompt in packages/agents/<bot>/prompt.md. */
-export const resetPrompt = mutation({
+export const resetPrompt = authedMutation({
   args: { key: v.string(), filePrompt: v.string() },
   handler: async (ctx, { key, filePrompt }) => {
     const bot = await ctx.db.query("bots").withIndex("by_key", (q) => q.eq("key", key)).unique();
@@ -125,7 +126,7 @@ export const resetPrompt = mutation({
   },
 });
 
-export const toggleTool = mutation({
+export const toggleTool = authedMutation({
   args: { key: v.string(), tool: v.string(), enabled: v.boolean() },
   handler: async (ctx, { key, tool, enabled }) => {
     const bot = await ctx.db.query("bots").withIndex("by_key", (q) => q.eq("key", key)).unique();
@@ -137,7 +138,7 @@ export const toggleTool = mutation({
   },
 });
 
-export const setScheduleEnabled = mutation({
+export const setScheduleEnabled = authedMutation({
   args: { key: v.string(), enabled: v.boolean() },
   handler: async (ctx, { key, enabled }) => {
     const bot = await ctx.db.query("bots").withIndex("by_key", (q) => q.eq("key", key)).unique();
@@ -153,7 +154,7 @@ export const setScheduleEnabled = mutation({
 });
 
 /** Bring bots back after a STOP is lifted. Deliberately a separate, explicit act. */
-export const resumeAll = mutation({
+export const resumeAll = authedMutation({
   args: {},
   handler: async (ctx) => {
     const settings = await readSettings(ctx);
@@ -186,7 +187,7 @@ export const resumeAll = mutation({
  * Her whole job is turning a goal into tasks for other bots, so what she is
  * handed has to be a goal.
  */
-export const chat = mutation({
+export const chat = authedMutation({
   args: { key: v.string(), message: v.string() },
   handler: async (ctx, { key, message }) => {
     if (key === "orchestrator") {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import { Header } from "./components/Header";
 import { Office } from "./components/Office";
@@ -8,9 +8,9 @@ import { ActivityFeed } from "./components/ActivityFeed";
 import { Pill } from "./components/ui";
 
 export default function OfficePage() {
-  const standup = useQuery(api.standups.latest);
-  const settings = useQuery(api.settings.get);
-  const queue = useQuery(api.scrapeJobs.queueDepth);
+  const standup = useAuthedQuery(api.standups.latest);
+  const settings = useAuthedQuery(api.settings.get);
+  const queue = useAuthedQuery(api.scrapeJobs.queueDepth);
 
   const workerOnline =
     settings?.workerLastSeenAt !== undefined && Date.now() - settings.workerLastSeenAt < 5 * 60_000;

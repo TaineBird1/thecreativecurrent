@@ -15,6 +15,7 @@
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./../_generated/server";
+import { authedAction } from "../lib/authed";
 import { api, internal } from "./../_generated/api";
 import { withRun, think } from "../lib/run";
 import { parseJson } from "../../packages/shared/llm/router";
@@ -172,7 +173,7 @@ async function auditOwnSite(ctx: Parameters<typeof withRun>[0], runId: string): 
 }
 
 /** Ad copy. Any spend suggestion inside it is a money item and gets gated. */
-export const adCopy = action({
+export const adCopy = authedAction({
   args: { brief: v.string() },
   handler: async (ctx, { brief }): Promise<string> => {
     const outcome = await withRun(
@@ -226,7 +227,7 @@ export const adCopy = action({
  * estimating spend performance you cannot see is how a bot invents a number
  * that costs real money.
  */
-export const campaignStatus = action({
+export const campaignStatus = authedAction({
   args: {},
   handler: async (): Promise<{ connected: boolean; message: string }> => {
     if (!process.env.GOOGLE_ADS_REFRESH_TOKEN) {
@@ -244,7 +245,7 @@ export const campaignStatus = action({
   },
 });
 
-export const runNow = action({
+export const runNow = authedAction({
   args: {},
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.seo.run, { trigger: "manual" }),

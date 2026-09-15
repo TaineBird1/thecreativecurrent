@@ -13,7 +13,9 @@
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./../_generated/server";
+import { authedAction } from "../lib/authed";
 import { api, internal } from "./../_generated/api";
+import { machineArgs } from "../lib/machine";
 import { withRun, think } from "../lib/run";
 import { parseJson } from "../../packages/shared/llm/router";
 import { sastDay, DAY_MS } from "../lib/time";
@@ -34,7 +36,7 @@ export const run = internalAction({
         const notes: string[] = [];
 
         // 1. Break down anything new Taine typed in.
-        const unplanned = await ctx.runQuery(api.tasks.unplannedGoals, {});
+        const unplanned = await ctx.runQuery(api.tasks.unplannedGoals, machineArgs());
         for (const goal of unplanned) {
           if (await handle.stopped()) return "Stopped mid-run.";
           await handle.say(`Breaking down: ${goal.text.slice(0, 40)}`);
@@ -63,7 +65,7 @@ async function planGoal(
 ): Promise<string> {
   // Capacity is real, so the planner is told about it rather than left to
   // invent forty tasks for one bot.
-  const usage = await ctx.runQuery(api.rate.usageToday, {});
+  const usage = await ctx.runQuery(api.rate.usageToday, machineArgs());
   const roster = BOTS.map(
     (b) => `- ${b.key} (${b.name}, ${b.role}): ${b.blurb} Budget ${b.dailyBudget} LLM calls/day.`,
   ).join("\n");
@@ -125,7 +127,7 @@ async function planGoal(
  * against.
  */
 async function replanFailures(ctx: Parameters<typeof withRun>[0]): Promise<string> {
-  const { tasks } = await ctx.runQuery(api.tasks.board, {});
+  const { tasks } = await ctx.runQuery(api.tasks.board, machineArgs());
   const failed = tasks.filter((t) => t.status === "failed");
   if (failed.length === 0) return "";
 
@@ -158,13 +160,13 @@ async function replanFailures(ctx: Parameters<typeof withRun>[0]): Promise<strin
 async function writeStandup(ctx: Parameters<typeof withRun>[0], runId: string): Promise<string> {
   const since = Date.now() - DAY_MS;
   const [runs, leadCounts, sentToday, approvals, escalations, board, usage] = await Promise.all([
-    ctx.runQuery(api.runs.recent, { limit: 80 }),
-    ctx.runQuery(api.leads.counts, {}),
-    ctx.runQuery(api.emails.sentTodayCount, {}),
-    ctx.runQuery(api.approvals.pending, {}),
-    ctx.runQuery(api.escalations.open, {}),
-    ctx.runQuery(api.tasks.board, {}),
-    ctx.runQuery(api.rate.usageToday, {}),
+    ctx.runQuery(api.runs.recent, { ...machineArgs(),  limit: 80 }),
+    ctx.runQuery(api.leads.counts, machineArgs()),
+    ctx.runQuery(api.emails.sentTodayCount, machineArgs()),
+    ctx.runQuery(api.approvals.pending, machineArgs()),
+    ctx.runQuery(api.escalations.open, machineArgs()),
+    ctx.runQuery(api.tasks.board, machineArgs()),
+    ctx.runQuery(api.rate.usageToday, machineArgs()),
   ]);
 
   const yesterdayRuns = runs.filter((r) => r.startedAt > since);
@@ -210,7 +212,7 @@ async function writeStandup(ctx: Parameters<typeof withRun>[0], runId: string): 
 }
 
 /** "Plan this now" from the Goals screen. */
-export const planNow = action({
+export const planNow = authedAction({
   args: {},
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.orchestrator.run, { trigger: "manual" }),

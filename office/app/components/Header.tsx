@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useAuthedMutation, useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
 import Link from "next/link";
@@ -12,9 +12,9 @@ import { Nav, Button, rand } from "./ui";
  * stop a bot.
  */
 export function Header() {
-  const kpis = useQuery(api.kpis.headline);
-  const settings = useQuery(api.settings.get);
-  const setPause = useMutation(api.settings.setPauseSending);
+  const kpis = useAuthedQuery(api.kpis.headline);
+  const settings = useAuthedQuery(api.settings.get);
+  const setPause = useAuthedMutation(api.settings.setPauseSending);
 
   const halted = settings?.killSwitch.active ?? false;
   const paused = settings?.pauseSending ?? false;
@@ -108,8 +108,8 @@ function HaltedBanner({ reason }: { reason?: string }) {
  * bringing nine bots back online by misclicking is the failure that matters.
  */
 function StopControl({ halted }: { halted: boolean }) {
-  const setKill = useMutation(api.settings.setKillSwitch);
-  const resume = useMutation(api.bots.resumeAll);
+  const setKill = useAuthedMutation(api.settings.setKillSwitch);
+  const resume = useAuthedMutation(api.bots.resumeAll);
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState("");
 

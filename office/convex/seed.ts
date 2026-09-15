@@ -9,7 +9,7 @@
  *
  * Run: pnpm seed
  */
-import { internalMutation, mutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { stamps, touch, alive } from "./lib/soft";
 import { ensureSettings } from "./lib/settings";
@@ -350,7 +350,7 @@ async function seedAll(ctx: MutationCtx) {
 }
 
 /** `pnpm seed` runs this. */
-export const run = mutation({
+export const run = internalMutation({
   args: {},
   handler: async (ctx) => {
     const report = await seedAll(ctx);

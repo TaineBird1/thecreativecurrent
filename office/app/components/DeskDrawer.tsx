@@ -1,6 +1,6 @@
 "use client";
 
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAuthedAction, useAuthedMutation, useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import { useEffect, useState } from "react";
 import { Button, Pill, relativeTime } from "./ui";
@@ -33,17 +33,17 @@ const EXAMPLE_INSTRUCTION: Record<string, string> = {
   clientsuccess: `e.g. "write this month's health check for Champagne Holidays"`,
 };
 export function DeskDrawer({ botKey, onClose }: { botKey: string; onClose: () => void }) {
-  const bot = useQuery(api.bots.byKey, { key: botKey });
-  const runs = useQuery(api.runs.recentForBot, { botKey, limit: 50 });
-  const llm = useQuery(api.logs.llm, { botKey, limit: 50 });
-  const usage = useQuery(api.rate.usageToday);
+  const bot = useAuthedQuery(api.bots.byKey, { key: botKey });
+  const runs = useAuthedQuery(api.runs.recentForBot, { botKey, limit: 50 });
+  const llm = useAuthedQuery(api.logs.llm, { botKey, limit: 50 });
+  const usage = useAuthedQuery(api.rate.usageToday);
 
-  const updatePrompt = useMutation(api.bots.updatePrompt);
-  const toggleTool = useMutation(api.bots.toggleTool);
-  const setSchedule = useMutation(api.bots.setScheduleEnabled);
-  const chat = useMutation(api.bots.chat);
+  const updatePrompt = useAuthedMutation(api.bots.updatePrompt);
+  const toggleTool = useAuthedMutation(api.bots.toggleTool);
+  const setSchedule = useAuthedMutation(api.bots.setScheduleEnabled);
+  const chat = useAuthedMutation(api.bots.chat);
 
-  const waiting = useQuery(api.tasks.waitingFor, { botKey });
+  const waiting = useAuthedQuery(api.tasks.waitingFor, { botKey });
   const [tab, setTab] = useState<"today" | "prompt" | "tools" | "logs">("today");
   const [draft, setDraft] = useState("");
   const [message, setMessage] = useState("");
@@ -358,14 +358,14 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 /** Each bot's manual trigger. Hooks must be unconditional, so all are bound. */
 function useRunNow(botKey: string) {
   const actions = {
-    orchestrator: useAction(api.agents.orchestrator.planNow),
-    strategy: useAction(api.agents.strategy.runNow),
-    leadgen: useAction(api.agents.leadgen.runNow),
-    outreach: useAction(api.agents.outreach.runNow),
-    content: useAction(api.agents.content.runNow),
-    seo: useAction(api.agents.seo.runNow),
-    design: useAction(api.agents.design.runNow),
-    clientsuccess: useAction(api.agents.clientsuccess.runNow),
+    orchestrator: useAuthedAction(api.agents.orchestrator.planNow),
+    strategy: useAuthedAction(api.agents.strategy.runNow),
+    leadgen: useAuthedAction(api.agents.leadgen.runNow),
+    outreach: useAuthedAction(api.agents.outreach.runNow),
+    content: useAuthedAction(api.agents.content.runNow),
+    seo: useAuthedAction(api.agents.seo.runNow),
+    design: useAuthedAction(api.agents.design.runNow),
+    clientsuccess: useAuthedAction(api.agents.clientsuccess.runNow),
   } as Record<string, ((args: Record<string, never>) => Promise<string>) | undefined>;
   // Proposal is deliberately absent — it only runs from call notes you paste in.
   return actions[botKey];

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
+import { authedQuery } from "./lib/authed";
 import { stamps, alive, touch } from "./lib/soft";
 import { sastDay } from "./lib/time";
 
@@ -53,7 +54,7 @@ export const record = internalMutation({
 });
 
 /** Counts only real sends against the cap — blocked and failed do not count. */
-export const sentTodayCount = query({
+export const sentTodayCount = authedQuery({
   args: {},
   handler: async (ctx) => {
     const day = sastDay();
@@ -67,7 +68,7 @@ export const sentTodayCount = query({
   },
 });
 
-export const recentSkeletons = query({
+export const recentSkeletons = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     const rows = alive(await ctx.db.query("emails").order("desc").take((limit ?? 50) * 3));
@@ -78,7 +79,7 @@ export const recentSkeletons = query({
   },
 });
 
-export const forLead = query({
+export const forLead = authedQuery({
   args: { leadId: v.id("leads") },
   handler: async (ctx, { leadId }) => {
     const rows = alive(
@@ -88,7 +89,7 @@ export const forLead = query({
   },
 });
 
-export const recent = query({
+export const recent = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) =>
     alive(await ctx.db.query("emails").order("desc").take(limit ?? 100)),

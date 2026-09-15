@@ -1,11 +1,12 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
+import { authedQuery, authedMutation } from "./lib/authed";
 import { ensureSettings, readSettings, SETTINGS_KEY } from "./lib/settings";
 import { stamps, touch, alive } from "./lib/soft";
 import { BOTS } from "../packages/agents/registry";
 
 /** Cheap, hot query — called at the top of every action. Keep it small. */
-export const haltState = query({
+export const haltState = authedQuery({
   args: {},
   handler: async (ctx): Promise<{ halted: boolean; reason?: string }> => {
     const s = await readSettings(ctx);
@@ -13,7 +14,7 @@ export const haltState = query({
   },
 });
 
-export const sendState = query({
+export const sendState = authedQuery({
   args: {},
   handler: async (ctx) => {
     const s = await readSettings(ctx);
@@ -33,7 +34,7 @@ export const sendState = query({
   },
 });
 
-export const get = query({
+export const get = authedQuery({
   args: {},
   handler: async (ctx) => await readSettings(ctx),
 });
@@ -49,7 +50,7 @@ export const get = query({
  * Derived on read instead. Convex exposes its environment to queries, so this
  * cannot drift from reality, and it reports only presence — never a value.
  */
-export const integrationStatus = query({
+export const integrationStatus = authedQuery({
   args: {},
   handler: async (ctx) => {
     const s = await readSettings(ctx);
@@ -67,7 +68,7 @@ export const integrationStatus = query({
   },
 });
 
-export const budgetFor = query({
+export const budgetFor = authedQuery({
   args: { botKey: v.string() },
   handler: async (ctx, { botKey }) => {
     const s = await readSettings(ctx);
@@ -82,7 +83,7 @@ export const budgetFor = query({
  * Lifting it does NOT bring bots back on shift automatically — that is a
  * separate, deliberate act, so nothing resumes by surprise.
  */
-export const setKillSwitch = mutation({
+export const setKillSwitch = authedMutation({
   args: { active: v.boolean(), reason: v.optional(v.string()) },
   handler: async (ctx, { active, reason }) => {
     const s = await ensureSettings(ctx);
@@ -148,7 +149,7 @@ export const setKillSwitchInternal = internalMutation({
   },
 });
 
-export const setPauseSending = mutation({
+export const setPauseSending = authedMutation({
   args: { paused: v.boolean() },
   handler: async (ctx, { paused }) => {
     const s = await ensureSettings(ctx);
@@ -157,7 +158,7 @@ export const setPauseSending = mutation({
   },
 });
 
-export const update = mutation({
+export const update = authedMutation({
   args: {
     senderEmail: v.optional(v.string()),
     senderName: v.optional(v.string()),
@@ -186,7 +187,7 @@ export const update = mutation({
 });
 
 /** Called by the local worker's heartbeat so the UI can show it as online. */
-export const workerHeartbeat = mutation({
+export const workerHeartbeat = authedMutation({
   args: {},
   handler: async (ctx) => {
     const s = await ensureSettings(ctx);

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { authedQuery } from "./lib/authed";
 import { alive } from "./lib/soft";
 
 /**
@@ -10,7 +11,7 @@ import { alive } from "./lib/soft";
  * here, because it reads the real records rather than a parallel log somebody
  * has to remember to write to.
  */
-export const feed = query({
+export const feed = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     const take = limit ?? 60;

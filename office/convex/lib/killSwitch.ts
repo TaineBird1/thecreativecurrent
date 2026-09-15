@@ -22,6 +22,7 @@
  */
 import type { ActionCtx } from "../_generated/server";
 import { api } from "../_generated/api";
+import { machineArgs } from "./machine";
 
 export interface HaltState {
   halted: boolean;
@@ -30,7 +31,7 @@ export interface HaltState {
 
 /** The single read. Cheap on purpose — it runs many times per bot run. */
 export async function checkHalt(ctx: ActionCtx): Promise<HaltState> {
-  return await ctx.runQuery(api.settings.haltState, {});
+  return await ctx.runQuery(api.settings.haltState, machineArgs());
 }
 
 /** Non-throwing shorthand for loops that want to stop cleanly and report. */

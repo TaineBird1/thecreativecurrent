@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation, action } from "./_generated/server";
+import { authedQuery, authedMutation, authedAction } from "./lib/authed";
 import type { MutationCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { stamps, touch, alive, getAlive } from "./lib/soft";
@@ -14,7 +15,7 @@ import { stamps, touch, alive, getAlive } from "./lib/soft";
  * happening, which is the correct failure mode.
  */
 
-export const pending = query({
+export const pending = authedQuery({
   args: {},
   handler: async (ctx) => {
     const rows = alive(
@@ -24,7 +25,7 @@ export const pending = query({
   },
 });
 
-export const pendingCount = query({
+export const pendingCount = authedQuery({
   args: {},
   handler: async (ctx) =>
     alive(
@@ -32,7 +33,7 @@ export const pendingCount = query({
     ).length,
 });
 
-export const history = query({
+export const history = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     const rows = alive(await ctx.db.query("approvals").order("desc").take(limit ?? 100));
@@ -40,7 +41,7 @@ export const history = query({
   },
 });
 
-export const byId = query({
+export const byId = authedQuery({
   args: { id: v.id("approvals") },
   handler: async (ctx, { id }) => await getAlive(ctx, id),
 });
@@ -82,7 +83,7 @@ export const create = internalMutation({
  * Approve, optionally with an edit. The edited text is what gets used — that is
  * the point of being able to edit here rather than sending it back.
  */
-export const approve = mutation({
+export const approve = authedMutation({
   args: { id: v.id("approvals"), editedBody: v.optional(v.string()), note: v.optional(v.string()) },
   handler: async (ctx, { id, editedBody, note }) => {
     const row = await getAlive(ctx, id);
@@ -122,7 +123,7 @@ export const approve = mutation({
  *
  * Either way the approval row keeps the full history; nothing is destroyed.
  */
-export const reject = mutation({
+export const reject = authedMutation({
   args: {
     id: v.id("approvals"),
     note: v.optional(v.string()),
@@ -199,7 +200,7 @@ export const reject = mutation({
  * Handed to the next draft attempt. Without it the same objection produces the
  * same email, the boss rejects it again, and the loop is invisible.
  */
-export const rejectionNotesForLead = query({
+export const rejectionNotesForLead = authedQuery({
   args: { leadId: v.id("leads") },
   handler: async (ctx, { leadId }) => {
     const rows = alive(
@@ -229,7 +230,7 @@ async function clearWaitingIfDone(ctx: MutationCtx, botKey: string) {
  * purpose — the mutation records the decision atomically and this action does
  * the work afterwards, so a failure to send can never lose the approval.
  */
-export const approveAndExecute = action({
+export const approveAndExecute = authedAction({
   args: { id: v.id("approvals"), editedBody: v.optional(v.string()), note: v.optional(v.string()) },
   handler: async (ctx, args): Promise<{ executed: boolean; detail: string }> => {
     const result = await ctx.runMutation(api.approvals.approve, args);

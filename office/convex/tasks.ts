@@ -1,9 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { authedQuery, authedMutation } from "./lib/authed";
 import { stamps, touch, alive, getAlive } from "./lib/soft";
 import { taskStatus } from "./schema";
 
-export const board = query({
+export const board = authedQuery({
   args: {},
   handler: async (ctx) => {
     const tasks = alive(await ctx.db.query("tasks").collect());
@@ -15,7 +16,7 @@ export const board = query({
   },
 });
 
-export const nextForBot = query({
+export const nextForBot = authedQuery({
   args: { botKey: v.string() },
   handler: async (ctx, { botKey }) => {
     const todo = alive(
@@ -102,7 +103,7 @@ export const claimNext = internalMutation({
 });
 
 /** How many are still waiting, for the desk drawer to show. */
-export const waitingFor = query({
+export const waitingFor = authedQuery({
   args: { botKey: v.string() },
   handler: async (ctx, { botKey }) =>
     alive(
@@ -113,7 +114,7 @@ export const waitingFor = query({
     ).length,
 });
 
-export const moveTask = mutation({
+export const moveTask = authedMutation({
   args: { id: v.id("tasks"), status: taskStatus },
   handler: async (ctx, { id, status }) => {
     await ctx.db.patch(id, { status, ...touch() });
@@ -121,13 +122,13 @@ export const moveTask = mutation({
 });
 
 // ── Goals ────────────────────────────────────────────────────────────────────
-export const addGoal = mutation({
+export const addGoal = authedMutation({
   args: { text: v.string(), detail: v.optional(v.string()), targetDate: v.optional(v.string()) },
   handler: async (ctx, args) =>
     await ctx.db.insert("goals", { ...args, status: "active" as const, ...stamps() }),
 });
 
-export const setGoalStatus = mutation({
+export const setGoalStatus = authedMutation({
   args: {
     id: v.id("goals"),
     status: v.union(v.literal("active"), v.literal("achieved"), v.literal("abandoned")),
@@ -137,7 +138,7 @@ export const setGoalStatus = mutation({
   },
 });
 
-export const unplannedGoals = query({
+export const unplannedGoals = authedQuery({
   args: {},
   handler: async (ctx) =>
     alive(await ctx.db.query("goals").withIndex("by_status", (q) => q.eq("status", "active")).collect())

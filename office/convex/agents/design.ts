@@ -13,7 +13,9 @@
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./../_generated/server";
+import { authedAction } from "../lib/authed";
 import { api, internal } from "./../_generated/api";
+import { machineArgs } from "../lib/machine";
 import { withRun, think } from "../lib/run";
 import { parseJson } from "../../packages/shared/llm/router";
 
@@ -38,7 +40,7 @@ export const run = internalAction({
           return await makeImage(ctx, handle.runId, handle.task.detail, "16:9");
         }
 
-        const drafts = await ctx.runQuery(api.library.drafts, { limit: 30 });
+        const drafts = await ctx.runQuery(api.library.drafts, { ...machineArgs(),  limit: 30 });
         const needsArt = drafts.filter(
           (d) => (d.kind === "blog" || d.kind === "instagram" || d.kind === "linkedin") && d.body.length > 200,
         );
@@ -90,7 +92,7 @@ export const run = internalAction({
   },
 });
 
-export const image = action({
+export const image = authedAction({
   args: { brief: v.string(), aspect: v.optional(v.string()) },
   handler: async (ctx, { brief, aspect }): Promise<string> => {
     const outcome = await withRun(
@@ -105,7 +107,7 @@ export const image = action({
 /**
  * A storyboard, not a video. Named plainly so nobody expects a file.
  */
-export const storyboard = action({
+export const storyboard = authedAction({
   args: { brief: v.string(), seconds: v.optional(v.number()) },
   handler: async (ctx, { brief, seconds }): Promise<string> => {
     const outcome = await withRun(
@@ -159,7 +161,7 @@ export const storyboard = action({
   },
 });
 
-export const runNow = action({
+export const runNow = authedAction({
   args: {},
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.design.run, { trigger: "manual" }),

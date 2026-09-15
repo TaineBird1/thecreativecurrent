@@ -1,7 +1,8 @@
 "use client";
 
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAuthedAction, useAuthedMutation, useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
+import type { FunctionReturnType } from "convex/server";
 import { useState } from "react";
 import { Header } from "../components/Header";
 import { Button, Card, Empty, Pill, relativeTime } from "../components/ui";
@@ -28,15 +29,15 @@ export default function LeadsPage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
 
-  const leads = useQuery(api.leads.list, {
+  const leads = useAuthedQuery(api.leads.list, {
     status: (status || undefined) as never,
     tier: (tier || undefined) as never,
     search: search || undefined,
     limit: 300,
   });
-  const counts = useQuery(api.leads.counts);
-  const addByUrl = useAction(api.agents.leadgen.addByUrl);
-  const runNow = useAction(api.agents.leadgen.runNow);
+  const counts = useAuthedQuery(api.leads.counts);
+  const addByUrl = useAuthedAction(api.agents.leadgen.addByUrl);
+  const runNow = useAuthedAction(api.agents.leadgen.runNow);
 
   return (
     <div className="min-h-screen">
@@ -201,7 +202,7 @@ export default function LeadsPage() {
   );
 }
 
-type Lead = NonNullable<ReturnType<typeof useQuery<typeof api.leads.list>>>[number];
+type Lead = NonNullable<FunctionReturnType<typeof api.leads.list>>[number];
 
 /** At a glance: which of the four contact channels we actually have. */
 function ContactDots({ lead }: { lead: Lead }) {
@@ -237,10 +238,10 @@ function ContactDots({ lead }: { lead: Lead }) {
 }
 
 function LeadPanel({ id, onClose }: { id: Id<"leads">; onClose: () => void }) {
-  const detail = useQuery(api.leads.byId, { id });
-  const setStatus = useMutation(api.leads.setStatus);
-  const logReply = useAction(api.agents.outreach.logReply);
-  const draftProposal = useAction(api.agents.proposal.draft);
+  const detail = useAuthedQuery(api.leads.byId, { id });
+  const setStatus = useAuthedMutation(api.leads.setStatus);
+  const logReply = useAuthedAction(api.agents.outreach.logReply);
+  const draftProposal = useAuthedAction(api.agents.proposal.draft);
 
   const [reply, setReply] = useState("");
   const [notes, setNotes] = useState("");

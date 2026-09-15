@@ -15,7 +15,9 @@
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./../_generated/server";
+import { authedAction } from "../lib/authed";
 import { api, internal } from "./../_generated/api";
+import { machineArgs } from "../lib/machine";
 import { withRun, think } from "../lib/run";
 import { parseJson } from "../../packages/shared/llm/router";
 import { prepareForLlm } from "../../packages/shared/guards/pii";
@@ -171,9 +173,9 @@ export const run = internalAction({
         // Writing emails that cannot leave the building is not free. Each one
         // costs a model call, and on a half-hourly schedule that is the same
         // three drafts rewritten all day. Check the door before doing the work.
-        const canSend = await ctx.runQuery(api.settings.sendState, {});
+        const canSend = await ctx.runQuery(api.settings.sendState, machineArgs());
         if (!canSend.senderEmail || canSend.paused) {
-          const waiting = await ctx.runQuery(api.leads.draftedNotSent, {});
+          const waiting = await ctx.runQuery(api.leads.draftedNotSent, machineArgs());
           return canSend.paused
             ? `Sending is paused, so I haven't written anything new. ${waiting} draft(s) already waiting.`
             : `No sender address configured, so nothing can leave the building — I haven't written anything new rather than spend the budget on it. ${waiting} draft(s) already waiting for when you set one in Settings.`;
@@ -183,7 +185,7 @@ export const run = internalAction({
 
         // 1. Follow-ups that are due take priority over new first touches:
         //    a started conversation is worth more than another cold one.
-        const due = await ctx.runQuery(api.sequences.due, { limit: MAX_PER_RUN });
+        const due = await ctx.runQuery(api.sequences.due, { ...machineArgs(),  limit: MAX_PER_RUN });
         for (const seq of due) {
           if (await handle.stopped()) return "Stopped mid-run.";
           await handle.say(`Following up with ${seq.lead.businessName}`);
@@ -193,7 +195,7 @@ export const run = internalAction({
         // 2. New first touches with whatever room is left.
         const room = MAX_PER_RUN - due.length;
         if (room > 0) {
-          const fresh = await ctx.runQuery(api.leads.readyForOutreach, { limit: room });
+          const fresh = await ctx.runQuery(api.leads.readyForOutreach, { ...machineArgs(),  limit: room });
           for (const lead of fresh) {
             if (await handle.stopped()) return "Stopped mid-run.";
             await handle.say(`Writing to ${lead.businessName}`);
@@ -255,7 +257,7 @@ async function sendFirstTouch(
 
   // Why an earlier draft for this lead was turned down. Without this the same
   // objection produces the same email and the rejection loop is invisible.
-  const priorRejections: string[] = await ctx.runQuery(api.approvals.rejectionNotesForLead, {
+  const priorRejections: string[] = await ctx.runQuery(api.approvals.rejectionNotesForLead, { ...machineArgs(), 
     leadId: lead._id as never,
   });
 
@@ -411,7 +413,7 @@ export const handleReply = internalAction({
       ctx,
       { botKey: "outreach", trigger: "manual", bubble: "Reading a reply" },
       async (handle) => {
-        const detail = await ctx.runQuery(api.leads.byId, { id: leadId });
+        const detail = await ctx.runQuery(api.leads.byId, { ...machineArgs(),  id: leadId });
         if (!detail) return "That lead is gone.";
         const { lead } = detail;
 
@@ -476,7 +478,7 @@ export const handleReply = internalAction({
         let reply = restoreOutput(parsed.suggestedReply ?? "").trim();
 
         if (parsed.classification === "interested") {
-          const settings = await ctx.runQuery(api.settings.sendState, {});
+          const settings = await ctx.runQuery(api.settings.sendState, machineArgs());
           const times = proposeCallTimes();
           reply += `\n\n${times.map((t) => `- ${t.label}`).join("\n")}`;
           if (settings.bookingUrl) {
@@ -521,10 +523,10 @@ export const handleReply = internalAction({
  * replies are not fetched automatically — he pastes them in. That is a real
  * limitation and the UI says so rather than implying the bot is watching.
  */
-export const logReply = action({
+export const logReply = authedAction({
   args: { leadId: v.id("leads"), body: v.string(), from: v.optional(v.string()) },
   handler: async (ctx, { leadId, body, from }): Promise<string> => {
-    const detail = await ctx.runQuery(api.leads.byId, { id: leadId });
+    const detail = await ctx.runQuery(api.leads.byId, { ...machineArgs(),  id: leadId });
     if (!detail) throw new Error("That lead is gone.");
     const emailId = await ctx.runMutation(internal.emails.record, {
       botKey: "outreach",
@@ -580,7 +582,7 @@ function withSignature(body: string): string {
   return `${text.trim()}\n\nRegards,\nTaine\nThe Creative Current · Durban\nthecreativecurrent.co.za\n\nIf you'd rather I didn't email again, just reply "no thanks" and I'll take you off.`;
 }
 
-export const runNow = action({
+export const runNow = authedAction({
   args: {},
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.outreach.run, { trigger: "manual" }),

@@ -15,7 +15,9 @@
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./../_generated/server";
+import { authedAction } from "../lib/authed";
 import { api, internal } from "./../_generated/api";
+import { machineArgs } from "../lib/machine";
 import { withRun, think } from "../lib/run";
 import { parseJson } from "../../packages/shared/llm/router";
 import { fetchPage, stripTags, title as pageTitle, emails as findEmails, links } from "../../packages/shared/tools/html";
@@ -144,7 +146,7 @@ export const run = internalAction({
         // Anything the worker finished since the last run. Google Maps comes
         // back as whole businesses read off the rendered page; everything else
         // as candidate links.
-        const fromWorker = await ctx.runQuery(api.scrapeJobs.completedResults, { limit: 40 });
+        const fromWorker = await ctx.runQuery(api.scrapeJobs.completedResults, { ...machineArgs(),  limit: 40 });
         // Each item remembers which job it came from and where in that job it
         // sits, so a batch bigger than one run's appetite carries over instead
         // of being thrown away.
@@ -245,7 +247,7 @@ export const run = internalAction({
  * Facebook page in and get a full lead back immediately — which also makes the
  * bot useful on a day when every directory has changed its markup.
  */
-export const addByUrl = action({
+export const addByUrl = authedAction({
   args: { url: v.string(), tierHint: v.optional(v.union(v.literal(1), v.literal(2), v.literal(3))) },
   handler: async (ctx, { url, tierHint }): Promise<string> => {
     const outcome = await withRun(
@@ -311,7 +313,7 @@ async function processBusiness(
 
   const suburb = guessSuburb(cardText, args.location);
   const dedupe = makeDedupeKey(biz.name, suburb, websiteUrl);
-  const existing = await ctx.runQuery(api.leads.findByDedupeKey, { dedupeKey: dedupe });
+  const existing = await ctx.runQuery(api.leads.findByDedupeKey, { ...machineArgs(),  dedupeKey: dedupe });
   if (existing) return "skipped";
 
   // Phone and address come off the card; anything else needs their own site.
@@ -472,7 +474,7 @@ async function processCandidate(
   const address = guessAddress(text);
 
   const dedupe = makeDedupeKey(businessName, suburb, hasWebsite ? websiteUrl : args.url);
-  const existing = await ctx.runQuery(api.leads.findByDedupeKey, { dedupeKey: dedupe });
+  const existing = await ctx.runQuery(api.leads.findByDedupeKey, { ...machineArgs(),  dedupeKey: dedupe });
   if (existing) return "skipped";
 
   // ── Site fault audit ──────────────────────────────────────────────────────
@@ -866,13 +868,13 @@ function guessAddress(text: string): string {
 }
 
 async function isWorkerOnline(ctx: Parameters<typeof withRun>[0]): Promise<boolean> {
-  const settings = await ctx.runQuery(api.settings.get, {});
+  const settings = await ctx.runQuery(api.settings.get, machineArgs());
   const last = settings?.workerLastSeenAt ?? 0;
   return Date.now() - last < 5 * 60_000;
 }
 
 /** The manual "Run now" button on the Leads screen. */
-export const runNow = action({
+export const runNow = authedAction({
   args: {},
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.leadgen.run, { trigger: "manual" }),

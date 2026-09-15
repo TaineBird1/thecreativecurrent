@@ -1,7 +1,8 @@
 "use client";
 
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAuthedAction, useAuthedMutation, useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
+import type { FunctionReturnType } from "convex/server";
 import { useState } from "react";
 import { Header } from "../components/Header";
 import { Button, Card, Empty, Pill, relativeTime } from "../components/ui";
@@ -13,10 +14,10 @@ import { Button, Card, Empty, Pill, relativeTime } from "../components/ui";
  * here rather than sending it back to the bot to rewrite.
  */
 export default function InboxPage() {
-  const approvals = useQuery(api.approvals.pending);
-  const escalations = useQuery(api.escalations.open);
-  const history = useQuery(api.approvals.history, { limit: 40 });
-  const standups = useQuery(api.standups.recent, { limit: 7 });
+  const approvals = useAuthedQuery(api.approvals.pending);
+  const escalations = useAuthedQuery(api.escalations.open);
+  const history = useAuthedQuery(api.approvals.history, { limit: 40 });
+  const standups = useAuthedQuery(api.standups.recent, { limit: 7 });
 
   const [tab, setTab] = useState<"approvals" | "escalations" | "standups" | "history">("approvals");
 
@@ -113,12 +114,12 @@ export default function InboxPage() {
   );
 }
 
-type Approval = NonNullable<ReturnType<typeof useQuery<typeof api.approvals.pending>>>[number];
-type Escalation = NonNullable<ReturnType<typeof useQuery<typeof api.escalations.open>>>[number];
+type Approval = NonNullable<FunctionReturnType<typeof api.approvals.pending>>[number];
+type Escalation = NonNullable<FunctionReturnType<typeof api.escalations.open>>[number];
 
 function ApprovalCard({ approval }: { approval: Approval }) {
-  const approveAndExecute = useAction(api.approvals.approveAndExecute);
-  const reject = useMutation(api.approvals.reject);
+  const approveAndExecute = useAuthedAction(api.approvals.approveAndExecute);
+  const reject = useAuthedMutation(api.approvals.reject);
 
   const [body, setBody] = useState(approval.body);
   const [note, setNote] = useState("");
@@ -252,7 +253,7 @@ function ApprovalCard({ approval }: { approval: Approval }) {
 }
 
 function EscalationCard({ escalation }: { escalation: Escalation }) {
-  const resolve = useMutation(api.escalations.resolve);
+  const resolve = useAuthedMutation(api.escalations.resolve);
   const [note, setNote] = useState("");
 
   return (

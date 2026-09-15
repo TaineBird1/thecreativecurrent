@@ -1,10 +1,11 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { authedQuery, authedMutation } from "./lib/authed";
 import { stamps, touch, alive, softDelete } from "./lib/soft";
 
 /** Content drafts and media assets. Bots write here; Taine takes things out. */
 
-export const drafts = query({
+export const drafts = authedQuery({
   args: { kind: v.optional(v.string()), limit: v.optional(v.number()) },
   handler: async (ctx, { kind, limit }) => {
     const rows = alive(await ctx.db.query("contentDrafts").order("desc").take((limit ?? 100) * 2));
@@ -51,19 +52,19 @@ export const saveDraft = internalMutation({
  * "Posted" means Taine posted it by hand. No bot publishes anywhere — this is
  * him ticking it off, not a bot reporting success.
  */
-export const markPosted = mutation({
+export const markPosted = authedMutation({
   args: { id: v.id("contentDrafts") },
   handler: async (ctx, { id }) => {
     await ctx.db.patch(id, { status: "posted_by_boss" as const, ...touch() });
   },
 });
 
-export const archiveDraft = mutation({
+export const archiveDraft = authedMutation({
   args: { id: v.id("contentDrafts") },
   handler: async (ctx, { id }) => await softDelete(ctx, id),
 });
 
-export const media = query({
+export const media = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) =>
     alive(await ctx.db.query("mediaAssets").order("desc").take(limit ?? 100)),
@@ -88,7 +89,7 @@ export const saveMedia = internalMutation({
 });
 
 /** The content calendar the Content bot works from. Maintained by Strategy. */
-export const calendar = query({
+export const calendar = authedQuery({
   args: {},
   handler: async (ctx) => {
     const rows = alive(await ctx.db.query("contentDrafts").collect());
@@ -99,7 +100,7 @@ export const calendar = query({
 });
 
 /** What Content should write next: calendar items with no body yet. */
-export const nextCalendarItem = query({
+export const nextCalendarItem = authedQuery({
   args: {},
   handler: async (ctx) => {
     const rows = alive(await ctx.db.query("contentDrafts").collect());

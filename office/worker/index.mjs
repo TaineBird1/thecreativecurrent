@@ -42,6 +42,24 @@ if (!CONVEX_URL) {
   process.exit(1);
 }
 
+// Every public Convex function now requires a caller to be signed in. The
+// worker is a script, not a browser, and has no passcode screen to go through —
+// it identifies itself with the machine token instead, the same one the bots
+// use for their own internal calls. It lives in .env.local here and in Convex's
+// environment there; it is never in the web bundle, so a visitor cannot have it.
+const MACHINE_TOKEN = process.env.OFFICE_MACHINE_TOKEN;
+if (!MACHINE_TOKEN) {
+  console.error(
+    "\n  OFFICE_MACHINE_TOKEN isn't set, so Convex will refuse every call.\n" +
+      "  Put the same value in .env.local here and in Convex:\n" +
+      "      npx convex env set OFFICE_MACHINE_TOKEN <a long random string>\n" +
+      "  See SETUP.md.\n",
+  );
+  process.exit(1);
+}
+/** Spread into every call, so no call site has to remember the field. */
+const auth = { token: MACHINE_TOKEN };
+
 const convex = new ConvexHttpClient(CONVEX_URL);
 const WORKER_ID = `${process.env.COMPUTERNAME ?? process.env.HOSTNAME ?? "pc"}-${process.pid}`;
 
@@ -166,7 +184,7 @@ function buildFaults({ seconds, overflow, brokenLinks }) {
 }
 
 async function upload(buffer, contentType) {
-  const url = await convex.mutation("scrapeJobs:uploadUrl", {});
+  const url = await convex.mutation("scrapeJobs:uploadUrl", auth);
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": contentType },
@@ -329,7 +347,7 @@ let lastIdleReport = 0;
 async function tick() {
   let jobs = [];
   try {
-    jobs = await convex.mutation("scrapeJobs:lease", { workerId: WORKER_ID, max: 3 });
+    jobs = await convex.mutation("scrapeJobs:lease", { ...auth,  workerId: WORKER_ID, max: 3 });
   } catch (err) {
     console.error(`  ${stamp()} Couldn't reach Convex: ${err.message}`);
     return;
@@ -343,7 +361,7 @@ async function tick() {
       lastIdleReport = Date.now();
       let depth = null;
       try {
-        depth = await convex.query("scrapeJobs:queueDepth", {});
+        depth = await convex.query("scrapeJobs:queueDepth", auth);
       } catch {
         /* the message below still says more than nothing */
       }
@@ -368,10 +386,10 @@ async function tick() {
           : isMaps
             ? await scrapeMaps(job.payload)
             : await harvestUrls(job.payload);
-      await convex.mutation("scrapeJobs:complete", { id: job.id, result });
+      await convex.mutation("scrapeJobs:complete", { ...auth,  id: job.id, result });
       console.log(`  ${stamp()} done  ${label}${result.note ? ` — ${result.note}` : ""}`);
     } catch (err) {
-      await convex.mutation("scrapeJobs:fail", { id: job.id, error: err.message });
+      await convex.mutation("scrapeJobs:fail", { ...auth,  id: job.id, error: err.message });
       console.log(`  ${stamp()} fail  ${label} — ${err.message}`);
     }
   }
@@ -383,7 +401,7 @@ function stamp() {
 
 async function heartbeat() {
   try {
-    await convex.mutation("settings:workerHeartbeat", {});
+    await convex.mutation("settings:workerHeartbeat", auth);
   } catch {
     /* the office just shows the worker as offline; nothing else breaks */
   }

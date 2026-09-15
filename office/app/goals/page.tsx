@@ -1,6 +1,6 @@
 "use client";
 
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAuthedAction, useAuthedMutation, useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
 import { Header } from "../components/Header";
@@ -15,11 +15,11 @@ const COLUMNS = [
 ] as const;
 
 export default function GoalsPage() {
-  const board = useQuery(api.tasks.board);
-  const bots = useQuery(api.bots.list);
-  const addGoal = useMutation(api.tasks.addGoal);
-  const move = useMutation(api.tasks.moveTask);
-  const planNow = useAction(api.agents.orchestrator.planNow);
+  const board = useAuthedQuery(api.tasks.board);
+  const bots = useAuthedQuery(api.bots.list);
+  const addGoal = useAuthedMutation(api.tasks.addGoal);
+  const move = useAuthedMutation(api.tasks.moveTask);
+  const planNow = useAuthedAction(api.agents.orchestrator.planNow);
 
   const [text, setText] = useState("");
   const [planning, setPlanning] = useState(false);

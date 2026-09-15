@@ -256,16 +256,38 @@ it, and you want one of them:
 - **`functions/_middleware.js`** — a Pages Function that demands a password
   before any file is served, so a stranger never receives the bundle and never
   learns the Convex URL. Already in the repo; it only needs the password set.
-- **Per-function auth** — every query and mutation takes and verifies the
-  session token. The real answer if this ever holds anything you would be
-  embarrassed to leak. The middleware is a door, not a safe.
+- **Per-function auth — now done.** Every public Convex function takes a
+  `token` and verifies a live session before it runs (convex/lib/authed.ts).
+  Knowing the deployment URL is no longer enough to read a single lead.
+  `pnpm check:authed` fails the build if a function is ever added without it;
+  only `auth.login` and `auth.check` are open, because they are how you get a
+  token in the first place.
+
+The two are worth keeping together. The middleware means a stranger never
+learns the address; the session check means it would not help them if they did.
 
 **Not Cloudflare Access**, which is the usual advice and was the first thing
 tried here: Zero Trust Free asks for a credit card before it will activate at
 all. This project's brief rules that out, and a free tier you cannot enter
 without card details does not qualify.
 
-Setting the password: Pages project → Settings → Variables and secrets → add
+### The machine token
+
+Two callers are not a browser and cannot pass a passcode screen: the local
+worker, and the bots themselves — an action calling `api.settings.sendState`
+arrives at the same door the browser does. Both use one token:
+
+    npx convex env set OFFICE_MACHINE_TOKEN "a long random string"
+
+Put the same value in `office/.env.local` as `OFFICE_MACHINE_TOKEN=...` so
+`pnpm worker` can read it. It is never in the web bundle, so a visitor cannot
+have it. Rotate it by changing both places.
+
+Without it the bots stop with "Not signed in to the office" and the worker
+refuses to start and says so — deliberately, rather than falling back to
+anonymous calls.
+
+Setting the site password: Pages project → Settings → Variables and secrets → add
 `OFFICE_WEB_PASSWORD` as a **Secret** (not Text, so it cannot be read back out
 of the dashboard), then redeploy. Any username works at the browser prompt;
 only the password is checked. If the variable is missing the site serves a 503

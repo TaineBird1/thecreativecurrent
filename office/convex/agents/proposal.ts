@@ -10,12 +10,14 @@
  */
 import { v } from "convex/values";
 import { action } from "./../_generated/server";
+import { authedAction } from "../lib/authed";
 import { api, internal } from "./../_generated/api";
+import { machineArgs } from "../lib/machine";
 import { withRun, think } from "../lib/run";
 import { parseJson } from "../../packages/shared/llm/router";
 import { assertNoForbiddenContent } from "../../packages/shared/guards/pii";
 
-export const draft = action({
+export const draft = authedAction({
   args: { callNotes: v.string(), leadId: v.optional(v.id("leads")) },
   handler: async (ctx, { callNotes, leadId }): Promise<string> => {
     const outcome = await withRun(
@@ -26,7 +28,7 @@ export const draft = action({
         // signed document, they do not go to a free-tier model at all.
         assertNoForbiddenContent(callNotes);
 
-        const settings = await ctx.runQuery(api.settings.get, {});
+        const settings = await ctx.runQuery(api.settings.get, machineArgs());
         const pricing = settings?.pricingYaml ?? "";
 
         const { text } = await think(ctx, {
@@ -128,14 +130,14 @@ export const draft = action({
 });
 
 /** Contract from templates/contract.md, populated from an approved proposal. */
-export const contract = action({
+export const contract = authedAction({
   args: { approvalId: v.id("approvals"), clientAddress: v.optional(v.string()) },
   handler: async (ctx, { approvalId, clientAddress }): Promise<string> => {
     const outcome = await withRun(
       ctx,
       { botKey: "proposal", trigger: "manual", bubble: "Drafting a contract" },
       async () => {
-        const approval = await ctx.runQuery(api.approvals.byId, { id: approvalId });
+        const approval = await ctx.runQuery(api.approvals.byId, { ...machineArgs(),  id: approvalId });
         if (!approval) return "That proposal is gone.";
         if (approval.status !== "approved") {
           return "That proposal hasn't been approved yet. A contract only follows an approved proposal.";

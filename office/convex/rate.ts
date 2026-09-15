@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
+import { authedQuery } from "./lib/authed";
 import { stamps, touch } from "./lib/soft";
 import { sastDay } from "./lib/time";
 import { RATE_LIMITS } from "../packages/shared/llm/models";
@@ -143,7 +144,7 @@ export const logLlmCall = internalMutation({
 });
 
 /** Budget usage per bot today. Drives the meter on each desk drawer. */
-export const usageToday = query({
+export const usageToday = authedQuery({
   args: {},
   handler: async (ctx) => {
     const day = sastDay();

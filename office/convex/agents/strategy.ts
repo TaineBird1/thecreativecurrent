@@ -12,7 +12,9 @@
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./../_generated/server";
+import { authedAction } from "../lib/authed";
 import { api, internal } from "./../_generated/api";
+import { machineArgs } from "../lib/machine";
 import { withRun, think } from "../lib/run";
 import { parseJson } from "../../packages/shared/llm/router";
 import { fetchPage, stripTags } from "../../packages/shared/tools/html";
@@ -50,12 +52,12 @@ async function weeklyReport(ctx: Parameters<typeof withRun>[0], runId: string): 
   const weekAgo = Date.now() - 7 * DAY_MS;
 
   const [leads, emails, drafts, approvals, clients, kpis] = await Promise.all([
-    ctx.runQuery(api.leads.list, { limit: 1000 }),
-    ctx.runQuery(api.emails.recent, { limit: 1000 }),
-    ctx.runQuery(api.library.drafts, { limit: 200 }),
-    ctx.runQuery(api.approvals.history, { limit: 200 }),
-    ctx.runQuery(api.clients.list, {}),
-    ctx.runQuery(api.kpis.headline, {}),
+    ctx.runQuery(api.leads.list, { ...machineArgs(),  limit: 1000 }),
+    ctx.runQuery(api.emails.recent, { ...machineArgs(),  limit: 1000 }),
+    ctx.runQuery(api.library.drafts, { ...machineArgs(),  limit: 200 }),
+    ctx.runQuery(api.approvals.history, { ...machineArgs(),  limit: 200 }),
+    ctx.runQuery(api.clients.list, machineArgs()),
+    ctx.runQuery(api.kpis.headline, machineArgs()),
   ]);
 
   const week = <T extends { createdAt: number }>(rows: T[]) => rows.filter((r) => r.createdAt > weekAgo);
@@ -126,7 +128,7 @@ async function weeklyReport(ctx: Parameters<typeof withRun>[0], runId: string): 
 }
 
 async function buildCalendar(ctx: Parameters<typeof withRun>[0], runId: string): Promise<string> {
-  const existing = await ctx.runQuery(api.library.calendar, {});
+  const existing = await ctx.runQuery(api.library.calendar, machineArgs());
   const upcoming = existing.filter((d) => (d.calendarDate ?? "") >= sastDay());
   if (upcoming.length >= 4) return `Calendar already has ${upcoming.length} items queued.`;
 
@@ -169,7 +171,7 @@ async function buildCalendar(ctx: Parameters<typeof withRun>[0], runId: string):
 }
 
 /** Competitor research on a specific URL, on demand. */
-export const research = action({
+export const research = authedAction({
   args: { url: v.string() },
   handler: async (ctx, { url }): Promise<string> => {
     const outcome = await withRun(
@@ -181,7 +183,7 @@ export const research = action({
   },
 });
 
-export const runNow = action({
+export const runNow = authedAction({
   args: {},
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.strategy.run, { trigger: "manual" }),

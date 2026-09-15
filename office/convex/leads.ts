@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { authedQuery, authedMutation } from "./lib/authed";
 import { stamps, touch, alive, getAlive, softDelete } from "./lib/soft";
 import { leadStatus } from "./schema";
 
@@ -15,7 +16,7 @@ import { leadStatus } from "./schema";
  *    from "nobody has looked yet".
  */
 
-export const list = query({
+export const list = authedQuery({
   args: {
     status: v.optional(leadStatus),
     tier: v.optional(v.union(v.literal(1), v.literal(2), v.literal(3))),
@@ -41,7 +42,7 @@ export const list = query({
   },
 });
 
-export const byId = query({
+export const byId = authedQuery({
   args: { id: v.id("leads") },
   handler: async (ctx, { id }) => {
     const lead = await getAlive(ctx, id);
@@ -61,7 +62,7 @@ export const byId = query({
 });
 
 /** Has this business already been seen — including as a discard? */
-export const findByDedupeKey = query({
+export const findByDedupeKey = authedQuery({
   args: { dedupeKey: v.string() },
   handler: async (ctx, { dedupeKey }) =>
     await ctx.db.query("leads").withIndex("by_dedupe", (q) => q.eq("dedupeKey", dedupeKey)).unique(),
@@ -134,7 +135,7 @@ export const patchLead = internalMutation({
   },
 });
 
-export const setStatus = mutation({
+export const setStatus = authedMutation({
   args: { id: v.id("leads"), status: leadStatus, note: v.optional(v.string()) },
   handler: async (ctx, { id, status, note }) => {
     await ctx.db.patch(id, { status, ...touch() });
@@ -149,7 +150,7 @@ export const setStatus = mutation({
 });
 
 /** Soft delete. The row stays so the dedupe check still recognises it. */
-export const archive = mutation({
+export const archive = authedMutation({
   args: { id: v.id("leads") },
   handler: async (ctx, { id }) => {
     await softDelete(ctx, id);
@@ -164,7 +165,7 @@ export const archive = mutation({
  * without this check Lerato rewrote the same three leads every half hour all
  * day, paying for each one.
  */
-export const readyForOutreach = query({
+export const readyForOutreach = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     const rows = alive(
@@ -184,7 +185,7 @@ export const readyForOutreach = query({
 });
 
 /** Drafts written but never sent — waiting on sending being switched on. */
-export const draftedNotSent = query({
+export const draftedNotSent = authedQuery({
   args: {},
   handler: async (ctx) => {
     const rows = alive(
@@ -194,7 +195,7 @@ export const draftedNotSent = query({
   },
 });
 
-export const counts = query({
+export const counts = authedQuery({
   args: {},
   handler: async (ctx) => {
     const rows = alive(await ctx.db.query("leads").collect());
@@ -212,7 +213,7 @@ export const counts = query({
   },
 });
 
-export const recentEvents = query({
+export const recentEvents = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) =>
     alive(await ctx.db.query("leadEvents").order("desc").take(limit ?? 40)),

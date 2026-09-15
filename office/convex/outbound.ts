@@ -20,8 +20,10 @@
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
+import { authedAction } from "./lib/authed";
 import type { ActionCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import { machineArgs } from "./lib/machine";
 import { gateAll } from "../packages/shared/guards";
 import { skeleton, checkAgainstRecent } from "../packages/shared/guards/similarity";
 import { hasOrphanTokens } from "../packages/shared/guards/pii";
@@ -56,7 +58,7 @@ export const sendEmail = internalAction({
     runId: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<SendOutcome> => {
-    const state = await ctx.runQuery(api.settings.sendState, {});
+    const state = await ctx.runQuery(api.settings.sendState, machineArgs());
 
     if (state.halted) {
       await recordBlocked(ctx, args, `STOP is engaged${state.reason ? `: ${state.reason}` : ""}.`);
@@ -77,7 +79,7 @@ export const sendEmail = internalAction({
 
     const countsAgainstCap = args.countsAgainstCap ?? true;
     if (countsAgainstCap) {
-      const cap = await ctx.runQuery(api.emails.sentTodayCount, {});
+      const cap = await ctx.runQuery(api.emails.sentTodayCount, machineArgs());
       if (cap.count >= state.dailySendCap) {
         await recordBlocked(
           ctx,
@@ -119,7 +121,7 @@ export const sendEmail = internalAction({
     const personalisation = args.personalisation ?? [];
     const candidateSkeleton = skeleton(args.body, personalisation);
     if (countsAgainstCap) {
-      const recent = await ctx.runQuery(api.emails.recentSkeletons, { limit: 50 });
+      const recent = await ctx.runQuery(api.emails.recentSkeletons, { ...machineArgs(),  limit: 50 });
       const verdict = checkAgainstRecent(candidateSkeleton, recent, state.similarityCeiling);
       if (verdict.tooSimilar) {
         await recordBlocked(
@@ -183,11 +185,11 @@ export const sendEmail = internalAction({
 export const sendApproved = internalAction({
   args: { approvalId: v.id("approvals") },
   handler: async (ctx, { approvalId }): Promise<string> => {
-    const approval = await ctx.runQuery(api.approvals.byId, { id: approvalId });
+    const approval = await ctx.runQuery(api.approvals.byId, { ...machineArgs(),  id: approvalId });
     if (!approval) throw new Error("That approval no longer exists.");
     if (approval.status !== "approved") throw new Error("That approval has not been approved.");
 
-    const state = await ctx.runQuery(api.settings.sendState, {});
+    const state = await ctx.runQuery(api.settings.sendState, machineArgs());
     // Re-checked here, not just at approval time: STOP may have been engaged in
     // between, and STOP overrides an approval.
     if (state.halted) throw new Error("STOP is engaged. Nothing was sent.");
@@ -386,7 +388,7 @@ async function recordBlocked(
 }
 
 /** Exposed for the Settings screen's "send yourself a test" button. */
-export const sendTest = action({
+export const sendTest = authedAction({
   args: { to: v.string() },
   handler: async (ctx, { to }): Promise<SendOutcome> =>
     await ctx.runAction(internal.outbound.sendEmail, {

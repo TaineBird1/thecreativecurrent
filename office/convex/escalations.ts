@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { authedQuery, authedMutation } from "./lib/authed";
 import { stamps, touch, alive } from "./lib/soft";
 
 /** A bot asking for a human. Red badge on the desk, red badge in the Boss inbox. */
@@ -41,7 +42,7 @@ export const raise = internalMutation({
   },
 });
 
-export const open = query({
+export const open = authedQuery({
   args: {},
   handler: async (ctx) =>
     alive(
@@ -49,7 +50,7 @@ export const open = query({
     ).sort((a, b) => b.createdAt - a.createdAt),
 });
 
-export const openCount = query({
+export const openCount = authedQuery({
   args: {},
   handler: async (ctx) =>
     alive(
@@ -57,7 +58,7 @@ export const openCount = query({
     ).length,
 });
 
-export const resolve = mutation({
+export const resolve = authedMutation({
   args: { id: v.id("escalations"), note: v.optional(v.string()) },
   handler: async (ctx, { id, note }) => {
     const row = await ctx.db.get(id);

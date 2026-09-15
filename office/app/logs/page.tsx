@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import { useState } from "react";
 import { Header } from "../components/Header";
@@ -17,12 +17,12 @@ export default function LogsPage() {
   const [botKey, setBotKey] = useState("");
   const [tab, setTab] = useState<"llm" | "tools" | "runs">("llm");
 
-  const bots = useQuery(api.bots.list);
-  const summary = useQuery(api.logs.llmSummary);
-  const usage = useQuery(api.rate.usageToday);
-  const llm = useQuery(api.logs.llm, { botKey: botKey || undefined, limit: 200 });
-  const tools = useQuery(api.logs.tools, { botKey: botKey || undefined, limit: 200 });
-  const runs = useQuery(api.runs.recent, { limit: 150 });
+  const bots = useAuthedQuery(api.bots.list);
+  const summary = useAuthedQuery(api.logs.llmSummary);
+  const usage = useAuthedQuery(api.rate.usageToday);
+  const llm = useAuthedQuery(api.logs.llm, { botKey: botKey || undefined, limit: 200 });
+  const tools = useAuthedQuery(api.logs.tools, { botKey: botKey || undefined, limit: 200 });
+  const runs = useAuthedQuery(api.runs.recent, { limit: 150 });
 
   const filteredRuns = (runs ?? []).filter((r) => !botKey || r.botKey === botKey);
 

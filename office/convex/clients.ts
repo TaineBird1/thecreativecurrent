@@ -1,8 +1,9 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { authedQuery, authedMutation } from "./lib/authed";
 import { stamps, touch, alive, getAlive } from "./lib/soft";
 
-export const list = query({
+export const list = authedQuery({
   args: {},
   handler: async (ctx) => {
     const clients = alive(await ctx.db.query("clients").collect());
@@ -20,7 +21,7 @@ export const list = query({
   },
 });
 
-export const byId = query({
+export const byId = authedQuery({
   args: { id: v.id("clients") },
   handler: async (ctx, { id }) => {
     const client = await getAlive(ctx, id);
@@ -39,7 +40,7 @@ export const byId = query({
   },
 });
 
-export const create = mutation({
+export const create = authedMutation({
   args: {
     businessName: v.string(),
     contactName: v.string(),
@@ -100,7 +101,7 @@ export const recordCheck = internalMutation({
   },
 });
 
-export const changeRequests = query({
+export const changeRequests = authedQuery({
   args: {},
   handler: async (ctx) => {
     const rows = alive(await ctx.db.query("changeRequests").collect());
@@ -112,7 +113,7 @@ export const changeRequests = query({
 });
 
 /** The client intake form writes here. Public on purpose — clients are not users. */
-export const submitChangeRequest = mutation({
+export const submitChangeRequest = authedMutation({
   args: { clientId: v.id("clients"), description: v.string(), submittedBy: v.string() },
   handler: async (ctx, args) =>
     await ctx.db.insert("changeRequests", {
@@ -123,7 +124,7 @@ export const submitChangeRequest = mutation({
     }),
 });
 
-export const setRequestStatus = mutation({
+export const setRequestStatus = authedMutation({
   args: {
     id: v.id("changeRequests"),
     status: v.union(
@@ -150,7 +151,7 @@ export const flagRequestCost = internalMutation({
   },
 });
 
-export const untriagedRequests = query({
+export const untriagedRequests = authedQuery({
   args: {},
   handler: async (ctx) => {
     const rows = alive(

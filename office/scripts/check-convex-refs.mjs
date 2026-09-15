@@ -41,7 +41,10 @@ const exports = new Map();
 // module paths that start with "use node"
 const nodeModules = new Set();
 const EXPORT_RE =
-  /export\s+const\s+(\w+)\s*=\s*(query|mutation|action|internalQuery|internalMutation|internalAction)\s*\(/g;
+  // authedQuery/Mutation/Action are the public builders now — see
+  // convex/lib/authed.ts. They were invisible here, so every reference to a
+  // converted function read as "that module exports nothing".
+  /export\s+const\s+(\w+)\s*=\s*(authedQuery|authedMutation|authedAction|query|mutation|action|internalQuery|internalMutation|internalAction)\s*\(/g;
 
 for (const file of files) {
   const modPath = relative(convexDir, file).replace(/\.ts$/, "").replace(/\\/g, "/");
@@ -54,7 +57,7 @@ for (const file of files) {
 }
 
 const INTERNAL_KINDS = new Set(["internalQuery", "internalMutation", "internalAction"]);
-const PUBLIC_KINDS = new Set(["query", "mutation", "action"]);
+const PUBLIC_KINDS = new Set(["query", "mutation", "action", "authedQuery", "authedMutation", "authedAction"]);
 
 // Also scan the app, which calls the public API.
 const appFiles = [];

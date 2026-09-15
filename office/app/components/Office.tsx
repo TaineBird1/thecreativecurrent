@@ -1,11 +1,12 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
+import type { FunctionReturnType } from "convex/server";
 import { useState } from "react";
 import { DeskDrawer } from "./DeskDrawer";
 
-type Bot = NonNullable<ReturnType<typeof useQuery<typeof api.bots.list>>>[number];
+type Bot = NonNullable<FunctionReturnType<typeof api.bots.list>>[number];
 
 /**
  * The office floor.
@@ -94,7 +95,7 @@ const DESK_D = 5.5;
 const DESK_LIP = 1.5;
 
 export function Office() {
-  const bots = useQuery(api.bots.list);
+  const bots = useAuthedQuery(api.bots.list);
   const [openBot, setOpenBot] = useState<string | null>(null);
 
   if (!bots) {

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
+import { authedQuery } from "./lib/authed";
 import { stamps, touch, alive } from "./lib/soft";
 import { daysFromNow, nextSendWindow } from "./lib/time";
 
@@ -63,7 +64,7 @@ export const stop = internalMutation({
   },
 });
 
-export const due = query({
+export const due = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     const now = Date.now();
@@ -95,7 +96,7 @@ export const due = query({
   },
 });
 
-export const forLead = query({
+export const forLead = authedQuery({
   args: { leadId: v.id("leads") },
   handler: async (ctx, { leadId }) =>
     await ctx.db.query("sequences").withIndex("by_lead", (q) => q.eq("leadId", leadId)).unique(),

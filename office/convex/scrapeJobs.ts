@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { authedQuery, authedMutation } from "./lib/authed";
 import { stamps, touch, alive } from "./lib/soft";
 
 /**
@@ -40,7 +41,7 @@ export const enqueue = internalMutation({
 });
 
 /** The worker calls this. Takes the highest-priority queued job, or reclaims a stale lease. */
-export const lease = mutation({
+export const lease = authedMutation({
   args: { workerId: v.string(), max: v.optional(v.number()) },
   handler: async (ctx, { workerId, max }) => {
     const now = Date.now();
@@ -77,7 +78,7 @@ export const lease = mutation({
   },
 });
 
-export const complete = mutation({
+export const complete = authedMutation({
   args: { id: v.id("scrapeJobs"), result: v.any() },
   handler: async (ctx, { id, result }) => {
     await ctx.db.patch(id, { status: "done" as const, result, ...touch() });
@@ -102,7 +103,7 @@ export const complete = mutation({
   },
 });
 
-export const fail = mutation({
+export const fail = authedMutation({
   args: { id: v.id("scrapeJobs"), error: v.string() },
   handler: async (ctx, { id, error }) => {
     const job = await ctx.db.get(id);
@@ -115,7 +116,7 @@ export const fail = mutation({
   },
 });
 
-export const completedResults = query({
+export const completedResults = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     const rows = alive(
@@ -153,7 +154,7 @@ export const recordConsumption = internalMutation({
   },
 });
 
-export const queueDepth = query({
+export const queueDepth = authedQuery({
   args: {},
   handler: async (ctx) => {
     const rows = alive(await ctx.db.query("scrapeJobs").collect());
@@ -166,7 +167,7 @@ export const queueDepth = query({
 });
 
 /** Convex file storage for the worker's screenshots — free tier, no S3 bill. */
-export const uploadUrl = mutation({
+export const uploadUrl = authedMutation({
   args: {},
   handler: async (ctx) => await ctx.storage.generateUploadUrl(),
 });

@@ -8,7 +8,9 @@
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./../_generated/server";
+import { authedAction } from "../lib/authed";
 import { api, internal } from "./../_generated/api";
+import { machineArgs } from "../lib/machine";
 import { withRun, think } from "../lib/run";
 import { parseJson } from "../../packages/shared/llm/router";
 import { gateAll } from "../../packages/shared/guards";
@@ -29,7 +31,7 @@ export const run = internalAction({
           return await writeOne(ctx, handle.runId, "blog", handle.task.detail);
         }
 
-        const item = await ctx.runQuery(api.library.nextCalendarItem, {});
+        const item = await ctx.runQuery(api.library.nextCalendarItem, machineArgs());
         if (!item) {
           // Idle is acceptable. It does not invent a blog post to look busy.
           return "Nothing on the calendar to write. Strategy fills it on Mondays.";
@@ -98,7 +100,7 @@ export const run = internalAction({
 });
 
 /** Write one piece on demand, outside the calendar. */
-export const write = action({
+export const write = authedAction({
   args: { kind: v.string(), brief: v.string() },
   handler: async (ctx, { kind, brief }): Promise<string> => {
     if (!KINDS.includes(kind as Kind)) {
@@ -113,7 +115,7 @@ export const write = action({
   },
 });
 
-export const runNow = action({
+export const runNow = authedAction({
   args: {},
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.content.run, { trigger: "manual" }),

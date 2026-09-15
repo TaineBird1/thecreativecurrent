@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
+import { authedQuery } from "./lib/authed";
 import { stamps, touch, alive } from "./lib/soft";
 import { sastDay, DAY_MS } from "./lib/time";
 
@@ -49,7 +50,7 @@ export const snapshot = internalMutation({
 });
 
 /** The header numbers. One subscription, live. */
-export const headline = query({
+export const headline = authedQuery({
   args: {},
   handler: async (ctx) => {
     const [leads, emails, clients, approvals, escalations] = await Promise.all([
@@ -81,7 +82,7 @@ export const headline = query({
   },
 });
 
-export const history = query({
+export const history = authedQuery({
   args: { days: v.optional(v.number()) },
   handler: async (ctx, { days }) =>
     alive(await ctx.db.query("kpiSnapshots").order("desc").take(days ?? 30)).reverse(),

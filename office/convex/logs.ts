@@ -1,9 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
+import { authedQuery } from "./lib/authed";
 import { stamps, alive } from "./lib/soft";
 
 /** Every LLM call and every tool call, filterable by bot. */
-export const llm = query({
+export const llm = authedQuery({
   args: { botKey: v.optional(v.string()), limit: v.optional(v.number()) },
   handler: async (ctx, { botKey, limit }) => {
     const rows = alive(await ctx.db.query("llmCalls").order("desc").take((limit ?? 200) * 2));
@@ -11,7 +12,7 @@ export const llm = query({
   },
 });
 
-export const tools = query({
+export const tools = authedQuery({
   args: { botKey: v.optional(v.string()), limit: v.optional(v.number()) },
   handler: async (ctx, { botKey, limit }) => {
     const rows = alive(await ctx.db.query("toolCalls").order("desc").take((limit ?? 200) * 2));
@@ -35,7 +36,7 @@ export const recordToolCall = internalMutation({
 });
 
 /** Totals for the Logs screen header. */
-export const llmSummary = query({
+export const llmSummary = authedQuery({
   args: {},
   handler: async (ctx) => {
     const rows = alive(await ctx.db.query("llmCalls").order("desc").take(1000));

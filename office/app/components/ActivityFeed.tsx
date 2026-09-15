@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import { relativeTime } from "./ui";
 
@@ -24,8 +24,8 @@ const DOT = {
  * here — there is no second place to remember to write to.
  */
 export function ActivityFeed() {
-  const items = useQuery(api.activity.feed, { limit: 60 });
-  const bots = useQuery(api.bots.list);
+  const items = useAuthedQuery(api.activity.feed, { limit: 60 });
+  const bots = useAuthedQuery(api.bots.list);
   const byKey = new Map((bots ?? []).map((b) => [b.key, b]));
 
   return (

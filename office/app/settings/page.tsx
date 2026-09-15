@@ -1,6 +1,6 @@
 "use client";
 
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAuthedAction, useAuthedMutation, useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import { useEffect, useState } from "react";
 import { Header } from "../components/Header";
@@ -15,12 +15,12 @@ import { Button, Card, PaidStub, Pill } from "../components/ui";
  * is whether each one is present.
  */
 export default function SettingsPage() {
-  const settings = useQuery(api.settings.get);
-  const wired = useQuery(api.settings.integrationStatus);
-  const bots = useQuery(api.bots.list);
-  const update = useMutation(api.settings.update);
-  const sendTest = useAction(api.outbound.sendTest);
-  const listModels = useAction(api.llm.listModels);
+  const settings = useAuthedQuery(api.settings.get);
+  const wired = useAuthedQuery(api.settings.integrationStatus);
+  const bots = useAuthedQuery(api.bots.list);
+  const update = useAuthedMutation(api.settings.update);
+  const sendTest = useAuthedAction(api.outbound.sendTest);
+  const listModels = useAuthedAction(api.llm.listModels);
 
   const [form, setForm] = useState({
     senderEmail: "",

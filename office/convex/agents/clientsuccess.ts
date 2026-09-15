@@ -12,7 +12,9 @@
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./../_generated/server";
+import { authedAction } from "../lib/authed";
 import { api, internal } from "./../_generated/api";
+import { machineArgs } from "../lib/machine";
 import { withRun, think } from "../lib/run";
 import { parseJson } from "../../packages/shared/llm/router";
 import { gateAll } from "../../packages/shared/guards";
@@ -26,7 +28,7 @@ export const uptimeSweep = internalAction({
       ctx,
       { botKey: "clientsuccess", trigger: "cron", bubble: "Checking client sites" },
       async (handle) => {
-        const clients = await ctx.runQuery(api.clients.list, {});
+        const clients = await ctx.runQuery(api.clients.list, machineArgs());
         if (clients.length === 0) return "No clients to check yet.";
 
         let down = 0;
@@ -103,7 +105,7 @@ export const run = internalAction({
       ctx,
       { botKey: "clientsuccess", trigger: trigger ?? "cron", bubble: "Monthly health checks" },
       async (handle) => {
-        const clients = await ctx.runQuery(api.clients.list, {});
+        const clients = await ctx.runQuery(api.clients.list, machineArgs());
         if (clients.length === 0) return "No clients yet — nothing to report on.";
 
         const notes: string[] = [];
@@ -112,7 +114,7 @@ export const run = internalAction({
           if (await handle.stopped()) break;
           await handle.say(`Health check: ${client.businessName.slice(0, 25)}`);
 
-          const detail = await ctx.runQuery(api.clients.byId, { id: client._id });
+          const detail = await ctx.runQuery(api.clients.byId, { ...machineArgs(),  id: client._id });
           if (!detail) continue;
 
           const monthAgo = Date.now() - 30 * 24 * 60 * 60_000;
@@ -182,7 +184,7 @@ export const run = internalAction({
  * Approvals — never answered directly, never priced, never called "free".
  */
 async function triageRequests(ctx: Parameters<typeof withRun>[0], runId: string): Promise<string> {
-  const open = await ctx.runQuery(api.clients.untriagedRequests, {});
+  const open = await ctx.runQuery(api.clients.untriagedRequests, machineArgs());
   if (open.length === 0) return "No new change requests.";
 
   let flagged = 0;
@@ -224,7 +226,7 @@ async function triageRequests(ctx: Parameters<typeof withRun>[0], runId: string)
 }
 
 /** Check-in or renewal email. Goes through the same gate as everything else. */
-export const draftEmail = action({
+export const draftEmail = authedAction({
   args: {
     clientId: v.id("clients"),
     kind: v.union(v.literal("checkin"), v.literal("renewal")),
@@ -234,7 +236,7 @@ export const draftEmail = action({
       ctx,
       { botKey: "clientsuccess", trigger: "manual", bubble: `Drafting a ${kind}` },
       async (handle) => {
-        const detail = await ctx.runQuery(api.clients.byId, { id: clientId });
+        const detail = await ctx.runQuery(api.clients.byId, { ...machineArgs(),  id: clientId });
         if (!detail) return "That client is gone.";
         const { client } = detail;
 
@@ -299,13 +301,13 @@ export const draftEmail = action({
   },
 });
 
-export const runNow = action({
+export const runNow = authedAction({
   args: {},
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.clientsuccess.run, { trigger: "manual" }),
 });
 
-export const sweepNow = action({
+export const sweepNow = authedAction({
   args: {},
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.clientsuccess.uptimeSweep, {}),

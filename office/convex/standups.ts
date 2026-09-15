@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
+import { authedQuery } from "./lib/authed";
 import { stamps, touch, alive } from "./lib/soft";
 
 export const save = internalMutation({
@@ -22,12 +23,12 @@ export const save = internalMutation({
   },
 });
 
-export const latest = query({
+export const latest = authedQuery({
   args: {},
   handler: async (ctx) => alive(await ctx.db.query("standups").order("desc").take(1))[0] ?? null,
 });
 
-export const recent = query({
+export const recent = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) =>
     alive(await ctx.db.query("standups").order("desc").take(limit ?? 14)),

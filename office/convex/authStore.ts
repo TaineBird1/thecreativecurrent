@@ -10,6 +10,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { stamps, alive } from "./lib/soft";
+import { requireSession } from "./lib/session";
 
 export const storeSession = internalMutation({
   args: { token: v.string(), expiresAt: v.number() },
@@ -22,6 +23,21 @@ export const storeSession = internalMutation({
       await ctx.db.patch(s._id, { deletedAt: Date.now(), updatedAt: Date.now() });
     }
     await ctx.db.insert("sessions", { ...args, ...stamps() });
+  },
+});
+
+/**
+ * The session check, callable from an action.
+ *
+ * Actions have no `ctx.db`, so authedAction runs this rather than carrying a
+ * second copy of the rule. Throws on failure — a caller that is not signed in
+ * gets an error, not a `false` it might forget to look at.
+ */
+export const verify = internalQuery({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    await requireSession(ctx, token);
+    return true;
   },
 });
 

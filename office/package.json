@@ -20,12 +20,13 @@
     "deploy": "pnpm prompts:build && convex deploy && next build",
     "check:refs": "node scripts/check-convex-refs.mjs",
     "check:syntax": "node scripts/check-syntax.mjs",
-    "verify": "pnpm prompts:build && pnpm check:tracked && pnpm check:generated && pnpm check:syntax && pnpm check:refs && pnpm check:layout && pnpm typecheck && pnpm test && pnpm test:llm",
+    "verify": "pnpm prompts:build && pnpm check:tracked && pnpm check:generated && pnpm check:syntax && pnpm check:refs && pnpm check:authed && pnpm check:layout && pnpm typecheck && pnpm test && pnpm test:llm",
     "stub:generated": "node scripts/stub-generated.mjs",
     "check:layout": "node scripts/check-layout.mjs",
     "refresh": "node scripts/refresh.mjs",
     "check:tracked": "node scripts/check-tracked.mjs",
-    "check:generated": "node scripts/check-generated.mjs"
+    "check:generated": "node scripts/check-generated.mjs",
+    "check:authed": "node scripts/check-authed.mjs"
   },
   "dependencies": {
     "convex": "^1.17.0",

@@ -10,8 +10,10 @@
  */
 import { v } from "convex/values";
 import { action } from "./_generated/server";
+import { authedAction } from "./lib/authed";
 import type { ActionCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import { machineArgs } from "./lib/machine";
 import { route } from "../packages/shared/llm/router";
 import { callGemini } from "../packages/shared/llm/providers/gemini";
 import { callGroq } from "../packages/shared/llm/providers/groq";
@@ -39,7 +41,7 @@ export function buildDeps(ctx: ActionCtx): RouterDeps {
  * The call every bot makes. Returns raw text plus which provider actually
  * answered, so the caller can note a fallback in the activity feed.
  */
-export const complete = action({
+export const complete = authedAction({
   args: {
     botKey: v.string(),
     purpose: v.string(),
@@ -54,7 +56,7 @@ export const complete = action({
   handler: async (ctx, args) => {
     // Kill switch, checked at the top of the action rather than at schedule
     // time, so STOP takes effect on the next call and not the next cron tick.
-    const halt = await ctx.runQuery(api.settings.haltState, {});
+    const halt = await ctx.runQuery(api.settings.haltState, machineArgs());
     if (halt.halted) {
       throw new Error(`STOP is engaged${halt.reason ? `: ${halt.reason}` : ""}. No LLM call was made.`);
     }
@@ -75,7 +77,7 @@ export const complete = action({
  * in that list, and — when none do — enough for a human to pick the
  * replacement from real names rather than from memory.
  */
-export const listModels = action({
+export const listModels = authedAction({
   args: {},
   handler: async (): Promise<
     {
