@@ -68,8 +68,15 @@ export const setStatus = internalMutation({
     /** The speech bubble. Keep it short — the office renderer clips at 8 words. */
     currentTask: v.optional(v.string()),
     lastError: v.optional(v.string()),
+    /**
+     * Wipe the last error. Needed as its own flag because an optional string
+     * cannot distinguish "leave it alone" from "clear it", and leaving it alone
+     * on a successful run meant a fixed problem sat on the desk in red for ever,
+     * looking current.
+     */
+    clearError: v.optional(v.boolean()),
   },
-  handler: async (ctx, { key, status, currentTask, lastError }) => {
+  handler: async (ctx, { key, status, currentTask, lastError, clearError }) => {
     const bot = await ctx.db.query("bots").withIndex("by_key", (q) => q.eq("key", key)).unique();
     if (!bot) return;
     // A bot put off shift by STOP does not quietly bring itself back.
@@ -80,7 +87,7 @@ export const setStatus = internalMutation({
     await ctx.db.patch(bot._id, {
       status,
       ...(currentTask !== undefined ? { currentTask: trimBubble(currentTask) } : {}),
-      ...(lastError !== undefined ? { lastError } : {}),
+      ...(clearError ? { lastError: undefined } : lastError !== undefined ? { lastError } : {}),
       ...(status === "working" ? { lastRunAt: Date.now() } : {}),
       ...touch(),
     });

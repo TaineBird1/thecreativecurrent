@@ -111,6 +111,8 @@ export async function withRun(
       key: opts.botKey,
       status: "idle",
       currentTask: summary.split(".")[0] || "Done",
+      // A run that worked means the last problem is history, not news.
+      clearError: true,
     });
     return { ok: true, summary };
   } catch (err) {

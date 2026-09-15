@@ -125,8 +125,11 @@ export function DeskDrawer({ botKey, onClose }: { botKey: string; onClose: () =>
                 </Pill>
               </Row>
               {bot.lastError && (
-                <Row label="Last problem">
+                <Row label={`Last problem — ${relativeTime(bot.updatedAt)}`}>
                   <span className="text-rust">{bot.lastError}</span>
+                  <p className="mt-1 text-[11px] text-faint">
+                    This clears itself as soon as {bot.name} finishes a run cleanly.
+                  </p>
                 </Row>
               )}
               <Row label="Schedule">
