@@ -78,6 +78,10 @@ export default defineSchema({
     currentTask: v.string(), // speech bubble text, <= 8 words
     systemPrompt: v.string(), // live prompt. Editable in-app.
     promptEditedAt: v.optional(v.number()), // set => in-app edit wins over prompt.md
+    // Same idea for the schedule: set => the Turn on/off button in the drawer
+    // wins over the registry, so a re-seed never quietly puts a bot back on
+    // shift that someone deliberately took off it.
+    scheduleEditedAt: v.optional(v.number()),
     tools: v.array(v.string()), // every tool this bot may call
     toolsDisabled: v.array(v.string()), // toggled off in the UI
     scheduleCron: v.optional(v.string()), // UTC cron, documented in SAST

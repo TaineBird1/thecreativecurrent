@@ -144,6 +144,7 @@ export const setScheduleEnabled = mutation({
     if (!bot) throw new Error(`No bot called "${key}".`);
     await ctx.db.patch(bot._id, {
       scheduleEnabled: enabled,
+      scheduleEditedAt: Date.now(),
       status: enabled ? "idle" : "off_shift",
       currentTask: enabled ? "Back on shift" : "Off shift",
       ...touch(),

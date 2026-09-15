@@ -72,6 +72,11 @@ async function seedAll(ctx: MutationCtx) {
       await ctx.db.patch(existing._id, {
         ...fromRegistry,
         ...(existing.promptEditedAt ? {} : { systemPrompt: PROMPTS[def.key] }),
+        // The schedule follows the registry too, until someone touches the
+        // Turn on/off button — after which their choice stands. Without this
+        // it was insert-only, so changing a default in the registry had no
+        // effect on any bot that already existed, which is all of them.
+        ...(existing.scheduleEditedAt ? {} : { scheduleEnabled: def.scheduleEnabled }),
         ...touch(),
       });
       refreshed++;

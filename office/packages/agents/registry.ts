@@ -129,7 +129,12 @@ export const BOTS: BotDef[] = [
     desk: { zone: "revenue", x: 80, y: 52 },
     tools: ["draft_proposal", "draft_contract", "read_pricing"],
     scheduleLabel: "On demand only",
-    scheduleEnabled: true,
+    // Off by default. Nine bots share one free-tier quota, and these four
+    // produce work nobody is waiting on yet — a scheduled run spends
+    // requests that Sipho and Lerato, who bring the money in, then cannot
+    // have. Turn it on in the drawer when there is a reason to; the button
+    // wins over this from then on.
+    scheduleEnabled: false,
     dailyBudget: 60,
   },
   {
@@ -144,7 +149,12 @@ export const BOTS: BotDef[] = [
     tools: ["read_calendar", "draft_content", "save_draft"],
     scheduleCron: "0 7 * * 1,3", // Mon & Wed 09:00 SAST
     scheduleLabel: "Mondays & Wednesdays 09:00 SAST",
-    scheduleEnabled: true,
+    // Off by default. Nine bots share one free-tier quota, and these four
+    // produce work nobody is waiting on yet — a scheduled run spends
+    // requests that Sipho and Lerato, who bring the money in, then cannot
+    // have. Turn it on in the drawer when there is a reason to; the button
+    // wins over this from then on.
+    scheduleEnabled: false,
     dailyBudget: 200,
   },
   {
@@ -165,7 +175,12 @@ export const BOTS: BotDef[] = [
     ],
     scheduleCron: "0 8 * * 2", // Tuesday 10:00 SAST
     scheduleLabel: "Tuesdays 10:00 SAST",
-    scheduleEnabled: true,
+    // Off by default. Nine bots share one free-tier quota, and these four
+    // produce work nobody is waiting on yet — a scheduled run spends
+    // requests that Sipho and Lerato, who bring the money in, then cannot
+    // have. Turn it on in the drawer when there is a reason to; the button
+    // wins over this from then on.
+    scheduleEnabled: false,
     dailyBudget: 120,
   },
   {
@@ -180,7 +195,12 @@ export const BOTS: BotDef[] = [
     tools: ["generate_image", "draft_storyboard", "save_media"],
     scheduleCron: "0 9 * * 4", // Thursday 11:00 SAST
     scheduleLabel: "Thursdays 11:00 SAST",
-    scheduleEnabled: true,
+    // Off by default. Nine bots share one free-tier quota, and these four
+    // produce work nobody is waiting on yet — a scheduled run spends
+    // requests that Sipho and Lerato, who bring the money in, then cannot
+    // have. Turn it on in the drawer when there is a reason to; the button
+    // wins over this from then on.
+    scheduleEnabled: false,
     dailyBudget: 80,
   },
   {
