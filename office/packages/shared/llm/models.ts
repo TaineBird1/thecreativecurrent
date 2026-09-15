@@ -24,11 +24,13 @@ export const MODELS: Record<ProviderName, Record<Tier, string[]>> = {
     cheap: ["gemini-3.5-flash-lite", "gemini-2.5-flash-lite", "gemini-3.5-flash"],
   },
   groq: {
-    // Groq's free tier has one dependable large model. Both tiers use it: the
-    // small ones get withdrawn constantly and Groq is the fallback anyway, so
-    // paying a little more latency beats another 404.
-    reasoning: ["llama-3.3-70b-versatile"],
-    cheap: ["llama-3.3-70b-versatile"],
+    // Taken from what this account's key actually lists, not from memory —
+    // there are no Llama chat models on it at all, which is what made two
+    // separate guesses wrong. The rest of what it offers is speech (whisper),
+    // text-to-speech (orpheus), prompt classifiers (llama-prompt-guard) or
+    // Arabic-specific (allam), none of which can do this job.
+    reasoning: ["openai/gpt-oss-120b", "qwen/qwen3.5-27b", "openai/gpt-oss-20b"],
+    cheap: ["openai/gpt-oss-20b", "qwen/qwen3.5-27b", "openai/gpt-oss-120b"],
   },
 };
 

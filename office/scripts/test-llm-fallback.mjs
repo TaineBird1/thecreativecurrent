@@ -230,6 +230,17 @@ await test("a chain with every model retired still falls over to Groq", async ()
   assert.equal(r.fellBack, true);
 });
 
+await test("groq chain uses the models this account actually has", async () => {
+  const { deps } = makeDeps({
+    callGemini: async () => { throw new Error("Gemini 503"); },
+  });
+  const r = await route(deps, { ...req, tier: "cheap" });
+  assert.equal(r.provider, "groq");
+  // Set from a real listing of the key's models, not from memory — the account
+  // has no Llama chat models at all, which is what made two guesses wrong.
+  assert.equal(r.model, "openai/gpt-oss-20b");
+});
+
 await test("backoff is exponential, jittered, and honours Retry-After", async () => {
   assert.equal(backoffMs(1, 1.0), 800);
   assert.equal(backoffMs(2, 1.0), 1600);

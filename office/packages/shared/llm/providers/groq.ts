@@ -3,7 +3,22 @@ import { RateLimitedError, type ProviderCall } from "../types";
 const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 /** Groq, OpenAI-compatible. The fallback when Gemini is rate limited or down. */
-export const callGroq: ProviderCall = async ({
+export const callGroq: ProviderCall = async (args) => {
+  try {
+    return await send(args, args.json);
+  } catch (err) {
+    // Not every model on Groq accepts response_format. Losing the whole
+    // provider over a formatting flag would be silly when parseJson already
+    // copes with a fenced or chatty reply — so ask again without it.
+    const message = err instanceof Error ? err.message : String(err);
+    if (args.json && /response_format|json_object|json_validate/i.test(message)) {
+      return await send(args, false);
+    }
+    throw err;
+  }
+};
+
+const send: ProviderCall = async ({
   system,
   user,
   model,
@@ -24,7 +39,9 @@ export const callGroq: ProviderCall = async ({
       model,
       messages: [
         { role: "system", content: system },
-        { role: "user", content: user },
+        // Without response_format the model has to be told in words. Cheap
+        // insurance: parseJson strips a fence either way.
+        { role: "user", content: json ? user : `${user}\n\nReply with JSON only. No prose, no code fence.` },
       ],
       temperature,
       max_tokens: maxOutputTokens,
