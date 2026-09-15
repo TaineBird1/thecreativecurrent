@@ -29,11 +29,29 @@ interface Props {
   onSignOut: () => void;
 }
 
-export class SessionBoundary extends Component<Props, { failed: "auth" | "other" | null }> {
-  state: { failed: "auth" | "other" | null } = { failed: null };
+interface State {
+  failed: "auth" | "other" | null;
+  /**
+   * The message, shown on the card.
+   *
+   * The first version said "the details are in the browser console", which is
+   * useless to the person actually looking at it — they are standing in front
+   * of a broken screen, not a debugger, and getting the message out of DevTools
+   * took several minutes and three wrong panels. If we know what went wrong,
+   * say what went wrong.
+   */
+  detail: string;
+}
 
-  static getDerivedStateFromError(error: unknown) {
-    return { failed: isAuthError(error) ? ("auth" as const) : ("other" as const) };
+export class SessionBoundary extends Component<Props, State> {
+  state: State = { failed: null, detail: "" };
+
+  static getDerivedStateFromError(error: unknown): State {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      failed: isAuthError(error) ? "auth" : "other",
+      detail: detail.slice(0, 1500),
+    };
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
@@ -48,15 +66,20 @@ export class SessionBoundary extends Component<Props, { failed: "auth" | "other"
     const auth = this.state.failed === "auth";
     return (
       <div className="grid min-h-screen place-items-center px-6">
-        <div className="w-full max-w-sm rounded-2xl border border-edge bg-panel p-7 text-sm">
+        <div className="w-full max-w-xl rounded-2xl border border-edge bg-panel p-7 text-sm">
           <h1 className="mb-2 font-semibold text-cream">
             {auth ? "Signed out" : "Something broke"}
           </h1>
-          <p className="mb-5 leading-relaxed text-muted">
+          <p className="mb-3 leading-relaxed text-muted">
             {auth
               ? "Your session has expired or was revoked. Sign in again to carry on — nothing was lost."
-              : "The office hit an error it could not recover from. The details are in the browser console."}
+              : "The office hit an error it could not recover from."}
           </p>
+          {!auth && this.state.detail && (
+            <pre className="mb-5 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-edge bg-ink p-3 text-[11px] leading-relaxed text-muted">
+              {this.state.detail}
+            </pre>
+          )}
           <button
             onClick={() => {
               if (auth) this.props.onSignOut();
