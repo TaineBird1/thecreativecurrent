@@ -237,6 +237,12 @@ async function sendFirstTouch(
   const greeting =
     lead.contactName && lead.contactName !== NOT_FOUND ? lead.contactName : "there";
 
+  // Why an earlier draft for this lead was turned down. Without this the same
+  // objection produces the same email and the rejection loop is invisible.
+  const priorRejections: string[] = await ctx.runQuery(api.approvals.rejectionNotesForLead, {
+    leadId: lead._id as never,
+  });
+
   const { safe, restoreOutput } = prepareForLlm(
     [
       `Prospect: ${lead.businessName}, a ${lead.category} in ${lead.suburb}.`,
@@ -249,6 +255,14 @@ async function sendFirstTouch(
       "",
       proofInstruction(lead.tier),
       "",
+      ...(priorRejections.length
+        ? [
+            "An earlier draft to this same prospect was rejected. Why:",
+            ...priorRejections.map((n) => `- ${n}`),
+            "Write a different email that does not repeat that. Do not argue with the objection.",
+            "",
+          ]
+        : []),
       "Write the first email. Under 120 words, one clear ask, a short lowercase subject.",
       "No price. No promise about rankings, traffic or enquiries. No timeframe on a result.",
     ].join("\n"),

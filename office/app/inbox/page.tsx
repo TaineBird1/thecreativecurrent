@@ -196,19 +196,54 @@ function ApprovalCard({ approval }: { approval: Approval }) {
           >
             {edited ? "Approve my edit" : "Approve"}
           </Button>
+          {/* Two rejections, not one. "Reject" used to drop the lead for good
+              as a side effect — the draft row it left behind made the lead
+              invisible to the outreach queue forever, with nothing on screen
+              saying so. Rewriting is the common case, so it is the plain
+              button; dropping someone is the deliberate one. */}
           <Button
             tone="danger"
             disabled={busy}
             onClick={async () => {
               setBusy(true);
               try {
-                await reject({ id: approval._id, note: note || undefined });
+                const r = await reject({ id: approval._id, note: note || undefined });
+                setResult(r.detail);
+              } catch (err) {
+                setResult(err instanceof Error ? err.message : String(err));
               } finally {
                 setBusy(false);
               }
             }}
           >
-            Reject
+            Reject draft
+          </Button>
+          <Button
+            tone="danger"
+            disabled={busy}
+            onClick={async () => {
+              if (
+                !confirm(
+                  "Drop this lead?\n\nThey will not be contacted again, and no rewrite will be attempted.",
+                )
+              )
+                return;
+              setBusy(true);
+              try {
+                const r = await reject({
+                  id: approval._id,
+                  note: note || undefined,
+                  dropLead: true,
+                });
+                setResult(r.detail);
+              } catch (err) {
+                setResult(err instanceof Error ? err.message : String(err));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Drop lead
           </Button>
         </div>
       </div>

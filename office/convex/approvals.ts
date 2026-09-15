@@ -101,32 +101,114 @@ export const approve = mutation({
   },
 });
 
+/**
+ * Reject an approval.
+ *
+ * "Reject" was doing two different jobs and only ever performing the
+ * destructive one. The draft row it refused stayed in `emails`, and
+ * `leads.readyForOutreach` skips any lead that already has an outbound email —
+ * so rejecting a badly worded draft silently removed that lead from outreach
+ * permanently, while leaving its status on `qualified` as though it were still
+ * live. Three rejections in a row emptied the queue and the only visible
+ * symptom was Lerato reporting "nothing to send".
+ *
+ * So the two meanings are now separate, and the default is the recoverable one:
+ *
+ *  - `dropLead: false` (default) — "not this draft". The refused draft is
+ *    soft-deleted, the lead returns to the queue, and the note is handed to the
+ *    next attempt so the same mistake is not made twice.
+ *  - `dropLead: true` — "do not contact these people". The lead is discarded
+ *    with the note as the reason and the sequence stopped.
+ *
+ * Either way the approval row keeps the full history; nothing is destroyed.
+ */
 export const reject = mutation({
-  args: { id: v.id("approvals"), note: v.optional(v.string()) },
-  handler: async (ctx, { id, note }) => {
+  args: {
+    id: v.id("approvals"),
+    note: v.optional(v.string()),
+    dropLead: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { id, note, dropLead }) => {
     const row = await getAlive(ctx, id);
     if (!row) throw new Error("That approval no longer exists.");
     if (row.status !== "pending") throw new Error(`Already ${row.status}.`);
     await ctx.db.patch(id, { status: "rejected", note, decidedAt: Date.now(), ...touch() });
 
-    // A rejected outreach email kills the sequence for that lead. Sending the
-    // next one in three days would ignore the decision that was just made.
+    let outcome = "Rejected.";
+
     if (row.leadId && row.kind === "outreach_email") {
+      const leadId = row.leadId;
+
+      // The refused draft was never sent. Left in place it blocks the lead from
+      // ever being drafted for again.
+      const drafts = alive(
+        await ctx.db.query("emails").withIndex("by_lead", (q) => q.eq("leadId", leadId)).collect(),
+      ).filter((e) => e.direction === "out" && e.status === "blocked");
+      for (const draft of drafts) {
+        await ctx.db.patch(draft._id, { deletedAt: Date.now(), ...touch() });
+      }
+
       const seq = await ctx.db
         .query("sequences")
-        .withIndex("by_lead", (q) => q.eq("leadId", row.leadId!))
+        .withIndex("by_lead", (q) => q.eq("leadId", leadId))
         .unique();
-      if (seq && !seq.stopped) {
-        await ctx.db.patch(seq._id, {
-          stopped: true,
-          stopReason: "boss_rejected",
-          nextSendAt: undefined,
-          ...touch(),
-        });
+
+      if (dropLead) {
+        // Stop the sequence: sending the next one in three days would ignore
+        // the decision that was just made.
+        if (seq && !seq.stopped) {
+          await ctx.db.patch(seq._id, {
+            stopped: true,
+            stopReason: "boss_rejected",
+            nextSendAt: undefined,
+            ...touch(),
+          });
+        }
+        const lead = await getAlive(ctx, leadId);
+        if (lead && lead.status !== "discarded") {
+          await ctx.db.patch(leadId, {
+            status: "discarded" as const,
+            discardReason: note?.trim() || "Dropped from the Approvals inbox.",
+            ...touch(),
+          });
+        }
+        outcome = "Rejected — lead dropped, no further contact.";
+      } else {
+        // `sequences.start` resets a stopped row on the next draft, so leaving
+        // this one stopped is safe and keeps follow-ups from firing meanwhile.
+        if (seq && !seq.stopped) {
+          await ctx.db.patch(seq._id, {
+            stopped: true,
+            stopReason: "boss_rejected",
+            nextSendAt: undefined,
+            ...touch(),
+          });
+        }
+        outcome = "Draft rejected — the lead goes back in the queue for a rewrite.";
       }
     }
+
     await clearWaitingIfDone(ctx, row.botKey);
-    return { ok: true };
+    return { ok: true, detail: outcome };
+  },
+});
+
+/**
+ * Notes from drafts previously rejected for a lead, newest first.
+ *
+ * Handed to the next draft attempt. Without it the same objection produces the
+ * same email, the boss rejects it again, and the loop is invisible.
+ */
+export const rejectionNotesForLead = query({
+  args: { leadId: v.id("leads") },
+  handler: async (ctx, { leadId }) => {
+    const rows = alive(
+      await ctx.db.query("approvals").withIndex("by_status", (q) => q.eq("status", "rejected")).collect(),
+    ).filter((a) => a.leadId === leadId && a.kind === "outreach_email" && a.note?.trim());
+    return rows
+      .sort((a, b) => (b.decidedAt ?? b.createdAt) - (a.decidedAt ?? a.createdAt))
+      .slice(0, 3)
+      .map((a) => a.note!.trim());
   },
 });
 

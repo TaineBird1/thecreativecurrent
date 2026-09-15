@@ -210,6 +210,36 @@ async function seedAll(ctx: MutationCtx) {
     report.push(`leads: ${existingLeads.length} already present, left alone`);
   }
 
+  // ── Repair: leads stranded by a rejection ─────────────────────────────
+  //
+  // Rejecting a draft used to leave its blocked email row behind, and
+  // `leads.readyForOutreach` skips any lead that already has an outbound email.
+  // So those leads sat on `qualified` — apparently live — while being invisible
+  // to outreach forever. approvals.reject no longer does this, but leads
+  // rejected before the fix are still stuck. Free them once.
+  const rejectedOutreach = alive(
+    await ctx.db.query("approvals").withIndex("by_status", (q) => q.eq("status", "rejected")).collect(),
+  ).filter((a) => a.kind === "outreach_email" && a.leadId);
+
+  let freed = 0;
+  for (const leadId of new Set(rejectedOutreach.map((a) => a.leadId!))) {
+    const lead = await ctx.db.get(leadId);
+    // A lead deliberately discarded stays discarded — this only rescues the
+    // ones still marked qualified, which is the contradictory state.
+    if (!lead || lead.deletedAt || lead.status !== "qualified") continue;
+    const stale = alive(
+      await ctx.db.query("emails").withIndex("by_lead", (q) => q.eq("leadId", leadId)).collect(),
+    ).filter((e) => e.direction === "out" && e.status === "blocked");
+    if (stale.length === 0) continue;
+    for (const draft of stale) {
+      await ctx.db.patch(draft._id, { deletedAt: Date.now(), updatedAt: Date.now() });
+    }
+    freed += 1;
+  }
+  if (freed > 0) {
+    report.push(`leads: ${freed} freed for a rewrite (were stranded by a rejected draft)`);
+  }
+
   // ── The client record ─────────────────────────────────────────────────
   //
   // This used to seed SMIT Kontrakteurs as a paying client on a R1,100/month
