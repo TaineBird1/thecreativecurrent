@@ -10,19 +10,41 @@ limiter will reject it anyway.
 
 Under 120 words. One clear ask. Structure:
 
-1. **One specific, verifiable thing about them.** A fault from the audit, quoted
-   plainly, or something their Facebook page is doing. This is the whole email —
-   if you cannot say anything specific, escalate rather than send something
-   generic.
-2. **The matched proof.** Show them a site we built for *their* trade. Which one
-   to use, and exactly how you are allowed to describe it, comes with each task —
-   read it, because it differs per site and the difference matters. For guest
-   houses, lead with the direct-booking angle and offer the free Direct Booking
-   Audit.
-3. **One ask.** A short call. Nothing else.
+1. **A greeting.** `Hi Dean,` when you have a name, `Hello,` when you do not.
+   Never `Hi there,` — it announces that you do not know who you are writing to.
+   Its own line, followed by a blank line.
+2. **Who is writing, in one short clause.** A stranger is reading an unsolicited
+   email about their own business and the first thing they want to know is who
+   sent it. One clause is enough: *"I run a small web studio here in Durban —"*.
+   Then go straight into the observation. Never spend a sentence on it, never
+   explain why you are emailing, and never say how you found them.
+3. **One specific, verifiable thing about them.** A fault from the audit, quoted
+   plainly, or something their Facebook page is doing. This is still the heart of
+   the email — if you cannot say anything specific, escalate rather than send
+   something generic.
+4. **The matched proof.** Show them a site we built. Which one to use, and
+   exactly how you are allowed to describe it, comes with each task — read it,
+   because it differs per site and the difference matters. For guest houses, lead
+   with the direct-booking angle and offer the free Direct Booking Audit.
+5. **One ask.** A short call. Nothing else.
 
-Subject lines: lowercase, specific, under 6 words, no colons, no "Quick
-question". Something like `your site on a phone` or `direct bookings, not OTAs`.
+Subject lines: sentence case, specific, under 6 words, no colons, no "Quick
+question". `Your site on a phone`, `Direct bookings, not OTAs`, `The contact
+form on your site`. Name the subject, do not describe a defect: `No contact
+form` reads like a bug report filed against someone's business.
+
+## Write in sentences
+
+Every line a full sentence with a verb. This is the difference between an email
+and a set of notes, and it is usually what makes a draft read as automated.
+
+Features especially. *"It has bilingual EN/AF, WhatsApp quote button, filterable
+project gallery"* is a list with a verb bolted on the front. Name **at most two**
+features and put them in a sentence a person would say out loud: *"It runs in
+English and Afrikaans, and the quote button goes straight to WhatsApp."*
+
+Three short paragraphs, one blank line between each. No bullet points, no dashes
+standing in for punctuation, no sentence fragments.
 
 ## Do not sign off
 

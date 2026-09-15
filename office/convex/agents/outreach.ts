@@ -234,8 +234,10 @@ async function sendFirstTouch(
     return `Skipped ${lead.businessName} — nothing specific to say.`;
   }
 
-  const greeting =
-    lead.contactName && lead.contactName !== NOT_FOUND ? lead.contactName : "there";
+  // No name is not a reason to write "Hi there" — that greeting tells the
+  // reader in three words that whoever sent this does not know who they are.
+  const named = lead.contactName && lead.contactName !== NOT_FOUND ? lead.contactName : null;
+  const greeting = named ? `Hi ${named},` : `Hello,`;
 
   // Why an earlier draft for this lead was turned down. Without this the same
   // objection produces the same email and the rejection loop is invisible.
@@ -246,7 +248,7 @@ async function sendFirstTouch(
   const { safe, restoreOutput } = prepareForLlm(
     [
       `Prospect: ${lead.businessName}, a ${lead.category} in ${lead.suburb}.`,
-      `Greet them as: ${greeting}`,
+      `Open with exactly this greeting, on its own line: ${greeting}`,
       `Tier: ${lead.tier}`,
       lead.hasWebsite ? `They have a website.` : `They have no website.`,
       "",
@@ -543,7 +545,10 @@ function withSignature(body: string): string {
   text = text.replace(new RegExp(`\\n+\\s*(?:${BOT_NAMES.join("|")})\\s*$`, "i"), "");
 
   // POPIA: an opt-out line on every unsolicited message, every time.
-  return `${text.trim()}\n\n—\nTaine\nThe Creative Current · Durban\nthecreativecurrent.co.za\n\nIf you'd rather I didn't email again, just reply "no thanks" and I'll take you off.`;
+  // "Regards," rather than a bare em dash. The dash was doing the job of a
+  // sign-off without being one, which reads as a note rather than a letter —
+  // the same abruptness that made the rest of these emails feel automated.
+  return `${text.trim()}\n\nRegards,\nTaine\nThe Creative Current · Durban\nthecreativecurrent.co.za\n\nIf you'd rather I didn't email again, just reply "no thanks" and I'll take you off.`;
 }
 
 export const runNow = action({
