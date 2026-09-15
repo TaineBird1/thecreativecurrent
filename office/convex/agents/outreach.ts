@@ -64,7 +64,10 @@ interface ProofSite {
 const SITES: Record<"smit" | "champagne", ProofSite> = {
   smit: {
     name: "SMIT Kontrakteurs",
-    url: "https://smit-kontrakteurs-site.vercel.app/",
+    // No trailing slash. With one, a model that ends the sentence normally
+    // produces ".../ ." — a path segment of a single dot, which some clients
+    // pull into the link and break.
+    url: "https://smit-kontrakteurs-site.vercel.app",
     features: "bilingual EN/AF, WhatsApp quote button, filterable project gallery",
     siteFor: "a building contractor",
     kind: "spec",
@@ -75,7 +78,7 @@ const SITES: Record<"smit" | "champagne", ProofSite> = {
     // paying client's own business being described to a stranger, which is the
     // worst possible place to guess.
     name: "Champagne Holidays",
-    url: "https://www.champagneholidays.com/",
+    url: "https://www.champagneholidays.com",
     siteFor: "a ski travel company",
     kind: "client",
   },
@@ -531,6 +534,14 @@ const BOT_NAMES = ["Lerato", "Nomsa", "Thabo", "Sipho", "Anele", "Zanele", "Kagi
 
 function withSignature(body: string): string {
   let text = body.trim();
+
+  // A full stop welded onto the end of a link. The prompt asks for it not to
+  // happen, but this one is deterministic and the cost of it slipping through
+  // is a dead link in the only paragraph whose job is to be clicked, so it is
+  // repaired here too. Only dots directly after a "/" are touched — a URL path
+  // of "/." or "/.." is never what anyone meant, whereas a dot after a real
+  // path segment could be.
+  text = text.replace(/(https?:\/\/[^\s<>"']*\/)\.{1,2}(?=\s|$)/g, "$1");
 
   // The prompt says not to sign off, but a model that does it anyway would put
   // two different names on one email — "Regards, Lerato" above "Taine" — and

@@ -13,15 +13,27 @@ Under 120 words. One clear ask. Structure:
 1. **A greeting.** `Hi Dean,` when you have a name, `Hello,` when you do not.
    Never `Hi there,` — it announces that you do not know who you are writing to.
    Its own line, followed by a blank line.
-2. **Who is writing, in one short clause.** A stranger is reading an unsolicited
-   email about their own business and the first thing they want to know is who
-   sent it. One clause is enough: *"I run a small web studio here in Durban —"*.
-   Then go straight into the observation. Never spend a sentence on it, never
-   explain why you are emailing, and never say how you found them.
+2. **Who is writing, and then what you saw — as two sentences.** A stranger is
+   reading an unsolicited email about their own business and wants to know who
+   sent it. Say so in a short sentence of its own, then a second sentence that
+   introduces the observation:
+
+   > I run a small web studio here in Durban. I had a look at your site this
+   > morning and the homepage takes 7.8 seconds to load on a phone.
+
+   Do **not** join the two with a dash. *"I run a small web studio here in
+   Durban — the homepage takes 7.8 seconds to load"* welds two unrelated
+   thoughts together and reads as a non-sequitur: who you are has nothing to do
+   with their load time, and the dash claims it does. Never explain why you are
+   emailing, and never say how you found them.
 3. **One specific, verifiable thing about them.** A fault from the audit, quoted
    plainly, or something their Facebook page is doing. This is still the heart of
    the email — if you cannot say anything specific, escalate rather than send
    something generic.
+
+   Say whose it is. "The homepage takes 7.8 seconds" could be any homepage on
+   earth; "your homepage" is the one they care about. Name the business at least
+   once somewhere in the email.
 4. **The matched proof.** Show them a site we built. Which one to use, and
    exactly how you are allowed to describe it, comes with each task — read it,
    because it differs per site and the difference matters. For guest houses, lead
@@ -45,6 +57,14 @@ English and Afrikaans, and the quote button goes straight to WhatsApp."*
 
 Three short paragraphs, one blank line between each. No bullet points, no dashes
 standing in for punctuation, no sentence fragments.
+
+**Never put a full stop straight after a link.** Some mail clients swallow the
+dot into the URL and the link breaks. End the sentence on the link and leave it
+bare, or carry on past it with a comma:
+
+> Here's a site we built to show what this can look like: smit-kontrakteurs-site.vercel.app
+
+Never `…vercel.app/.` or `…vercel.app/..`.
 
 ## Do not sign off
 
