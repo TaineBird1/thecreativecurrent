@@ -63,60 +63,91 @@ export const complete = action({
 });
 
 /**
- * Ask each provider which of our model names it will actually answer to.
+ * Ask each provider what models it actually has.
  *
- * Exists because a retired model ID returns a 404 that reads exactly like a
- * bad key, and there is no way to tell them apart without asking. The first
- * real run of this office died that way: both keys perfect, both model names
- * withdrawn, and the only symptom was "Both Gemini and Groq failed".
+ * Exists because I guessed model names wrong twice in a row. A retired name
+ * returns a 404 that reads exactly like a bad key, so the first failure sent
+ * us looking at credentials that were perfect; the second was me substituting
+ * one guess for another. Both providers publish a list endpoint, it costs no
+ * tokens, and it ends the argument.
  *
- * Costs a handful of tiny requests against the daily allowance — a couple of
- * tokens each. It does not touch any bot's budget, because it is not a bot
- * doing work.
+ * Returns what each provider offers, which of our configured names survive
+ * in that list, and — when none do — enough for a human to pick the
+ * replacement from real names rather than from memory.
  */
-export const probeModels = action({
+export const listModels = action({
   args: {},
-  handler: async (
-    ctx,
-  ): Promise<{ provider: string; model: string; ok: boolean; note: string }[]> => {
-    const halt = await ctx.runQuery(api.settings.haltState, {});
-    if (halt.halted) {
-      return [{ provider: "—", model: "—", ok: false, note: "STOP is engaged; nothing was called." }];
-    }
-
-    const out: { provider: string; model: string; ok: boolean; note: string }[] = [];
+  handler: async (): Promise<
+    {
+      provider: string;
+      available: string[];
+      configured: string[];
+      usable: string[];
+      error?: string;
+    }[]
+  > => {
+    const out: {
+      provider: string;
+      available: string[];
+      configured: string[];
+      usable: string[];
+      error?: string;
+    }[] = [];
 
     for (const provider of ["gemini", "groq"] as ProviderName[]) {
       const apiKey = provider === "gemini" ? process.env.GEMINI_API_KEY : process.env.GROQ_API_KEY;
+      const configured = [
+        ...new Set([...MODELS[provider].reasoning, ...MODELS[provider].cheap]),
+      ];
+
       if (!apiKey) {
-        out.push({ provider, model: "—", ok: false, note: "No API key set in Convex." });
+        out.push({ provider, available: [], configured, usable: [], error: "No API key set in Convex." });
         continue;
       }
 
-      const tried = new Set<string>();
-      for (const tier of ["reasoning", "cheap"] as const) {
-        for (const model of MODELS[provider][tier]) {
-          if (tried.has(model)) continue;
-          tried.add(model);
-          try {
-            const call = provider === "gemini" ? callGemini : callGroq;
-            await call({
-              system: "Answer with the single word OK.",
-              user: "Say OK.",
-              model,
-              json: false,
-              temperature: 0,
-              maxOutputTokens: 16,
-              apiKey,
-            });
-            out.push({ provider, model, ok: true, note: "answers" });
-          } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            out.push({ provider, model, ok: false, note: message.slice(0, 180) });
-          }
+      try {
+        let available: string[] = [];
+
+        if (provider === "gemini") {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(apiKey)}`,
+          );
+          if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 200)}`);
+          const data = (await res.json()) as {
+            models?: { name?: string; supportedGenerationMethods?: string[] }[];
+          };
+          available = (data.models ?? [])
+            // Only models we could actually send a prompt to.
+            .filter((m) => (m.supportedGenerationMethods ?? []).includes("generateContent"))
+            .map((m) => (m.name ?? "").replace(/^models\//, ""))
+            .filter(Boolean);
+        } else {
+          const res = await fetch("https://api.groq.com/openai/v1/models", {
+            headers: { authorization: `Bearer ${apiKey}` },
+          });
+          if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 200)}`);
+          const data = (await res.json()) as { data?: { id?: string }[] };
+          available = (data.data ?? []).map((m) => m.id ?? "").filter(Boolean);
         }
+
+        available.sort();
+        out.push({
+          provider,
+          available,
+          configured,
+          usable: configured.filter((m) => available.includes(m)),
+        });
+      } catch (err) {
+        out.push({
+          provider,
+          available: [],
+          configured,
+          usable: [],
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
+
     return out;
   },
 });

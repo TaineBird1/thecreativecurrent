@@ -20,7 +20,7 @@ export default function SettingsPage() {
   const bots = useQuery(api.bots.list);
   const update = useMutation(api.settings.update);
   const sendTest = useAction(api.outbound.sendTest);
-  const probeModels = useAction(api.llm.probeModels);
+  const listModels = useAction(api.llm.listModels);
 
   const [form, setForm] = useState({
     senderEmail: "",
@@ -35,7 +35,7 @@ export default function SettingsPage() {
   const [testTo, setTestTo] = useState("");
   const [testResult, setTestResult] = useState("");
   const [models, setModels] = useState<
-    { provider: string; model: string; ok: boolean; note: string }[] | null
+    { provider: string; available: string[]; configured: string[]; usable: string[]; error?: string }[] | null
   >(null);
   const [probing, setProbing] = useState(false);
 
@@ -180,8 +180,8 @@ export default function SettingsPage() {
           <div className="mt-4 border-t border-edge pt-4">
             <p className="mb-2 text-xs leading-relaxed text-faint">
               Providers retire model names without warning, and a retired name returns the same 404
-              as a bad key. This asks each provider which of our names it will actually answer to.
-              Costs a handful of tiny requests and touches no bot&apos;s budget.
+              as a bad key. This asks each provider what it actually offers your key. Free — it
+              lists models, it doesn&apos;t run any.
             </p>
             <Button
               disabled={probing}
@@ -189,34 +189,67 @@ export default function SettingsPage() {
                 setProbing(true);
                 setModels(null);
                 try {
-                  setModels(await probeModels({}));
+                  setModels(await listModels({}));
                 } finally {
                   setProbing(false);
                 }
               }}
             >
-              {probing ? "Asking…" : "Check which models work"}
+              {probing ? "Asking…" : "What models can I use?"}
             </Button>
 
-            {models && (
-              <div className="mt-3 space-y-1">
-                {models.map((m, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-2 rounded-lg border border-edge bg-panel-2/40 px-3 py-1.5 text-[11px]"
-                  >
-                    <Pill tone={m.ok ? "good" : "bad"}>{m.ok ? "works" : "no"}</Pill>
-                    <code className="shrink-0 text-cream">{m.model}</code>
-                    <span className="min-w-0 flex-1 text-faint">{m.note}</span>
-                  </div>
-                ))}
-                <p className="pt-1 text-[11px] text-faint">
-                  The first name marked <span className="text-lime">works</span> for each provider is
-                  the one in use. If none do, the names in{" "}
-                  <code className="text-lamp">packages/shared/llm/models.ts</code> need updating.
-                </p>
+            {models?.map((m) => (
+              <div key={m.provider} className="mt-3 rounded-lg border border-edge bg-panel-2/40 p-3">
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="text-xs font-semibold capitalize text-cream">{m.provider}</span>
+                  {m.error ? (
+                    <Pill tone="bad">couldn&apos;t ask</Pill>
+                  ) : m.usable.length > 0 ? (
+                    <Pill tone="good">
+                      using {m.usable[0]}
+                    </Pill>
+                  ) : (
+                    <Pill tone="bad">none of our names exist</Pill>
+                  )}
+                </div>
+
+                {m.error && <p className="text-[11px] leading-relaxed text-rust">{m.error}</p>}
+
+                {!m.error && m.usable.length === 0 && (
+                  <p className="mb-2 text-[11px] leading-relaxed text-lamp">
+                    Nothing in{" "}
+                    <code className="text-cream">packages/shared/llm/models.ts</code> matches what
+                    this provider offers. Pick from the list below and tell me which — that file
+                    needs updating.
+                  </p>
+                )}
+
+                {!m.error && (
+                  <>
+                    <p className="mb-1 text-[11px] text-faint">
+                      {m.available.length} model{m.available.length === 1 ? "" : "s"} available to
+                      your key:
+                    </p>
+                    <div className="thin-scroll max-h-44 overflow-y-auto">
+                      <div className="flex flex-wrap gap-1">
+                        {m.available.map((name) => (
+                          <code
+                            key={name}
+                            className={`rounded px-1.5 py-0.5 text-[10.5px] ${
+                              m.configured.includes(name)
+                                ? "bg-lime/15 text-lime"
+                                : "bg-edge text-muted"
+                            }`}
+                          >
+                            {name}
+                          </code>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+            ))}
           </div>
         </Card>
 
