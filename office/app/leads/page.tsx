@@ -454,11 +454,17 @@ function Field({
   hint,
 }: {
   label: string;
-  value: string;
+  /**
+   * Optional because `leads.contactName` is. Every other contact column is a
+   * required string carrying the literal "not_found" when nothing was found —
+   * this one column is genuinely absent instead, and both mean the same thing
+   * to a reader, so both render as "not found".
+   */
+  value: string | undefined;
   href?: string;
   hint?: string;
 }) {
-  const missing = value === "not_found";
+  const missing = !value || value === "not_found";
   return (
     <div>
       <dt className="text-[11px] text-faint">{label}</dt>
