@@ -12,6 +12,26 @@ import { Button, Pill, relativeTime } from "./ui";
  * The prompt is editable here and an edit is permanent — re-seeding will not
  * overwrite it. "Reset to the file" is the way back.
  */
+
+/**
+ * What a useful instruction looks like for each bot.
+ *
+ * One placeholder — "find me roofers in Pinetown" — used to sit under all nine
+ * boxes, including Nomsa's, whose job is the opposite: she takes a goal and
+ * decides who does what. An example is the strongest instruction on a screen,
+ * so the wrong one does not sit there harmlessly, it teaches.
+ */
+const EXAMPLE_INSTRUCTION: Record<string, string> = {
+  orchestrator: `e.g. "get 5 discovery calls booked with construction companies in Durban this month"`,
+  strategy: `e.g. "what are other Durban web studios charging trades for a care plan?"`,
+  leadgen: `e.g. "find me roofers in Pinetown"`,
+  outreach: `e.g. "write to the Hillcrest plumbers first, they're the best scores"`,
+  proposal: `e.g. "draft a proposal from my call notes with Blessing at Shawane"`,
+  content: `e.g. "write a LinkedIn post about why trades sites lose enquiries"`,
+  seo: `e.g. "audit thecreativecurrent.co.za for on-page problems"`,
+  design: `e.g. "a thumbnail for a post about slow websites losing quote requests"`,
+  clientsuccess: `e.g. "write this month's health check for Champagne Holidays"`,
+};
 export function DeskDrawer({ botKey, onClose }: { botKey: string; onClose: () => void }) {
   const bot = useQuery(api.bots.byKey, { key: botKey });
   const runs = useQuery(api.runs.recentForBot, { botKey, limit: 50 });
@@ -169,7 +189,7 @@ export function DeskDrawer({ botKey, onClose }: { botKey: string; onClose: () =>
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={3}
-                  placeholder={`e.g. "find me roofers in Pinetown"`}
+                  placeholder={EXAMPLE_INSTRUCTION[bot.key] ?? `e.g. "find me roofers in Pinetown"`}
                   className="w-full rounded-lg border border-edge bg-ink px-3 py-2 text-xs outline-none focus:border-lamp"
                 />
                 <div className="mt-2 flex items-center gap-2">
