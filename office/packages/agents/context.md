@@ -75,8 +75,13 @@ phones the business you named and finds they've never heard of us has learned
 something about us that no later email undoes.
 
 - **SMIT Kontrakteurs** — *spec build.* Building contractor site, Garden Route.
-  Bilingual EN/AF, WhatsApp quote button, filterable project gallery, Terraforce
-  trust section. Use for every construction and trades prospect.
+  <https://smit-kontrakteurs-site.vercel.app/> Bilingual EN/AF, WhatsApp quote
+  button, filterable project gallery, Terraforce trust section. Use for every
+  construction and trades prospect.
+- **Champagne Holidays** — *client build.* <https://www.champagneholidays.com/>
+  A real, paying client. Use for guest houses and B&Bs. No feature list here
+  yet, so link it and say it is guest-house work we built — do not describe its
+  booking system, gallery or pages until this line says what they are.
 - **Renu Solar** — *spec build.* Solar installer site, Hillcrest, Durban.
   Savings calculator, quote form, project gallery. Use for solar.
 - **J&B Auto Spares & Towing** — *spec build.* Auto site, George. EN/AF toggle,

@@ -49,8 +49,15 @@ const PROOF: Record<
   {
     name: string;
     url: string;
-    /** What is actually on the site. Features, not outcomes. */
-    features: string;
+    /**
+     * What is actually on the site. Features, not outcomes.
+     *
+     * Optional, and left out rather than filled in from a guess. A model handed
+     * a site with no feature list will happily describe a booking engine that
+     * isn't there; on a real client's site that is a claim made about someone
+     * else's business to a stranger. Absent means absent — see proofInstruction.
+     */
+    features?: string;
     /** The kind of business the site is for, as a bare noun phrase. */
     siteFor: string;
     kind: "spec" | "client";
@@ -58,7 +65,7 @@ const PROOF: Record<
 > = {
   1: {
     name: "SMIT Kontrakteurs",
-    url: "smitkontrakteurs.co.za",
+    url: "https://smit-kontrakteurs-site.vercel.app/",
     features: "bilingual EN/AF, WhatsApp quote button, filterable project gallery",
     siteFor: "a building contractor",
     kind: "spec",
@@ -71,11 +78,15 @@ const PROOF: Record<
     kind: "spec",
   },
   3: {
-    name: "a guest lodge direct-booking site",
-    url: "thecreativecurrent.co.za",
-    features: "built so guests book direct instead of through the OTAs",
+    // The first real client build in this table. Tier 3's proof used to be a
+    // placeholder pointing at our own domain, because there was no guest-house
+    // work to show. `features` is deliberately absent until someone who has
+    // actually opened the site fills it in — this is a client's own business
+    // being described to a stranger, which is the worst place to guess.
+    name: "Champagne Holidays",
+    url: "https://www.champagneholidays.com/",
     siteFor: "a guest house",
-    kind: "spec",
+    kind: "client",
   },
 };
 
@@ -85,19 +96,29 @@ const PROOF: Record<
  * phrasing available to the model that does.
  */
 function proofInstruction(proof: (typeof PROOF)[1 | 2 | 3]): string {
-  const head = `Proof to reference: ${proof.name} — ${proof.url}. What is on it: ${proof.features}.`;
+  const head = proof.features
+    ? `Proof to reference: ${proof.name} — ${proof.url}. What is on it: ${proof.features}.`
+    : [
+        `Proof to reference: ${proof.name} — ${proof.url}.`,
+        `You do NOT know what is on this site. No feature list was given to you, which means there isn't one — not that you should supply your own.`,
+        `Link it and say what trade it is for. Do not describe its pages, its booking system, its gallery, its forms, or anything else it may or may not have. Naming a feature you were not told about is inventing one.`,
+      ].join("\n");
   if (proof.kind === "client") {
     return [
       head,
       `${proof.name} is a real client of ours. You may say we built it for them, and you may name them.`,
-      `Example: "We built ${proof.url} for ${proof.siteFor} — ${proof.features}."`,
+      proof.features
+        ? `Example: "We built ${proof.url} for ${proof.siteFor} — ${proof.features}."`
+        : `Example: "We built ${proof.url} for ${proof.siteFor}." Nothing beyond that.`,
     ].join("\n");
   }
   return [
     head,
     `IMPORTANT — ${proof.name} is NOT a client. Nobody commissioned this site. We designed and published it ourselves to show what we do for this trade.`,
     `So: do not say we built it FOR them or for anyone. Do not call them a client, a customer, or someone we work with. Do not say they came to us, hired us, or asked us for anything. The word "for" followed by a person or business is the trap.`,
-    `Introduce it as our own work and nothing more. Good: "Here's a site we built to show what this can look like — ${proof.url}. It has ${proof.features}." Also good: "We put ${proof.url} together as an example for the trade."`,
+    proof.features
+      ? `Introduce it as our own work and nothing more. Good: "Here's a site we built to show what this can look like — ${proof.url}. It has ${proof.features}." Also good: "We put ${proof.url} together as an example for the trade."`
+      : `Introduce it as our own work and nothing more, without describing what is on it. Good: "Here's a site we built to show what this can look like — ${proof.url}."`,
     `If you cannot reference it without implying someone hired us, leave the proof out entirely and write a shorter email.`,
   ].join("\n");
 }
