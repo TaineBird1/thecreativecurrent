@@ -260,11 +260,18 @@ async function seedAll(ctx: MutationCtx) {
   const existingClients = alive(await ctx.db.query("clients").collect());
 
   // Retire the fabricated SMIT row if a previous seed created it. Soft delete,
-  // per the house rule — narrowly matched so a real client of the same name
-  // would never be touched.
-  const seededSmit = existingClients.find(
-    (c) => c.businessName === "SMIT Kontrakteurs" && c.siteUrl.includes("smitkontrakteurs.co.za"),
-  );
+  // per the house rule.
+  //
+  // Matched on either the name or the URL, not both. The first version required
+  // both to match exactly and quietly matched nothing, which looks identical in
+  // the output to there being nothing to do — the report below exists so the
+  // two can never be confused again.
+  const looksLikeSmit = (c: { businessName: string; siteUrl: string }) => {
+    const name = c.businessName.trim().toLowerCase();
+    const url = c.siteUrl.trim().toLowerCase();
+    return name.includes("smit kontrakteurs") || url.includes("smitkontrakteurs");
+  };
+  const seededSmit = existingClients.find(looksLikeSmit);
   if (seededSmit) {
     await ctx.db.patch(seededSmit._id, { deletedAt: Date.now(), updatedAt: Date.now() });
     // The sample change request hung off that client. Left alone it outlives the
@@ -301,7 +308,12 @@ async function seedAll(ctx: MutationCtx) {
     });
     report.push("clients: Champagne Holidays added (fee and email left unset on purpose)");
   } else {
-    report.push(`clients: ${remaining.length} already present, left alone`);
+    // Name them. "1 already present, left alone" is the same sentence whether
+    // the row is the real client or the fabricated sample this seed was meant
+    // to retire, and that ambiguity already cost a round trip.
+    report.push(
+      `clients: left alone — ${remaining.map((c) => c.businessName).join(", ")}`,
+    );
   }
 
   return report;
