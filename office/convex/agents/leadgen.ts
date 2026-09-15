@@ -57,6 +57,28 @@ export const run = internalAction({
       ctx,
       { botKey: "leadgen", trigger: trigger ?? "cron", bubble: "Looking for new leads" },
       async (handle) => {
+        // Hand him a link and he looks at that business. Anything else and he
+        // takes it as a steer on where to search. Shrugging at a URL and doing
+        // the day's rotation instead is technically obedient and practically
+        // useless — a link is not ambiguous.
+        const link = handle.task ? /https?:\/\/\S+/.exec(handle.task.detail)?.[0] : undefined;
+        if (link) {
+          await handle.say(`Checking ${hostOf(link)}`);
+          const verdict = await processCandidate(ctx, {
+            url: link,
+            sourceId: "manual",
+            tierHint: 1,
+            categoryHint: "",
+            location: "",
+            runId: handle.runId,
+          });
+          return verdict === "added"
+            ? `Checked ${hostOf(link)} — enriched, audited, and on the list.`
+            : verdict === "discarded"
+              ? `Checked ${hostOf(link)} and discarded it. The reason is on the lead.`
+              : `${hostOf(link)} is already on the list — nothing to add.`;
+        }
+
         // What Taine typed beats the rotation. "Focus on roofers in Pinetown"
         // has to change where Sipho actually looks, not just sit in a list.
         const steer = handle.task ? await readInstruction(ctx, handle.task.detail, handle.runId) : null;
@@ -372,6 +394,10 @@ async function readInstruction(
   instruction: string,
   runId: string,
 ): Promise<{ tier: 1 | 2 | 3; category: string; location: string } | null> {
+  // Nothing to search for in a bare link, and the caller has already dealt
+  // with those — don't spend a request establishing that.
+  if (/https?:\/\//.test(instruction) && instruction.trim().split(/\s+/).length <= 2) return null;
+
   const text = instruction.toLowerCase();
 
   const location = LOCATIONS.find((l) => text.includes(l.toLowerCase()));
@@ -507,6 +533,10 @@ function guessOwnWebsite(page: { html: string; finalUrl: string }, sourceUrl: st
       : NOT_FOUND;
   }
   return candidates[0];
+}
+
+function hostOf(url: string): string {
+  return extractDomain(url) ?? url;
 }
 
 function guessSuburb(text: string, fallback: string): string {
