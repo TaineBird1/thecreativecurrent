@@ -172,10 +172,18 @@ export async function route(deps: RouterDeps, req: LlmRequest): Promise<LlmResul
           continue;
         }
 
-        // A 429 from Gemini is exactly the case the whole fallback exists for.
         // Do not burn the remaining attempts on a provider that just told us to
-        // go away — hand straight over to Groq.
-        if (rateLimited && provider === "gemini") break;
+        // go away. For Gemini this is the case the whole fallback exists for;
+        // for Groq the same logic applies and did not use to — it retried three
+        // times in a row, all three came back 429, and the only thing those two
+        // extra calls bought was a deeper hole in an already-spent quota.
+        //
+        // A Retry-After short enough to be worth waiting out is the exception,
+        // since that is the provider telling us exactly when it will say yes.
+        if (rateLimited) {
+          const retryAfterMs = (err as RateLimitedError).retryAfterMs;
+          if (!retryAfterMs || retryAfterMs > MAX_BUCKET_WAIT_MS) break;
+        }
 
         // A 4xx that is not a 429 will not fix itself on retry.
         if (!rateLimited && /\b4\d\d\b/.test(message) && !/\b429\b/.test(message)) break;
@@ -187,7 +195,11 @@ export async function route(deps: RouterDeps, req: LlmRequest): Promise<LlmResul
     }
   }
 
-  throw new AllProvidersFailedError(failures.join(" | "));
+  // Everything refused, but "everything is busy" and "everything is broken"
+  // are different situations and the bot should say which one it met.
+  const everyFailureWasRateLimiting =
+    failures.length > 0 && failures.every((f) => /\b429\b|rate limit/i.test(f));
+  throw new AllProvidersFailedError(failures.join(" | "), everyFailureWasRateLimiting);
 }
 
 /** Exponential backoff with full jitter, honouring Retry-After when given. */

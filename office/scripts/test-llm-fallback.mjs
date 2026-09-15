@@ -167,6 +167,45 @@ await test("both providers down throws AllProvidersFailedError, and every attemp
   assert.ok(logs.every((l) => l.status === "error"));
 });
 
+await test("every provider rate limited is reported as busy, not as broken", async () => {
+  // The state the office actually reached: both free tiers spent. It threw
+  // AllProvidersFailedError, so the bot went into a red error state with an
+  // escalation and a failed task — none of which is true. Quota resets on its
+  // own; there is nothing for a human to do but wait.
+  const { deps, logs } = makeDeps({
+    callGemini: async () => { throw new RateLimitedError("gemini"); },
+    callGroq: async () => { throw new RateLimitedError("groq"); },
+  });
+  await assert.rejects(
+    () => route(deps, req),
+    (err) => {
+      assert.equal(err.name, "AllProvidersRateLimitedError", `got ${err.name}`);
+      assert.equal(err.rateLimited, true);
+      assert.match(err.message, /rate limited/i);
+      return true;
+    },
+  );
+  // One attempt each. Retrying a provider that just said 429 only digs deeper
+  // into a quota that is already gone.
+  assert.equal(logs.length, 2, `expected 1 attempt per provider, got ${logs.length}`);
+  assert.ok(logs.every((l) => l.status === "rate_limited"));
+});
+
+await test("a genuine outage is still reported as a failure, not as busy", async () => {
+  const { deps } = makeDeps({
+    callGemini: async () => { throw new Error("Gemini 503"); },
+    callGroq: async () => { throw new Error("Groq 503"); },
+  });
+  await assert.rejects(
+    () => route(deps, req),
+    (err) => {
+      assert.equal(err.name, "AllProvidersFailedError", `got ${err.name}`);
+      assert.equal(err.rateLimited, false);
+      return true;
+    },
+  );
+});
+
 await test("daily budget is checked before any network call", async () => {
   let called = false;
   const { deps } = makeDeps({

@@ -124,7 +124,12 @@ export async function withRun(
     if (claimed) {
       await ctx.runMutation(internal.tasks.setStatus, {
         id: claimed.id,
-        status: name === "BudgetExceededError" || name === "HaltedError" ? "todo" : "failed",
+        status:
+          name === "BudgetExceededError" ||
+          name === "HaltedError" ||
+          name === "AllProvidersRateLimitedError"
+            ? "todo"
+            : "failed",
         error: message,
       });
     }
@@ -140,6 +145,26 @@ export async function withRun(
         key: opts.botKey,
         status: "blocked",
         currentTask: "Out of LLM budget today",
+        lastError: message,
+      });
+      return { ok: false, summary: message };
+    }
+
+    if (name === "AllProvidersRateLimitedError") {
+      // Both free tiers are spent. Not a fault, and not something a human can
+      // act on — the window resets on its own. Treated like the budget case:
+      // visible, self-clearing, task handed back rather than failed, and no
+      // escalation, because there is nothing in the Boss inbox he could do
+      // about Google's quota except wait.
+      await ctx.runMutation(internal.runs.finish, {
+        id: runId,
+        status: "budget_exceeded",
+        summary: message,
+      });
+      await ctx.runMutation(internal.bots.setStatus, {
+        key: opts.botKey,
+        status: "blocked",
+        currentTask: "Waiting — free tier is busy",
         lastError: message,
       });
       return { ok: false, summary: message };

@@ -44,9 +44,25 @@ export class BudgetExceededError extends Error {
 }
 
 export class AllProvidersFailedError extends Error {
-  constructor(public detail: string) {
-    super(`Both Gemini and Groq failed. ${detail}`);
-    this.name = "AllProvidersFailedError";
+  constructor(
+    public detail: string,
+    /**
+     * True when every provider refused with a 429 rather than breaking.
+     *
+     * Worth distinguishing because the two need opposite responses. A real
+     * failure is a bug to look at; running out of free quota is Tuesday — it
+     * fixes itself when the window resets, and reporting it as a crash puts the
+     * bot in a red error state, raises an escalation, and fails the task, none
+     * of which is true or useful.
+     */
+    public rateLimited = false,
+  ) {
+    super(
+      rateLimited
+        ? `Both Gemini and Groq are rate limited right now. ${detail}`
+        : `Both Gemini and Groq failed. ${detail}`,
+    );
+    this.name = rateLimited ? "AllProvidersRateLimitedError" : "AllProvidersFailedError";
   }
 }
 
