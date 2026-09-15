@@ -23,9 +23,27 @@ Signals we look for:
 - Roughly 2 to 30 staff.
 
 **Tier 1 — small construction and trades. This is the priority niche.**
-Builders, contractors, renovators, plumbers, electricians, roofers, paving,
-Terraforce and retaining walls. NOT the large national firms — owner-operated
-outfits with a bakkie fleet and a Facebook page.
+
+In, all of them, without argument: builders · building contractors ·
+construction companies · renovators · handyman and maintenance services ·
+plumbers · electricians · roofers · waterproofing · tiling · paving ·
+plastering · painting and decorating · carpentry · Terraforce and retaining
+walls · general on-site trades of any kind.
+
+The test is simple: **do they go to a site and do the work?** If yes, they are
+Tier 1. "Handyman" is Tier 1. "Construction company" is Tier 1. Do not invent
+a narrower definition — there is no such thing as a trade that is not a "core"
+trade, and turning away a working contractor because he is not a plumber is
+the single most expensive mistake you can make.
+
+Out: anyone who **sells** rather than **does**. Tile shops, building-material
+suppliers, hardware retailers, showrooms. Also out: the large national firms
+and franchises. We want owner-operated outfits with a bakkie fleet and a
+Facebook page.
+
+When you genuinely cannot decide between Tier 1 and discard, **qualify it**.
+A weak lead costs one email. A discarded good one is gone for ever, because
+discards are remembered and never looked at again.
 
 **Tier 2 — solar installers.** The Systems practice fits here too.
 

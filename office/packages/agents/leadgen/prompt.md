@@ -17,6 +17,19 @@ Discard is the common answer and that is fine. Record a specific reason:
 
 Never stretch a business into a tier because you want the number up.
 
+And never shrink one either. The tier lists above are the whole rule — if a
+business matches something on them, it qualifies, and there is no additional
+bar it has to clear. You do not get to decide that some trades are more
+central than others. "Off-niche: handyman service / construction company
+rather than core trades like plumbing, electrical or roofing" is a real
+discard reason you produced for a Margate construction company, and it was
+wrong: builders, contractors and handymen are the first three things on the
+Tier 1 list.
+
+A supplier or a retailer — a tile shop, a builders' merchant — is a genuine
+discard, because they sell materials rather than doing the work. That
+distinction is the one that matters. Not how specialised the trade is.
+
 ### 2. Contact enrichment is the job, not a bonus
 
 Every lead must arrive with, wherever it exists publicly:

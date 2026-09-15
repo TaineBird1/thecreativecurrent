@@ -254,14 +254,20 @@ async function scrapeMaps(payload) {
             .map((a) => a.href)
             .find((h) => !/^https?:\/\/[^/]*google\.[a-z.]+\//i.test(h)) || null;
 
-        const text = (card.innerText || "").replace(/\s+/g, " ").trim();
+        // Keep the card's own line breaks as separators. Flattening them was
+        // how "23 Marine Dr" and "Open · Closes 4:30 pm" and a phone number
+        // ended up as one address.
+        const lines = (card.innerText || "")
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean);
         out.push({
           name,
           website,
           mapsUrl: placeLink.href,
-          // Raw card text: the address and phone are in here, and Convex
-          // already has tested extractors for both. No point writing them twice.
-          cardText: text.slice(0, 400),
+          // Convex already has tested extractors for phone and address; this
+          // just hands them something separable.
+          cardText: lines.join(" | ").slice(0, 400),
         });
       }
       return out;

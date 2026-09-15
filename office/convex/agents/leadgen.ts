@@ -21,6 +21,7 @@ import { parseJson } from "../../packages/shared/llm/router";
 import { fetchPage, stripTags, title as pageTitle, emails as findEmails, links } from "../../packages/shared/tools/html";
 import {
   NOT_FOUND,
+  addressFromCard,
   dedupeKey as makeDedupeKey,
   extractDomain,
   findNumbers,
@@ -346,7 +347,10 @@ async function processBusiness(
     }
   }
 
-  const { safe } = prepareForLlm(`${cardText}\n\n${siteText}`.slice(0, 6000), [biz.name]);
+  const { safe, restoreOutput } = prepareForLlm(
+    `${cardText}\n\n${siteText}`.slice(0, 6000),
+    [biz.name],
+  );
   const judgement = await judge(ctx, {
     businessName: biz.name,
     hasWebsite,
@@ -356,6 +360,11 @@ async function processBusiness(
     safeText: safe,
     runId: args.runId,
   });
+
+  // The model only ever saw tokens, so anything it echoes back carries them.
+  // A lead whose contact is called "«PERSON_1»" is the guard working and the
+  // caller forgetting to finish the job.
+  restoreJudgement(judgement, restoreOutput);
 
   const reachableChannels = [mobile, landline, emailGuess.email, facebookUrl].filter(
     (f) => f && f !== NOT_FOUND,
@@ -372,7 +381,10 @@ async function processBusiness(
     emailStatus: emailGuess.status,
     facebookUrl,
     websiteUrl,
-    address: guessAddress(cardText) !== NOT_FOUND ? guessAddress(cardText) : guessAddress(siteText),
+    // The Maps card is line-separated, so it gets the card-aware reader; the
+    // website is prose, so it gets the prose one.
+    address:
+      addressFromCard(cardText) !== NOT_FOUND ? addressFromCard(cardText) : guessAddress(siteText),
     suburb,
     hasWebsite,
     faults: faults.length > 0 ? faults : judgement.faults,
@@ -482,7 +494,7 @@ async function processCandidate(
   }
 
   // ── Judgement, on pseudonymised text ──────────────────────────────────────
-  const { safe } = prepareForLlm(text.slice(0, 6000), [businessName]);
+  const { safe, restoreOutput } = prepareForLlm(text.slice(0, 6000), [businessName]);
   const judgement = await judge(ctx, {
     businessName,
     hasWebsite,
@@ -492,6 +504,8 @@ async function processCandidate(
     safeText: safe,
     runId: args.runId,
   });
+
+  restoreJudgement(judgement, restoreOutput);
 
   const reachableChannels = [mobile, landline, emailGuess.email, facebookUrl].filter(
     (f) => f && f !== NOT_FOUND,
@@ -568,6 +582,15 @@ async function processCandidate(
   }
 
   return score >= QUALIFY_FLOOR ? "added" : "discarded";
+}
+
+/** Put the real names back into whatever the model handed us. */
+function restoreJudgement(j: Judgement, restore: (s: string) => string): void {
+  j.contactName = restore(j.contactName);
+  j.category = restore(j.category);
+  j.discardReason = j.discardReason ? restore(j.discardReason) : null;
+  j.facebookActivity = j.facebookActivity ? restore(j.facebookActivity) : null;
+  j.faults = j.faults.map((f) => ({ ...f, detail: restore(f.detail) }));
 }
 
 async function judge(

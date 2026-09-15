@@ -131,3 +131,31 @@ export function isReachable(lead: {
     (f) => f && f !== NOT_FOUND,
   );
 }
+
+/**
+ * Pick the address out of a Google Maps result card.
+ *
+ * The card is a pile of unrelated lines — rating, category, address, opening
+ * hours, phone, "Wheelchair accessible". Flattened together they produced
+ * addresses like "23 Marine Dr Open · Closes 4:30 pm · 083 491 5516", which is
+ * not something you can put in an email. Pick the one line that looks like a
+ * street address and leave the rest alone.
+ */
+export function addressFromCard(cardText: string): string {
+  const lines = cardText.split("|").map((l) => l.trim()).filter(Boolean);
+
+  const isNotAddress = (l: string) =>
+    /^(open|closed|opens|closes|temporarily|permanently|·)/i.test(l) ||
+    /closes \d|opens \d|⋅|24 hours/i.test(l) ||
+    /^\d+(\.\d+)?\(\d+\)$/.test(l) || // "4.9(12)"
+    /^(?:\+27|0)(?:[\s.-]?\d){8,9}$/.test(l.replace(/\s/g, "")) ||
+    /wheelchair|on[- ]site services|online estimates|delivery|in-store/i.test(l);
+
+  const looksLikeAddress = (l: string) =>
+    /\b(street|st|road|rd|ave|avenue|drive|dr|crescent|cres|lane|close|way|boulevard|blvd|highway|hwy|park|centre|center|mall|plaza|unit|shop|erf|plot)\b/i.test(
+      l,
+    ) || /^\d{1,5}[a-z]?\s+[A-Z]/.test(l);
+
+  const match = lines.find((l) => !isNotAddress(l) && looksLikeAddress(l));
+  return match ? match.replace(/\s+/g, " ").trim() : NOT_FOUND;
+}
