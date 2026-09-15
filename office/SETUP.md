@@ -218,17 +218,52 @@ pnpm build
 
 That produces `out/`. Then either:
 
+**Before you start:** `convex/_generated` must be committed. The build machine
+has no Convex credentials, so it cannot produce those files itself — `npx convex
+codegen` refuses without a configured deployment, and the local stub types every
+`api.*` call as `any`, which `next build` rejects. Run `npx convex dev` once to
+generate the real files, then commit them. `pnpm check:generated` fails if they
+are missing or if the stub has been committed in their place.
+
 **Cloudflare Pages** (recommended — better free tier, no commercial-use clause):
 
 1. https://dash.cloudflare.com → Workers & Pages → Create → Pages → Connect to Git
-2. Build command: `pnpm build` · Output directory: `out`
-3. Environment variable: `NEXT_PUBLIC_CONVEX_URL` = your **production** Convex
-   URL (from `npx convex deploy` output, not the dev one)
+2. Pick the repo and the branch you want deployed
+3. **Root directory: `office`** — this repo also holds the marketing site, and
+   without this the build runs in the wrong place and finds no Next app
+4. Build command: `pnpm build` · Output directory: `out`
+5. Environment variable: `NEXT_PUBLIC_CONVEX_URL` — whichever deployment you
+   want it talking to. Pointing at your dev deployment keeps the data you
+   already have; `npx convex deploy` makes a production one, which starts empty
+   with no API keys set
 
 **GitHub Pages**: push `out/` to a `gh-pages` branch, or use the Pages action.
 
-Note the office is a private app behind a passcode — but it will be on a public
-URL. That is exactly why `OFFICE_PASSCODE` matters. Don't skip it.
+### The passcode is not an API lock — read this before going public
+
+`Gate.tsx` keeps a stranger out of the UI and fails closed, so `OFFICE_PASSCODE`
+is not optional. But it is a lock on the front door only.
+
+`NEXT_PUBLIC_CONVEX_URL` ships inside the JavaScript bundle of a public page,
+and the Convex functions do not check the session token themselves. Anyone who
+can load the site can read that URL out of the bundle and then call functions
+directly — every lead, every prospect email, the settings, even a send —
+without ever seeing the passcode screen.
+
+On localhost that does not matter. On a public URL it does. Two ways to close
+it, and you want one of them:
+
+- **Cloudflare Access** in front of the Pages project (free up to 50 users).
+  Email one-time-PIN at the edge, so a stranger never receives the bundle and
+  never learns the Convex URL. Ten minutes, and enough for a single-operator
+  back office.
+- **Per-function auth** — every query and mutation takes and verifies the
+  session token. The real answer if this ever holds anything you would be
+  embarrassed to leak.
+
+Setting up Access: Cloudflare dashboard → Zero Trust → Access → Applications →
+Add an application → Self-hosted → point it at the Pages domain → policy
+"Allow" with Include → Emails → your address → Login method: One-time PIN.
 
 ---
 
