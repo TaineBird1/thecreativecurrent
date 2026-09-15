@@ -47,15 +47,22 @@ const MAX_PER_RUN = 3;
 interface ProofSite {
   name: string;
   url: string;
-    /**
-     * What is actually on the site. Features, not outcomes.
-     *
-     * Optional, and left out rather than filled in from a guess. A model handed
-     * a site with no feature list will happily describe a booking engine that
-     * isn't there; on a real client's site that is a claim made about someone
-     * else's business to a stranger. Absent means absent — see proofInstruction.
-     */
-    features?: string;
+  /**
+   * What is on the site, **written as a sentence a person would say out loud**.
+   *
+   * Not a comma list. This was "bilingual EN/AF, WhatsApp quote button,
+   * filterable project gallery", and the model pasted it in behind "It has"
+   * exactly as given — because proofInstruction showed it doing that as a GOOD
+   * example. A prompt asking for full sentences loses to a worked example
+   * sitting next to the data, every time. That is reasonable behaviour by the
+   * model and our mistake to have written.
+   *
+   * Optional, and left out rather than filled in from a guess. A model handed
+   * a site with no feature list will happily describe a booking engine that
+   * isn't there; on a real client's site that is a claim made about someone
+   * else's business to a stranger. Absent means absent — see proofInstruction.
+   */
+  features?: string;
   /** The kind of business the site is actually for, as a bare noun phrase. */
   siteFor: string;
   kind: "spec" | "client";
@@ -68,7 +75,8 @@ const SITES: Record<"smit" | "champagne", ProofSite> = {
     // produces ".../ ." — a path segment of a single dot, which some clients
     // pull into the link and break.
     url: "https://smit-kontrakteurs-site.vercel.app",
-    features: "bilingual EN/AF, WhatsApp quote button, filterable project gallery",
+    features:
+      "It runs in English and Afrikaans, and the quote button goes straight to WhatsApp",
     siteFor: "a building contractor",
     kind: "spec",
   },
@@ -116,8 +124,11 @@ function proofInstruction(tier: 1 | 2 | 3): string {
         `This site is for ${proof.siteFor} — NOT the prospect's trade. Say what it actually is.`,
         `Do not call it "a site like yours", "one in your industry", "the same trade", or anything else that implies we have built for their line of work before. We have not. It is proof of the work, not of the sector.`,
       ].join("\n");
+  // Every example below ends the sentence ON the link, never after it. The
+  // model copies the shape of these far more faithfully than it follows a rule
+  // stated in prose, which is how ".../vercel.app.." reached a prospect.
   const head = proof.features
-    ? `Proof to reference: ${proof.name} — ${proof.url}. What is on it: ${proof.features}.`
+    ? `Proof to reference: ${proof.name} — ${proof.url}. What is on it, already written as a sentence you may use as-is: "${proof.features}."`
     : [
         `Proof to reference: ${proof.name} — ${proof.url}.`,
         `You do NOT know what is on this site. No feature list was given to you, which means there isn't one — not that you should supply your own.`,
@@ -129,8 +140,8 @@ function proofInstruction(tier: 1 | 2 | 3): string {
       tradeNote,
       `${proof.name} is a real client of ours. You may say we built it for them, and you may name them.`,
       proof.features
-        ? `Example: "We built ${proof.url} for ${proof.siteFor} — ${proof.features}."`
-        : `Example: "We built ${proof.url} for ${proof.siteFor}." Nothing beyond that.`,
+        ? `Example: "We built this one for ${proof.siteFor}: ${proof.url}\n\n${proof.features}."`
+        : `Example: "We built this one for ${proof.siteFor}: ${proof.url}" Nothing beyond that.`,
     ].join("\n");
   }
   return [
@@ -139,8 +150,8 @@ function proofInstruction(tier: 1 | 2 | 3): string {
     `IMPORTANT — ${proof.name} is NOT a client. Nobody commissioned this site. We designed and published it ourselves to show the kind of work we do.`,
     `So: do not say we built it FOR them or for anyone. Do not call them a client, a customer, or someone we work with. Do not say they came to us, hired us, or asked us for anything. The word "for" followed by a person or business is the trap.`,
     proof.features
-      ? `Introduce it as our own work and nothing more. Good: "Here's a site we built to show what this can look like — ${proof.url}. It has ${proof.features}." Also good: "We put ${proof.url} together as an example for the trade."`
-      : `Introduce it as our own work and nothing more, without describing what is on it. Good: "Here's a site we built to show what this can look like — ${proof.url}."`,
+      ? `Introduce it as our own work and nothing more. Good — note the link ends the line, with no full stop after it, and the features are a sentence rather than a list:\n"Here's a site we built to show what this can look like: ${proof.url}\n\n${proof.features}."`
+      : `Introduce it as our own work and nothing more, without describing what is on it. Good — the link ends the line, with no full stop after it:\n"Here's a site we built to show what this can look like: ${proof.url}"`,
     `If you cannot reference it without implying someone hired us, leave the proof out entirely and write a shorter email.`,
   ].join("\n");
 }
@@ -535,13 +546,20 @@ const BOT_NAMES = ["Lerato", "Nomsa", "Thabo", "Sipho", "Anele", "Zanele", "Kagi
 function withSignature(body: string): string {
   let text = body.trim();
 
-  // A full stop welded onto the end of a link. The prompt asks for it not to
-  // happen, but this one is deterministic and the cost of it slipping through
-  // is a dead link in the only paragraph whose job is to be clicked, so it is
-  // repaired here too. Only dots directly after a "/" are touched — a URL path
-  // of "/." or "/.." is never what anyone meant, whereas a dot after a real
-  // path segment could be.
+  // Full stops welded onto the end of a link. Deterministic, and the cost of
+  // one slipping through is a dead link in the only paragraph whose job is to
+  // be clicked, so it is repaired here as well as asked for in the prompt.
+  //
+  // Two separate cases, and the first version only handled one of them — then
+  // the trailing slash it keyed on was removed in the same commit, so it
+  // matched nothing at all and ".../vercel.app.." went out anyway.
+  //
+  //  - after a "/", any dots go: a path of "/." or "/.." is never intended.
   text = text.replace(/(https?:\/\/[^\s<>"']*\/)\.{1,2}(?=\s|$)/g, "$1");
+  //  - otherwise only a RUN of dots collapses to one. A single full stop after
+  //    a link is ordinary sentence punctuation and is left alone; two never
+  //    are.
+  text = text.replace(/(https?:\/\/[^\s<>"']*[^\s<>"'.])\.{2,}(?=\s|$)/g, "$1.");
 
   // The prompt says not to sign off, but a model that does it anyway would put
   // two different names on one email — "Regards, Lerato" above "Taine" — and
