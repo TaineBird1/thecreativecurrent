@@ -240,7 +240,13 @@ async function scrapeMaps(payload) {
         const placeLink = card.querySelector('a[href*="/maps/place/"]');
         if (!placeLink) continue;
         const name = (placeLink.getAttribute("aria-label") || "").trim();
-        if (!name) continue;
+        if (!name || name.length < 3) continue;
+        // Maps puts its own furniture in the feed — the app name, sponsored
+        // slots, "Results" headers. One of those reached the lead list as a
+        // business called "Google Maps".
+        if (/^(google maps|maps|results|sponsored|ad|ads|see results|directions)$/i.test(name)) {
+          continue;
+        }
 
         // The only non-Google link on a card is the business's own site.
         const website =
