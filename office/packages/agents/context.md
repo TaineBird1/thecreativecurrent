@@ -58,16 +58,29 @@ by hand, not by you.
 
 ## Proof to lead with
 
-Always show a prospect a site already built for someone in their own trade.
-Nothing converts better. Reference these by name:
+Always show a prospect a site already built for their own trade. Nothing
+converts better.
 
-- **SMIT Kontrakteurs** — George / Garden Route contractor. Bilingual EN/AF,
-  WhatsApp quote button, filterable project gallery, Terraforce trust section.
-  Use this for every construction and trades prospect.
-- **Renu Solar** — Hillcrest, Durban. Savings calculator, quote form, project
-  gallery. Use for solar.
-- **J&B Auto Spares & Towing** — George. EN/AF toggle, 24h panic bar, part
-  request form. Use for auto and trades.
+Each site below is marked **spec** or **client**, and the two are described
+differently. A **client** build was commissioned and paid for — you may say we
+built it for them and name them as a client. A **spec** build is one we designed
+and published ourselves to show what we do for a trade; **nobody hired us**, so
+you may never say we built it *for* them, call them a client, or suggest they
+came to us. Say it is our own work: *"a site we built to show what this can look
+like."*
+
+Treat anything not explicitly marked **client** as a spec build. Overclaiming
+costs the studio the trust of the exact person it is writing to — a prospect who
+phones the business you named and finds they've never heard of us has learned
+something about us that no later email undoes.
+
+- **SMIT Kontrakteurs** — *spec build.* Building contractor site, Garden Route.
+  Bilingual EN/AF, WhatsApp quote button, filterable project gallery, Terraforce
+  trust section. Use for every construction and trades prospect.
+- **Renu Solar** — *spec build.* Solar installer site, Hillcrest, Durban.
+  Savings calculator, quote form, project gallery. Use for solar.
+- **J&B Auto Spares & Towing** — *spec build.* Auto site, George. EN/AF toggle,
+  24h panic bar, part request form. Use for auto and trades.
 
 ## Pricing (never quote it yourself — see the rules below)
 

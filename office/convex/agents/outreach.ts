@@ -29,24 +29,78 @@ import { NOT_FOUND } from "../../packages/shared/tools/contacts";
  *  state machine — one place, so the two can't disagree. */
 const MAX_PER_RUN = 3;
 
-/** The matched proof, by tier. Showing a prospect their own trade converts best. */
-const PROOF: Record<1 | 2 | 3, { name: string; url: string; why: string }> = {
+/**
+ * The matched proof, by tier. Showing a prospect their own trade converts best.
+ *
+ * `kind` is the part that matters and the part that was missing. A spec build
+ * is a site the studio designed and published to show what it does for a trade
+ * — nobody commissioned it. Saying "we built X FOR a contractor in George"
+ * about one of those tells a stranger there is a client relationship that does
+ * not exist, and it is the single easiest claim in the whole email to check:
+ * the prospect phones them. That reads as a lie whether or not one was
+ * intended, so the phrasing has to differ by kind, not just the URL.
+ *
+ * Default to "spec" for anything unconfirmed. Overclaiming costs the studio its
+ * credibility with the exact person it is trying to win; underclaiming costs a
+ * slightly weaker sentence.
+ */
+const PROOF: Record<
+  1 | 2 | 3,
+  {
+    name: string;
+    url: string;
+    /** What is actually on the site. Features, not outcomes. */
+    features: string;
+    /** The kind of business the site is for, as a bare noun phrase. */
+    siteFor: string;
+    kind: "spec" | "client";
+  }
+> = {
   1: {
     name: "SMIT Kontrakteurs",
     url: "smitkontrakteurs.co.za",
-    why: "a contractor in George — bilingual, WhatsApp quote button, filterable project gallery",
+    features: "bilingual EN/AF, WhatsApp quote button, filterable project gallery",
+    siteFor: "a building contractor",
+    kind: "spec",
   },
   2: {
     name: "Renu Solar",
     url: "renusolar.co.za",
-    why: "a solar installer in Hillcrest — savings calculator and a quote form",
+    features: "savings calculator, quote form, project gallery",
+    siteFor: "a solar installer",
+    kind: "spec",
   },
   3: {
     name: "a guest lodge direct-booking site",
     url: "thecreativecurrent.co.za",
-    why: "built so guests book direct instead of through the OTAs",
+    features: "built so guests book direct instead of through the OTAs",
+    siteFor: "a guest house",
+    kind: "spec",
   },
 };
+
+/**
+ * How the model is allowed to introduce the proof. Not a suggestion — the
+ * spec wording never implies anyone commissioned the site, and there is no
+ * phrasing available to the model that does.
+ */
+function proofInstruction(proof: (typeof PROOF)[1 | 2 | 3]): string {
+  const head = `Proof to reference: ${proof.name} — ${proof.url}. What is on it: ${proof.features}.`;
+  if (proof.kind === "client") {
+    return [
+      head,
+      `${proof.name} is a real client of ours. You may say we built it for them, and you may name them.`,
+      `Example: "We built ${proof.url} for ${proof.siteFor} — ${proof.features}."`,
+    ].join("\n");
+  }
+  return [
+    head,
+    `IMPORTANT — ${proof.name} is NOT a client. Nobody commissioned this site. We designed and published it ourselves to show what we do for this trade.`,
+    `So: do not say we built it FOR them or for anyone. Do not call them a client, a customer, or someone we work with. Do not say they came to us, hired us, or asked us for anything. The word "for" followed by a person or business is the trap.`,
+    `Introduce it as our own work and nothing more. Good: "Here's a site we built to show what this can look like — ${proof.url}. It has ${proof.features}." Also good: "We put ${proof.url} together as an example for the trade."`,
+    `If you cannot reference it without implying someone hired us, leave the proof out entirely and write a shorter email.`,
+  ].join("\n");
+}
 
 export const run = internalAction({
   args: { trigger: v.optional(v.union(v.literal("cron"), v.literal("manual"))) },
@@ -154,7 +208,7 @@ async function sendFirstTouch(
       `The one specific thing to open with (quote it close to verbatim, it was measured):`,
       hook,
       "",
-      `Proof to reference: ${proof.name} (${proof.url}) — ${proof.why}.`,
+      proofInstruction(proof),
       "",
       "Write the first email. Under 120 words, one clear ask, a short lowercase subject.",
       "No price. No promise about rankings, traffic or enquiries. No timeframe on a result.",
@@ -237,6 +291,9 @@ async function sendFollowUp(
         ? `One NEW specific thing you have not mentioned yet: ${secondary.detail}`
         : `You have no new fact to add. Keep it to two sentences and make the ask smaller.`,
       `Proof already referenced: ${proof.name}.`,
+      proof.kind === "spec"
+        ? `${proof.name} is NOT a client — never say we built it for them or that they hired us, in a follow-up either.`
+        : `${proof.name} is a real client.`,
       "",
       "Under 60 words. Add something new — a follow-up is not a reminder that you emailed.",
       "No price, no promise, no timeframe on a result.",
