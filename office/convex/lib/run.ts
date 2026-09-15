@@ -13,8 +13,20 @@ import type { Id } from "../_generated/dataModel";
 import { HaltedError } from "./settings";
 import { checkHalt, haltMessage, isHalted } from "./killSwitch";
 
+export interface ClaimedTask {
+  id: Id<"tasks">;
+  title: string;
+  detail: string;
+}
+
 export interface RunHandle {
   runId: Id<"runs">;
+  /**
+   * A direct instruction waiting for this bot — from the chat box on its desk,
+   * or assigned by the Orchestrator. Null when there is nothing waiting and the
+   * bot should just do its usual round.
+   */
+  task: ClaimedTask | null;
   /** Update the speech bubble mid-run. */
   say(bubble: string): Promise<void>;
   /** Check STOP inside a loop. Returns true if the run should stop now. */
@@ -33,6 +45,12 @@ export async function withRun(
     trigger: "cron" | "manual" | "orchestrator" | "chat";
     bubble: string;
     taskId?: Id<"tasks">;
+    /**
+     * Take the next instruction waiting for this bot, if there is one, and hand
+     * it to the body. Default true — a bot that ignores what it was told is
+     * worse than one that does nothing.
+     */
+    claimTask?: boolean;
   },
   body: (handle: RunHandle) => Promise<string>,
 ): Promise<RunOutcome> {
@@ -52,15 +70,22 @@ export async function withRun(
     taskId: opts.taskId,
   });
 
+  // An instruction you typed outranks whatever the bot was going to do anyway.
+  const claimed: ClaimedTask | null =
+    opts.claimTask === false
+      ? null
+      : await ctx.runMutation(internal.tasks.claimNext, { botKey: opts.botKey });
+
   await ctx.runMutation(internal.bots.setStatus, {
     key: opts.botKey,
     status: "working",
-    currentTask: opts.bubble,
+    currentTask: claimed ? claimed.title : opts.bubble,
     lastError: undefined,
   });
 
   const handle: RunHandle = {
     runId,
+    task: claimed,
     say: async (bubble) => {
       await ctx.runMutation(internal.bots.setStatus, {
         key: opts.botKey,
@@ -74,6 +99,13 @@ export async function withRun(
 
   try {
     const summary = await body(handle);
+    if (claimed) {
+      await ctx.runMutation(internal.tasks.setStatus, {
+        id: claimed.id,
+        status: "done",
+        result: summary,
+      });
+    }
     await ctx.runMutation(internal.runs.finish, { id: runId, status: "ok", summary });
     await ctx.runMutation(internal.bots.setStatus, {
       key: opts.botKey,
@@ -84,6 +116,16 @@ export async function withRun(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "";
+
+    // Whatever went wrong, hand the task back rather than leaving it stuck in
+    // "in progress" where nothing will ever pick it up again.
+    if (claimed) {
+      await ctx.runMutation(internal.tasks.setStatus, {
+        id: claimed.id,
+        status: name === "BudgetExceededError" || name === "HaltedError" ? "todo" : "failed",
+        error: message,
+      });
+    }
 
     if (name === "BudgetExceededError") {
       // Not an error — an expected, visible, self-clearing state.

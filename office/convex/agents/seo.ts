@@ -45,13 +45,16 @@ export const run = internalAction({
       ctx,
       { botKey: "seo", trigger: trigger ?? "cron", bubble: "Keyword research" },
       async (handle) => {
-        const seeds = [
-          "web design durban",
-          "website for builders south africa",
-          "solar installer website",
-          "guest house website direct booking",
-          "website for contractors kzn",
-        ];
+        // An instruction narrows the research rather than replacing it.
+        const seeds = handle.task
+          ? [handle.task.detail.slice(0, 120)]
+          : [
+              "web design durban",
+              "website for builders south africa",
+              "solar installer website",
+              "guest house website direct booking",
+              "website for contractors kzn",
+            ];
 
         const suggestions = new Set<string>();
         for (const seed of seeds) {

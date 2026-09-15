@@ -23,6 +23,7 @@ export function DeskDrawer({ botKey, onClose }: { botKey: string; onClose: () =>
   const setSchedule = useMutation(api.bots.setScheduleEnabled);
   const chat = useMutation(api.bots.chat);
 
+  const waiting = useQuery(api.tasks.waitingFor, { botKey });
   const [tab, setTab] = useState<"today" | "prompt" | "tools" | "logs">("today");
   const [draft, setDraft] = useState("");
   const [message, setMessage] = useState("");
@@ -154,27 +155,57 @@ export function DeskDrawer({ botKey, onClose }: { botKey: string; onClose: () =>
               </div>
 
               <div>
-                <p className="mb-1.5 text-[11px] uppercase tracking-wider text-faint">
-                  Tell {bot.name} something
+                <p className="mb-1 text-[11px] uppercase tracking-wider text-faint">
+                  Tell {bot.name} what to do
+                </p>
+                <p className="mb-1.5 text-[11px] leading-relaxed text-faint">
+                  They act on it straight away, and it takes priority over
+                  whatever they were going to do on their own.
                 </p>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={3}
-                  placeholder={`e.g. "focus on roofers in Pinetown this week"`}
+                  placeholder={`e.g. "find me roofers in Pinetown"`}
                   className="w-full rounded-lg border border-edge bg-ink px-3 py-2 text-xs outline-none focus:border-lamp"
                 />
-                <Button
-                  tone="primary"
-                  disabled={!message.trim()}
-                  className="mt-2"
-                  onClick={async () => {
-                    await chat({ key: botKey, message });
-                    setMessage("");
-                  }}
-                >
-                  Add to their list
-                </Button>
+                <div className="mt-2 flex items-center gap-2">
+                  <Button
+                    tone="primary"
+                    disabled={!message.trim() || running}
+                    onClick={async () => {
+                      const text = message;
+                      setMessage("");
+                      setResult("");
+                      await chat({ key: botKey, message: text });
+                      // Queueing it and walking away is what made this feel
+                      // broken: the instruction sat in a list nobody read. Set
+                      // them going now, so telling a bot something makes it do
+                      // something.
+                      if (!runNow) {
+                        setResult(
+                          `Noted — ${bot.name} picks this up on their next scheduled run.`,
+                        );
+                        return;
+                      }
+                      setRunning(true);
+                      try {
+                        setResult(await runNow({}));
+                      } catch (err) {
+                        setResult(err instanceof Error ? err.message : String(err));
+                      } finally {
+                        setRunning(false);
+                      }
+                    }}
+                  >
+                    {running ? "On it…" : `Tell ${bot.name}`}
+                  </Button>
+                  {waiting ? (
+                    <span className="text-[11px] text-faint">
+                      {waiting} instruction{waiting === 1 ? "" : "s"} still waiting
+                    </span>
+                  ) : null}
+                </div>
               </div>
             </div>
           )}

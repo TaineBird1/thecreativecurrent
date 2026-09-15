@@ -23,6 +23,12 @@ export const run = internalAction({
       ctx,
       { botKey: "content", trigger: trigger ?? "cron", bubble: "Writing from the calendar" },
       async (handle) => {
+        // A direct instruction is a brief. Write that instead of the calendar.
+        if (handle.task) {
+          await handle.say(`Writing what you asked for`);
+          return await writeOne(ctx, handle.runId, "blog", handle.task.detail);
+        }
+
         const item = await ctx.runQuery(api.library.nextCalendarItem, {});
         if (!item) {
           // Idle is acceptable. It does not invent a blog post to look busy.
@@ -101,42 +107,7 @@ export const write = action({
     const outcome = await withRun(
       ctx,
       { botKey: "content", trigger: "manual", bubble: `Writing a ${kind}` },
-      async (handle) => {
-        const { text } = await think(ctx, {
-          botKey: "content",
-          purpose: "draft_content",
-          runId: handle.runId,
-          user: `Write a ${kind}.\n\nBrief from Taine:\n${brief}\n\nFollow the format rules for this kind in your instructions.`,
-          temperature: 0.8,
-          maxOutputTokens: 2400,
-        });
-        const draft = parseJson<{ title: string; body: string; tags?: string[] }>(text);
-        const body = (draft.body ?? "").trim();
-        if (!body) return "The model returned nothing usable.";
-
-        const verdict = gateAll({ title: draft.title, body });
-        if (!verdict.clear) {
-          await ctx.runMutation(internal.approvals.create, {
-            kind: "content",
-            botKey: "content",
-            title: draft.title ?? brief.slice(0, 60),
-            body,
-            reason: verdict.reason,
-            guard: verdict.guard!,
-            matches: verdict.matches,
-          });
-          return `Written — held for approval. ${verdict.reason}`;
-        }
-
-        await ctx.runMutation(internal.library.saveDraft, {
-          botKey: "content",
-          kind: kind as Kind,
-          title: draft.title ?? brief.slice(0, 60),
-          body,
-          tags: draft.tags ?? [],
-        });
-        return `Written. "${draft.title ?? brief.slice(0, 40)}" is in the Library.`;
-      },
+      async (handle) => await writeOne(ctx, handle.runId, kind as Kind, brief),
     );
     return outcome.summary;
   },
@@ -147,3 +118,51 @@ export const runNow = action({
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.content.run, { trigger: "manual" }),
 });
+
+/**
+ * Write one piece and put it in the Library, or in Approvals if a guard
+ * catches it. Shared by the on-demand action and by a direct instruction
+ * typed at Zanele's desk.
+ */
+async function writeOne(
+  ctx: Parameters<typeof withRun>[0],
+  runId: string,
+  kind: Kind,
+  brief: string,
+): Promise<string> {
+  const { text } = await think(ctx, {
+    botKey: "content",
+    purpose: "draft_content",
+    runId,
+    user: `Write a ${kind}.\n\nBrief from Taine:\n${brief}\n\nFollow the format rules for this kind in your instructions.`,
+    temperature: 0.8,
+    maxOutputTokens: 2400,
+  });
+
+  const draft = parseJson<{ title: string; body: string; tags?: string[] }>(text);
+  const body = (draft.body ?? "").trim();
+  if (!body) return "The model returned nothing usable.";
+
+  const verdict = gateAll({ title: draft.title, body });
+  if (!verdict.clear) {
+    await ctx.runMutation(internal.approvals.create, {
+      kind: "content",
+      botKey: "content",
+      title: draft.title ?? brief.slice(0, 60),
+      body,
+      reason: verdict.reason,
+      guard: verdict.guard!,
+      matches: verdict.matches,
+    });
+    return `Written — held for approval. ${verdict.reason}`;
+  }
+
+  await ctx.runMutation(internal.library.saveDraft, {
+    botKey: "content",
+    kind,
+    title: draft.title ?? brief.slice(0, 60),
+    body,
+    tags: draft.tags ?? [],
+  });
+  return `Written. "${draft.title ?? brief.slice(0, 40)}" is in the Library.`;
+}

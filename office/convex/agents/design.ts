@@ -33,6 +33,11 @@ export const run = internalAction({
       async (handle) => {
         // Make images for content that has been written but has nothing to go
         // with it. Working from real drafts beats inventing subjects.
+        if (handle.task) {
+          await handle.say("Making what you asked for");
+          return await makeImage(ctx, handle.runId, handle.task.detail, "16:9");
+        }
+
         const drafts = await ctx.runQuery(api.library.drafts, { limit: 30 });
         const needsArt = drafts.filter(
           (d) => (d.kind === "blog" || d.kind === "instagram" || d.kind === "linkedin") && d.body.length > 200,
@@ -91,29 +96,7 @@ export const image = action({
     const outcome = await withRun(
       ctx,
       { botKey: "design", trigger: "manual", bubble: "Making an image" },
-      async (handle) => {
-        const { text } = await think(ctx, {
-          botKey: "design",
-          purpose: "image_prompt",
-          runId: handle.runId,
-          user: `Write an image prompt for: ${brief}\n\nReturn the image JSON from your instructions.`,
-          maxOutputTokens: 800,
-        });
-        const parsed = parseJson<{ title: string; prompt: string; tags?: string[]; aspect?: string }>(text);
-        if (!parsed.prompt) return "The model returned no usable image prompt.";
-
-        const url = pollinationsUrl(parsed.prompt, aspect ?? parsed.aspect ?? "16:9");
-        await ctx.runMutation(internal.library.saveMedia, {
-          botKey: "design",
-          kind: "image",
-          title: parsed.title ?? brief.slice(0, 60),
-          prompt: parsed.prompt,
-          provider: "pollinations",
-          url,
-          tags: parsed.tags ?? [],
-        });
-        return `Image made — it's in the Library.`;
-      },
+      async (handle) => await makeImage(ctx, handle.runId, brief, aspect ?? "16:9"),
     );
     return outcome.summary;
   },
@@ -181,3 +164,37 @@ export const runNow = action({
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.design.run, { trigger: "manual" }),
 });
+
+/**
+ * Write an image prompt, generate through the free endpoint, and file it.
+ * Shared by the on-demand action and by a brief typed at Naledi's desk.
+ */
+async function makeImage(
+  ctx: Parameters<typeof withRun>[0],
+  runId: string,
+  brief: string,
+  aspect: string,
+): Promise<string> {
+  const { text } = await think(ctx, {
+    botKey: "design",
+    purpose: "image_prompt",
+    runId,
+    user: `Write an image prompt for: ${brief}\n\nReturn the image JSON from your instructions.`,
+    maxOutputTokens: 800,
+  });
+
+  const parsed = parseJson<{ title: string; prompt: string; tags?: string[]; aspect?: string }>(text);
+  if (!parsed.prompt) return "The model returned no usable image prompt.";
+
+  const url = pollinationsUrl(parsed.prompt, parsed.aspect ?? aspect);
+  await ctx.runMutation(internal.library.saveMedia, {
+    botKey: "design",
+    kind: "image",
+    title: parsed.title ?? brief.slice(0, 60),
+    prompt: parsed.prompt,
+    provider: "pollinations",
+    url,
+    tags: parsed.tags ?? [],
+  });
+  return `Image made — it's in the Library.`;
+}

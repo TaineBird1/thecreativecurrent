@@ -27,6 +27,15 @@ export const run = internalAction({
       ctx,
       { botKey: "strategy", trigger: trigger ?? "cron", bubble: "Writing the weekly report" },
       async (handle) => {
+        // Told to look at something specific? Do that, not the weekly round.
+        if (handle.task) {
+          const url = /https?:\/\/\S+/.exec(handle.task.detail)?.[0];
+          if (url) {
+            await handle.say("Researching what you sent");
+            return await researchUrl(ctx, url, handle.runId);
+          }
+        }
+
         const report = await weeklyReport(ctx, handle.runId);
         await handle.say("Refreshing the content calendar");
         const calendar = await buildCalendar(ctx, handle.runId);
@@ -166,59 +175,7 @@ export const research = action({
     const outcome = await withRun(
       ctx,
       { botKey: "strategy", trigger: "manual", bubble: "Researching a competitor" },
-      async (handle) => {
-        const page = await fetchPage(url);
-        if (!page.html) return `Couldn't read ${url} — ${page.error ?? `status ${page.status}`}.`;
-
-        const { safe } = prepareForLlm(stripTags(page.html).slice(0, 8000));
-        const { text } = await think(ctx, {
-          botKey: "strategy",
-          purpose: "summarise_competitor",
-          runId: handle.runId,
-          user: [
-            `Competitor page: ${url}`,
-            "",
-            "Page text (contact details replaced with tokens):",
-            safe,
-            "",
-            "Summarise them. Only say what the page actually says. Return the research JSON from your instructions.",
-          ].join("\n"),
-          maxOutputTokens: 1400,
-        });
-
-        const parsed = parseJson<{
-          summary: string;
-          offers?: string[];
-          positioning?: string;
-          weaknesses?: string[];
-          opportunityForUs?: string;
-        }>(text);
-
-        const body = [
-          `# ${url}`,
-          "",
-          parsed.summary,
-          "",
-          `**Positioning:** ${parsed.positioning ?? "not stated"}`,
-          "",
-          "**What they offer**",
-          ...(parsed.offers ?? []).map((o) => `- ${o}`),
-          "",
-          "**Where they're weak**",
-          ...(parsed.weaknesses ?? []).map((w) => `- ${w}`),
-          "",
-          `**Opening for us:** ${parsed.opportunityForUs ?? "none obvious"}`,
-        ].join("\n");
-
-        await ctx.runMutation(internal.library.saveDraft, {
-          botKey: "strategy",
-          kind: "blog",
-          title: `Competitor: ${url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}`,
-          body,
-          tags: ["research", "competitor"],
-        });
-        return `Researched ${url} — written up in the Library.`;
-      },
+      async (handle) => await researchUrl(ctx, url, handle.runId),
     );
     return outcome.summary;
   },
@@ -229,3 +186,65 @@ export const runNow = action({
   handler: async (ctx): Promise<string> =>
     await ctx.runAction(internal.agents.strategy.run, { trigger: "manual" }),
 });
+
+/**
+ * Read one public page and write up what it says. Shared by the on-demand
+ * action and by a link pasted into Thabo's chat box.
+ */
+async function researchUrl(
+  ctx: Parameters<typeof withRun>[0],
+  url: string,
+  runId: string,
+): Promise<string> {
+  const page = await fetchPage(url);
+  if (!page.html) return `Couldn't read ${url} — ${page.error ?? `status ${page.status}`}.`;
+
+  const { safe } = prepareForLlm(stripTags(page.html).slice(0, 8000));
+  const { text } = await think(ctx, {
+    botKey: "strategy",
+    purpose: "summarise_competitor",
+    runId,
+    user: [
+      `Competitor page: ${url}`,
+      "",
+      "Page text (contact details replaced with tokens):",
+      safe,
+      "",
+      "Summarise them. Only say what the page actually says. Return the research JSON from your instructions.",
+    ].join("\n"),
+    maxOutputTokens: 1400,
+  });
+
+  const parsed = parseJson<{
+    summary: string;
+    offers?: string[];
+    positioning?: string;
+    weaknesses?: string[];
+    opportunityForUs?: string;
+  }>(text);
+
+  const body = [
+    `# ${url}`,
+    "",
+    parsed.summary,
+    "",
+    `**Positioning:** ${parsed.positioning ?? "not stated"}`,
+    "",
+    "**What they offer**",
+    ...(parsed.offers ?? []).map((o) => `- ${o}`),
+    "",
+    "**Where they're weak**",
+    ...(parsed.weaknesses ?? []).map((w) => `- ${w}`),
+    "",
+    `**Opening for us:** ${parsed.opportunityForUs ?? "none obvious"}`,
+  ].join("\n");
+
+  await ctx.runMutation(internal.library.saveDraft, {
+    botKey: "strategy",
+    kind: "blog",
+    title: `Competitor: ${url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}`,
+    body,
+    tags: ["research", "competitor"],
+  });
+  return `Researched ${url} — written up in the Library.`;
+}

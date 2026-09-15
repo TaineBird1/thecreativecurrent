@@ -73,6 +73,46 @@ export const setStatus = internalMutation({
   },
 });
 
+/**
+ * Take the next task waiting for this bot and mark it in progress.
+ *
+ * This is what makes the task list mean anything. Before it existed, the chat
+ * box on a desk and the Orchestrator's assignments both wrote rows that no bot
+ * ever read — they sat in "to do" forever while the office looked busy.
+ */
+export const claimNext = internalMutation({
+  args: { botKey: v.string() },
+  handler: async (ctx, { botKey }) => {
+    const waiting = alive(
+      await ctx.db
+        .query("tasks")
+        .withIndex("by_bot", (q) => q.eq("botKey", botKey).eq("status", "todo"))
+        .collect(),
+    );
+    const next = waiting.sort((a, b) => a.priority - b.priority || a.createdAt - b.createdAt)[0];
+    if (!next) return null;
+
+    await ctx.db.patch(next._id, {
+      status: "in_progress" as const,
+      startedAt: Date.now(),
+      ...touch(),
+    });
+    return { id: next._id, title: next.title, detail: next.detail ?? next.title };
+  },
+});
+
+/** How many are still waiting, for the desk drawer to show. */
+export const waitingFor = query({
+  args: { botKey: v.string() },
+  handler: async (ctx, { botKey }) =>
+    alive(
+      await ctx.db
+        .query("tasks")
+        .withIndex("by_bot", (q) => q.eq("botKey", botKey).eq("status", "todo"))
+        .collect(),
+    ).length,
+});
+
 export const moveTask = mutation({
   args: { id: v.id("tasks"), status: taskStatus },
   handler: async (ctx, { id, status }) => {

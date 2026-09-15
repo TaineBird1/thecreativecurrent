@@ -57,8 +57,17 @@ export const run = internalAction({
       ctx,
       { botKey: "leadgen", trigger: trigger ?? "cron", bubble: "Looking for new leads" },
       async (handle) => {
-        const { tier, category, location } = rotation();
-        await handle.say(`Searching ${category} in ${location}`);
+        // What Taine typed beats the rotation. "Focus on roofers in Pinetown"
+        // has to change where Sipho actually looks, not just sit in a list.
+        const steer = handle.task ? await readInstruction(ctx, handle.task.detail, handle.runId) : null;
+        const fallback = rotation();
+        const tier = steer?.tier ?? fallback.tier;
+        const category = steer?.category ?? fallback.category;
+        const location = steer?.location ?? fallback.location;
+
+        await handle.say(
+          steer ? `On it: ${category} in ${location}` : `Searching ${category} in ${location}`,
+        );
 
         const workerOnline = await isWorkerOnline(ctx);
         const sources = sourcesForTier(tier, workerOnline);
@@ -98,7 +107,7 @@ export const run = internalAction({
         }
 
         if (candidates.length === 0) {
-          return `Nothing new found for ${category} in ${location}. Directory pages returned no usable listings${workerOnline ? "" : " and the local worker is offline"}.`;
+          return `${steer ? "Looked where you asked. " : ""}Nothing new found for ${category} in ${location}. Directory pages returned no usable listings${workerOnline ? "" : " and the local worker is offline"}.`;
         }
 
         let added = 0;
@@ -120,7 +129,8 @@ export const run = internalAction({
           else skipped++;
         }
 
-        return `${added} new lead${added === 1 ? "" : "s"} in ${location}, ${discarded} discarded off-niche, ${skipped} already known.`;
+        const prefix = steer ? `You asked for ${category} in ${location}. ` : "";
+        return `${prefix}${added} new lead${added === 1 ? "" : "s"} in ${location}, ${discarded} discarded off-niche, ${skipped} already known.`;
       },
     );
     return outcome.summary;
@@ -348,6 +358,85 @@ async function judge(
     facebookActivity: raw.facebookActivity ?? null,
     reasoning: raw.reasoning ?? "",
   };
+}
+
+/**
+ * Turn a sentence Taine typed into search terms.
+ *
+ * Deterministic first: if the instruction plainly names one of the categories
+ * or locations we already know, take it and spend nothing. Only ask the model
+ * when the words do not match, which is the case worth paying for.
+ */
+async function readInstruction(
+  ctx: Parameters<typeof withRun>[0],
+  instruction: string,
+  runId: string,
+): Promise<{ tier: 1 | 2 | 3; category: string; location: string } | null> {
+  const text = instruction.toLowerCase();
+
+  const location = LOCATIONS.find((l) => text.includes(l.toLowerCase()));
+  let tier: 1 | 2 | 3 | undefined;
+  let category: string | undefined;
+  for (const t of [1, 2, 3] as const) {
+    const hit = TIER_CATEGORIES[t].find((c) => text.includes(c.toLowerCase()));
+    if (hit) {
+      tier = t;
+      category = hit;
+      break;
+    }
+  }
+  // "roofers" won't match the category "roofing contractor", so try the stem too.
+  if (!category) {
+    for (const t of [1, 2, 3] as const) {
+      const hit = TIER_CATEGORIES[t].find((c) => {
+        const head = c.split(" ")[0];
+        return head.length > 4 && text.includes(head.slice(0, head.length - 1));
+      });
+      if (hit) {
+        tier = t;
+        category = hit;
+        break;
+      }
+    }
+  }
+
+  if (category && location) return { tier: tier!, category, location };
+
+  try {
+    const { text: out } = await think(ctx, {
+      botKey: "leadgen",
+      purpose: "read_instruction",
+      runId,
+      tier: "cheap",
+      temperature: 0,
+      maxOutputTokens: 300,
+      user: [
+        `Taine told you: "${instruction}"`,
+        "",
+        `Pick the closest search term from this list: ${[...TIER_CATEGORIES[1], ...TIER_CATEGORIES[2], ...TIER_CATEGORIES[3]].join(", ")}`,
+        `And the closest place from: ${LOCATIONS.join(", ")}`,
+        "",
+        'Return JSON only: {"tier":1,"category":"...","location":"...","understood":true}.',
+        'If the instruction is not about searching for leads at all, return {"understood":false}.',
+      ].join("\n"),
+    });
+    const parsed = parseJson<{
+      tier?: number;
+      category?: string;
+      location?: string;
+      understood?: boolean;
+    }>(out);
+    if (!parsed.understood || !parsed.category) return null;
+    return {
+      tier: (parsed.tier === 2 || parsed.tier === 3 ? parsed.tier : 1) as 1 | 2 | 3,
+      category: parsed.category,
+      location: parsed.location ?? LOCATIONS[0],
+    };
+  } catch {
+    // A bot that cannot read the instruction still does its usual round rather
+    // than doing nothing at all.
+    return null;
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
