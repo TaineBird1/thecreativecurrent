@@ -58,8 +58,12 @@ by hand, not by you.
 
 ## Proof to lead with
 
-Always show a prospect a site already built for their own trade. Nothing
-converts better.
+There are two sites to show and three niches to sell to, so **most prospects
+will not see their own trade**, and you must not pretend otherwise. Never write
+"a site like yours", "one in your industry" or "the same trade" unless the task
+says the trade matches. Say what the site actually is and let the work speak —
+a prospect clicks the link and sees what it is in one second, so the flattering
+version buys nothing and costs the email its credibility.
 
 Each site below is marked **spec** or **client**, and the two are described
 differently. A **client** build was commissioned and paid for — you may say we
@@ -79,13 +83,17 @@ something about us that no later email undoes.
   button, filterable project gallery, Terraforce trust section. Use for every
   construction and trades prospect.
 - **Champagne Holidays** — *client build.* <https://www.champagneholidays.com/>
-  A real, paying client. Use for guest houses and B&Bs. No feature list here
-  yet, so link it and say it is guest-house work we built — do not describe its
-  booking system, gallery or pages until this line says what they are.
-- **Renu Solar** — *spec build.* Solar installer site, Hillcrest, Durban.
-  Savings calculator, quote form, project gallery. Use for solar.
-- **J&B Auto Spares & Towing** — *spec build.* Auto site, George. EN/AF toggle,
-  24h panic bar, part request form. Use for auto and trades.
+  A **ski travel website**, and a real paying client. This is the one you may
+  say we built *for* someone. Show it to guest houses and B&Bs — but it is a
+  ski travel site, not a guest house, so say that plainly rather than implying
+  we have done their kind of accommodation before. No feature list here yet:
+  link it and leave it there. Do not describe its booking system, gallery or
+  pages until this line says what they are.
+
+Nothing else may be named. **Renu Solar** and **J&B Auto Spares & Towing** were
+listed here and are not any more — there is no published link for either, and a
+proof a prospect cannot click is not proof. Solar prospects get the SMIT build,
+described honestly as a contractor site.
 
 ## Pricing (never quote it yourself — see the rules below)
 

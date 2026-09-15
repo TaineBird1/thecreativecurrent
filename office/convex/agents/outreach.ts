@@ -44,11 +44,9 @@ const MAX_PER_RUN = 3;
  * credibility with the exact person it is trying to win; underclaiming costs a
  * slightly weaker sentence.
  */
-const PROOF: Record<
-  1 | 2 | 3,
-  {
-    name: string;
-    url: string;
+interface ProofSite {
+  name: string;
+  url: string;
     /**
      * What is actually on the site. Features, not outcomes.
      *
@@ -58,36 +56,47 @@ const PROOF: Record<
      * else's business to a stranger. Absent means absent — see proofInstruction.
      */
     features?: string;
-    /** The kind of business the site is for, as a bare noun phrase. */
-    siteFor: string;
-    kind: "spec" | "client";
-  }
-> = {
-  1: {
+  /** The kind of business the site is actually for, as a bare noun phrase. */
+  siteFor: string;
+  kind: "spec" | "client";
+}
+
+const SITES: Record<"smit" | "champagne", ProofSite> = {
+  smit: {
     name: "SMIT Kontrakteurs",
     url: "https://smit-kontrakteurs-site.vercel.app/",
     features: "bilingual EN/AF, WhatsApp quote button, filterable project gallery",
     siteFor: "a building contractor",
     kind: "spec",
   },
-  2: {
-    name: "Renu Solar",
-    url: "renusolar.co.za",
-    features: "savings calculator, quote form, project gallery",
-    siteFor: "a solar installer",
-    kind: "spec",
-  },
-  3: {
-    // The first real client build in this table. Tier 3's proof used to be a
-    // placeholder pointing at our own domain, because there was no guest-house
-    // work to show. `features` is deliberately absent until someone who has
-    // actually opened the site fills it in — this is a client's own business
-    // being described to a stranger, which is the worst place to guess.
+  champagne: {
+    // The only real client build we can show. `features` is deliberately absent
+    // until someone who has actually opened the site fills it in — this is a
+    // paying client's own business being described to a stranger, which is the
+    // worst possible place to guess.
     name: "Champagne Holidays",
     url: "https://www.champagneholidays.com/",
-    siteFor: "a guest house",
+    siteFor: "a ski travel company",
     kind: "client",
   },
+};
+
+/**
+ * Which site to show each tier, and whether it is actually the prospect's own
+ * trade.
+ *
+ * `sameTrade` exists because the honest answer is now usually no. There are two
+ * sites to show and three tiers to sell to, so a solar installer gets the
+ * contractor build and a guest house gets a ski travel site. Both are fair
+ * proof of what the studio can do — neither is proof we have done that
+ * prospect's trade before, and a prospect who clicks through discovers the
+ * difference in one second. So the model is told which it has and forbidden
+ * from blurring it, rather than being left to imply the flattering version.
+ */
+const PROOF: Record<1 | 2 | 3, { site: keyof typeof SITES; sameTrade: boolean }> = {
+  1: { site: "smit", sameTrade: true },
+  2: { site: "smit", sameTrade: false },
+  3: { site: "champagne", sameTrade: false },
 };
 
 /**
@@ -95,17 +104,26 @@ const PROOF: Record<
  * spec wording never implies anyone commissioned the site, and there is no
  * phrasing available to the model that does.
  */
-function proofInstruction(proof: (typeof PROOF)[1 | 2 | 3]): string {
+function proofInstruction(tier: 1 | 2 | 3): string {
+  const { site, sameTrade } = PROOF[tier];
+  const proof = SITES[site];
+  const tradeNote = sameTrade
+    ? `This site is for the same trade as the prospect, so you may say so.`
+    : [
+        `This site is for ${proof.siteFor} — NOT the prospect's trade. Say what it actually is.`,
+        `Do not call it "a site like yours", "one in your industry", "the same trade", or anything else that implies we have built for their line of work before. We have not. It is proof of the work, not of the sector.`,
+      ].join("\n");
   const head = proof.features
     ? `Proof to reference: ${proof.name} — ${proof.url}. What is on it: ${proof.features}.`
     : [
         `Proof to reference: ${proof.name} — ${proof.url}.`,
         `You do NOT know what is on this site. No feature list was given to you, which means there isn't one — not that you should supply your own.`,
-        `Link it and say what trade it is for. Do not describe its pages, its booking system, its gallery, its forms, or anything else it may or may not have. Naming a feature you were not told about is inventing one.`,
+        `Link it and say what kind of business it is for. Do not describe its pages, its booking system, its gallery, its forms, or anything else it may or may not have. Naming a feature you were not told about is inventing one.`,
       ].join("\n");
   if (proof.kind === "client") {
     return [
       head,
+      tradeNote,
       `${proof.name} is a real client of ours. You may say we built it for them, and you may name them.`,
       proof.features
         ? `Example: "We built ${proof.url} for ${proof.siteFor} — ${proof.features}."`
@@ -114,7 +132,8 @@ function proofInstruction(proof: (typeof PROOF)[1 | 2 | 3]): string {
   }
   return [
     head,
-    `IMPORTANT — ${proof.name} is NOT a client. Nobody commissioned this site. We designed and published it ourselves to show what we do for this trade.`,
+    tradeNote,
+    `IMPORTANT — ${proof.name} is NOT a client. Nobody commissioned this site. We designed and published it ourselves to show the kind of work we do.`,
     `So: do not say we built it FOR them or for anyone. Do not call them a client, a customer, or someone we work with. Do not say they came to us, hired us, or asked us for anything. The word "for" followed by a person or business is the trap.`,
     proof.features
       ? `Introduce it as our own work and nothing more. Good: "Here's a site we built to show what this can look like — ${proof.url}. It has ${proof.features}." Also good: "We put ${proof.url} together as an example for the trade."`
@@ -215,7 +234,6 @@ async function sendFirstTouch(
     return `Skipped ${lead.businessName} — nothing specific to say.`;
   }
 
-  const proof = PROOF[lead.tier];
   const greeting =
     lead.contactName && lead.contactName !== NOT_FOUND ? lead.contactName : "there";
 
@@ -229,7 +247,7 @@ async function sendFirstTouch(
       `The one specific thing to open with (quote it close to verbatim, it was measured):`,
       hook,
       "",
-      proofInstruction(proof),
+      proofInstruction(lead.tier),
       "",
       "Write the first email. Under 120 words, one clear ask, a short lowercase subject.",
       "No price. No promise about rankings, traffic or enquiries. No timeframe on a result.",
@@ -297,7 +315,7 @@ async function sendFollowUp(
   const nextStep = seq.step + 1;
   const isLast = nextStep >= 3;
   const lead = seq.lead;
-  const proof = PROOF[lead.tier];
+  const proof = SITES[PROOF[lead.tier].site];
   const secondary = lead.faults.filter((f) => f.detail !== (headlineFault(lead.faults)?.detail))[0];
 
   const { safe, restoreOutput } = prepareForLlm(
