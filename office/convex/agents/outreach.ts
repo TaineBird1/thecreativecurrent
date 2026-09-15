@@ -60,6 +60,17 @@ export const run = internalAction({
           return "Outside office hours — nothing sent.";
         }
 
+        // Writing emails that cannot leave the building is not free. Each one
+        // costs a model call, and on a half-hourly schedule that is the same
+        // three drafts rewritten all day. Check the door before doing the work.
+        const canSend = await ctx.runQuery(api.settings.sendState, {});
+        if (!canSend.senderEmail || canSend.paused) {
+          const waiting = await ctx.runQuery(api.leads.draftedNotSent, {});
+          return canSend.paused
+            ? `Sending is paused, so I haven't written anything new. ${waiting} draft(s) already waiting.`
+            : `No sender address configured, so nothing can leave the building — I haven't written anything new rather than spend the budget on it. ${waiting} draft(s) already waiting for when you set one in Settings.`;
+        }
+
         const notes: string[] = [];
 
         // 1. Follow-ups that are due take priority over new first touches:

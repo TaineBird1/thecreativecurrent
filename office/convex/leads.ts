@@ -156,17 +156,41 @@ export const archive = mutation({
   },
 });
 
-/** Ready for Outreach: qualified, contactable, not yet touched. */
+/**
+ * Ready for Outreach: qualified, contactable, and not already written to.
+ *
+ * "Not already written to" has to mean any outbound row, not just a sent one.
+ * A draft held back by a guard or by sending being off still exists, and
+ * without this check Lerato rewrote the same three leads every half hour all
+ * day, paying for each one.
+ */
 export const readyForOutreach = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     const rows = alive(
       await ctx.db.query("leads").withIndex("by_status", (q) => q.eq("status", "qualified")).collect(),
+    ).filter((l) => l.email !== "not_found" && l.email.includes("@"));
+
+    const ready = [];
+    for (const lead of rows.sort((a, b) => b.score - a.score)) {
+      if (ready.length >= (limit ?? 10)) break;
+      const written = alive(
+        await ctx.db.query("emails").withIndex("by_lead", (q) => q.eq("leadId", lead._id)).collect(),
+      ).some((e) => e.direction === "out");
+      if (!written) ready.push(lead);
+    }
+    return ready;
+  },
+});
+
+/** Drafts written but never sent — waiting on sending being switched on. */
+export const draftedNotSent = query({
+  args: {},
+  handler: async (ctx) => {
+    const rows = alive(
+      await ctx.db.query("emails").withIndex("by_status", (q) => q.eq("status", "blocked")).collect(),
     );
-    return rows
-      .filter((l) => l.email !== "not_found" && l.email.includes("@"))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit ?? 10);
+    return rows.filter((e) => e.direction === "out" && e.leadId).length;
   },
 });
 
