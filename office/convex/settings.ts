@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { ensureSettings, readSettings, SETTINGS_KEY, DEFAULT_SETTINGS } from "./lib/settings";
+import { ensureSettings, readSettings, SETTINGS_KEY } from "./lib/settings";
 import { stamps, touch, alive } from "./lib/soft";
 import { BOTS } from "../packages/agents/registry";
 
@@ -34,6 +34,35 @@ export const sendState = query({
 export const get = query({
   args: {},
   handler: async (ctx) => await readSettings(ctx),
+});
+
+/**
+ * Which integrations are actually wired up, read from the live environment.
+ *
+ * This used to be a stored set of flags that a "deploy script" was supposed to
+ * keep current. No such step existed, so every row read "not connected" for
+ * ever, including for keys that were working perfectly — a panel whose entire
+ * job is to tell you what is connected, confidently telling you the opposite.
+ *
+ * Derived on read instead. Convex exposes its environment to queries, so this
+ * cannot drift from reality, and it reports only presence — never a value.
+ */
+export const integrationStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const s = await readSettings(ctx);
+    const set = (name: string) => Boolean(process.env[name]);
+    return {
+      gemini: set("GEMINI_API_KEY"),
+      groq: set("GROQ_API_KEY"),
+      resend: set("RESEND_API_KEY"),
+      searchConsole: set("GOOGLE_SEARCH_CONSOLE_REFRESH_TOKEN"),
+      googleAds: set("GOOGLE_ADS_REFRESH_TOKEN"),
+      passcode: set("OFFICE_PASSCODE") && set("OFFICE_TOKEN_SECRET"),
+      // Sending needs a key AND somewhere to send from; either missing is a no.
+      canSend: set("RESEND_API_KEY") && Boolean(s?.senderEmail),
+    };
+  },
 });
 
 export const budgetFor = query({
@@ -159,16 +188,5 @@ export const workerHeartbeat = mutation({
     const s = await ensureSettings(ctx);
     await ctx.db.patch(s._id, { workerLastSeenAt: Date.now(), ...touch() });
     return { ok: true };
-  },
-});
-
-export const setIntegrations = internalMutation({
-  args: { integrations: v.any() },
-  handler: async (ctx, { integrations }) => {
-    const s = await ensureSettings(ctx);
-    await ctx.db.patch(s._id, {
-      integrations: { ...DEFAULT_SETTINGS.integrations, ...integrations },
-      ...touch(),
-    });
   },
 });

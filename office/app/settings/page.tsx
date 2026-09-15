@@ -16,6 +16,7 @@ import { Button, Card, PaidStub, Pill } from "../components/ui";
  */
 export default function SettingsPage() {
   const settings = useQuery(api.settings.get);
+  const wired = useQuery(api.settings.integrationStatus);
   const bots = useQuery(api.bots.list);
   const update = useMutation(api.settings.update);
   const sendTest = useAction(api.outbound.sendTest);
@@ -149,23 +150,31 @@ export default function SettingsPage() {
             This just shows what&apos;s present.
           </p>
           <div className="space-y-1.5">
-            <Connection name="Gemini" on={settings?.integrations.gemini} note="gemini-2.5-flash, free tier" />
-            <Connection name="Groq" on={settings?.integrations.groq} note="the automatic fallback when Gemini 429s" />
-            <Connection name="Resend" on={settings?.integrations.resend} note="3,000 emails/month free" />
+            <Connection name="Gemini" on={wired?.gemini} note="gemini-3.5-flash, free tier" />
+            <Connection name="Groq" on={wired?.groq} note="the automatic fallback when Gemini 429s" />
+            <Connection
+              name="Resend"
+              on={wired?.resend}
+              note={
+                wired?.resend && !wired?.canSend
+                  ? "key is set, but no sender address — nothing can send yet"
+                  : "3,000 emails/month free"
+              }
+            />
             <Connection
               name="Google Search Console"
-              on={settings?.integrations.searchConsole}
+              on={wired?.searchConsole}
               note="your domain is verified — connecting the API gives Kagiso real query data"
             />
             <Connection
               name="Google Ads"
-              on={settings?.integrations.googleAds}
-              note="not connected; campaign monitoring reports nothing rather than guessing"
+              on={wired?.googleAds}
+              note="campaign monitoring reports nothing rather than guessing"
             />
           </div>
           <p className="mt-3 text-[11px] text-faint">
-            These flags are set by the deploy script from what&apos;s actually in Convex env — they
-            don&apos;t reveal the values.
+            Read live from Convex&apos;s environment each time this page loads. Presence only —
+            never the values.
           </p>
 
           <div className="mt-4 border-t border-edge pt-4">
