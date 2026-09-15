@@ -172,9 +172,30 @@ export const resumeAll = mutation({
 });
 
 /** Notes typed into a bot's chat box. */
+/**
+ * "Tell {bot} what to do."
+ *
+ * For eight of the nine bots that means a task, which is what they claim and
+ * work through. The Orchestrator is the exception and it was being treated like
+ * the rest: her instruction went into `tasks` assigned to `orchestrator`, where
+ * her run wrapper dutifully claimed it — and then dropped it, because she reads
+ * the `goals` table, not her own task list. Every goal typed into her box was
+ * accepted, filed somewhere nothing reads, and answered with a stand-up.
+ *
+ * Her whole job is turning a goal into tasks for other bots, so what she is
+ * handed has to be a goal.
+ */
 export const chat = mutation({
   args: { key: v.string(), message: v.string() },
   handler: async (ctx, { key, message }) => {
+    if (key === "orchestrator") {
+      return await ctx.db.insert("goals", {
+        text: message.split("\n")[0].slice(0, 200),
+        detail: message,
+        status: "active" as const,
+        ...stamps(),
+      });
+    }
     const id = await ctx.db.insert("tasks", {
       botKey: key,
       title: message.split("\n")[0].slice(0, 120),

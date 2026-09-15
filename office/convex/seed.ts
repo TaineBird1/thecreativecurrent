@@ -210,6 +210,31 @@ async function seedAll(ctx: MutationCtx) {
     report.push(`leads: ${existingLeads.length} already present, left alone`);
   }
 
+  // ── Repair: goals typed at the Orchestrator, filed as tasks ───────────
+  //
+  // "Tell Nomsa what to do" wrote a `tasks` row for her like it does for every
+  // other bot. She reads `goals`, so each one was claimed by her run wrapper
+  // and dropped, and the reply was a stand-up. bots.chat writes a goal now;
+  // the ones already typed are moved across rather than retyped.
+  const strandedGoals = alive(await ctx.db.query("tasks").collect()).filter(
+    (t) => t.botKey === "orchestrator" && t.status !== "done",
+  );
+  for (const task of strandedGoals) {
+    await ctx.db.insert("goals", {
+      text: task.title,
+      detail: task.detail,
+      status: "active" as const,
+      createdAt: task.createdAt,
+      updatedAt: Date.now(),
+    });
+    await ctx.db.patch(task._id, { deletedAt: Date.now(), updatedAt: Date.now() });
+  }
+  if (strandedGoals.length > 0) {
+    report.push(
+      `goals: ${strandedGoals.length} moved out of Nomsa's task list, where nothing read them`,
+    );
+  }
+
   // ── Repair: leads stranded by a rejection ─────────────────────────────
   //
   // Rejecting a draft used to leave its blocked email row behind, and
