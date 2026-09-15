@@ -265,11 +265,31 @@ tried here: Zero Trust Free asks for a credit card before it will activate at
 all. This project's brief rules that out, and a free tier you cannot enter
 without card details does not qualify.
 
-Setting the password: Pages project → Settings → Environment variables → add
-`OFFICE_WEB_PASSWORD` (production), then redeploy. Any username works at the
-browser prompt; only the password is checked. If the variable is missing the
-site serves a 503 to everybody rather than opening — a lock that silently does
-nothing is worse than no lock, because you would never find out.
+Setting the password: Pages project → Settings → Variables and secrets → add
+`OFFICE_WEB_PASSWORD` as a **Secret** (not Text, so it cannot be read back out
+of the dashboard), then redeploy. Any username works at the browser prompt;
+only the password is checked. If the variable is missing the site serves a 503
+to everybody rather than opening — a lock that silently does nothing is worse
+than no lock, because you would never find out.
+
+Also set **Settings → Runtime → Fail open/closed** to **Fail closed**. The
+default is Fail open, which means that if the Pages Function errors for any
+reason Cloudflare skips it and serves the static file anyway — handing the
+office, and the Convex URL inside the bundle, to whoever asked. The middleware
+fails closed on its own; this makes the platform agree with it.
+
+### Two things that waste an afternoon
+
+**Environment variables only attach to deployments created after they are
+saved.** Add the secret, then redeploy. The build that ran before you saved it
+cannot see it, and will keep serving the 503 forever.
+
+**Retry deployment rebuilds the same commit.** It is not "build the latest" —
+it re-runs the exact commit that row was built from, so retrying a red row
+produces another red row indefinitely. To build newer code, push (which builds
+automatically) or use Create deployment and pick the branch. Check the Branch
+box at the top of a deployment's page before retrying: it names the commit you
+are about to rebuild.
 
 ---
 
