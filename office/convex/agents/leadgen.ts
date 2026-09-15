@@ -107,14 +107,16 @@ export const run = internalAction({
 
         const candidates: { url: string; sourceId: string }[] = [];
         const tried: string[] = [];
+        let queuedForWorker = 0;
         for (const source of sources) {
           if (await handle.stopped()) return "Stopped mid-run.";
           if (source.needsBrowser) {
-            await ctx.runMutation(internal.scrapeJobs.enqueue, {
+            const queued = await ctx.runMutation(internal.scrapeJobs.enqueue, {
               type: source.id === "facebook_page" ? "facebook_page" : "directory",
               payload: { sourceId: source.id, url: source.search(category, location), category, location, tier },
               priority: 2,
             });
+            if (queued) queuedForWorker++;
             continue;
           }
           const started = Date.now();
@@ -160,7 +162,14 @@ export const run = internalAction({
         }
 
         if (candidates.length === 0 && businesses.length === 0) {
-          return `${steer ? "Looked where you asked. " : ""}Nothing found for ${category} in ${location}. ${tried.join(", ") || "No sources ran"}.${workerOnline ? "" : " The local worker is offline, so Google Maps and Facebook were skipped — those are the two best sources."} Logs → Tools shows what each directory returned.`;
+          return (
+            `${steer ? "Looked where you asked. " : ""}Nothing found for ${category} in ${location}. ` +
+            `${tried.join(", ") || "No sources ran"}. ` +
+            (workerOnline
+              ? `${queuedForWorker} browser job(s) queued — results land on the next run.`
+              : "The local worker is offline, so Google Maps and Facebook were skipped — those are the two best sources.") +
+            " Logs → Tools shows what each directory returned."
+          );
         }
 
         let added = 0;
@@ -199,7 +208,16 @@ export const run = internalAction({
         }
 
         const prefix = steer ? `You asked for ${category} in ${location}. ` : "";
-        return `${prefix}${added} new lead${added === 1 ? "" : "s"} in ${location}, ${discarded} discarded off-niche, ${skipped} already known.`;
+        const worker = workerOnline
+          ? queuedForWorker > 0
+            ? `${queuedForWorker} browser job(s) queued — results land on the next run.`
+            : "Nothing new to queue for the worker."
+          : "Worker offline, so Google Maps and Facebook were skipped.";
+        return (
+          `${prefix}${added} new lead${added === 1 ? "" : "s"} in ${location}, ` +
+          `${discarded} discarded off-niche, ${skipped} already known ` +
+          `(${businesses.length} from the worker, ${candidates.length} from directories). ${worker}`
+        );
       },
     );
     return outcome.summary;
