@@ -36,6 +36,9 @@ const MONEY_MUST_TRIP = [
   "Attached is the agreement — just need your signature.",
   "There's no charge for that one.",
   "Our monthly fee covers hosting and updates.",
+  // The visitor-wants-a-quote phrasing is allowed (below), but stripping it
+  // must not take a real number with it.
+  "Anyone who wants a quote pays R9,500 for the build.",
 ];
 
 const MONEY_MUST_NOT_TRIP = [
@@ -47,6 +50,11 @@ const MONEY_MUST_NOT_TRIP = [
   "Happy to run you through a free Direct Booking Audit.",
   "It costs you nothing to reply and say no.",
   "The gallery only shows four photos of the rooms.",
+  // Describing the prospect's own enquiry problem. This exact sentence is what
+  // every "you have no contact form" email says, so it has to pass or the
+  // Approvals inbox becomes noise. "I'll send a quote" above still trips.
+  "There's no enquiry form, so someone who wants a quote has to find another way to reach you.",
+  "Customers looking for a quote have to hunt for your number.",
 ];
 
 test("money guard trips on everything that touches money", () => {

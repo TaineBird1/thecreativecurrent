@@ -71,6 +71,13 @@ const ALLOWED = [
   /\bquote (?:button|form|request form|page|flow|widget)\b/gi,
   /\bquote[- ]request\b/gi,
   /\brequest[- ]a[- ]quote (?:button|form|page)\b/gi,
+  // A VISITOR wanting a quote is the prospect's own enquiry problem, not a
+  // price we are offering. Every "your site has no contact form" email says
+  // this, so without it the same false positive lands in Approvals forever
+  // until nobody reads the inbox — which costs more than it saves. The subject
+  // has to be the visitor: "I'll send you a quote" has no such subject and
+  // still trips, as does any quote with a number anywhere near it.
+  /\b(?:someone|anyone|somebody|people|customers?|visitors?|clients?|homeowners?)\s+(?:who\s+)?(?:wants?|wanting|needs?|needing|looking for)\s+a\s+quote\b/gi,
   /\bfree audit\b/gi,
   /\bat your own pace\b/gi,
 ];
