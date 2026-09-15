@@ -9,6 +9,7 @@ import {
 } from "./types";
 import {
   BASE_BACKOFF_MS,
+  isModelUnavailable,
   MAX_ATTEMPTS_PER_PROVIDER,
   MAX_BACKOFF_MS,
   MAX_BUCKET_WAIT_MS,
@@ -50,6 +51,9 @@ export async function route(deps: RouterDeps, req: LlmRequest): Promise<LlmResul
     const fellBack = provider !== "gemini";
     const key = deps.apiKey(provider);
 
+    const chain = MODELS[provider][tier];
+    let modelIndex = 0;
+
     if (!key) {
       failures.push(`${provider}: no API key configured`);
       await deps.logCall({
@@ -57,7 +61,7 @@ export async function route(deps: RouterDeps, req: LlmRequest): Promise<LlmResul
         runId: req.runId,
         purpose: req.purpose,
         provider,
-        model: MODELS[provider][tier],
+        model: chain[0],
         promptTokens: 0,
         completionTokens: 0,
         totalTokens: 0,
@@ -82,7 +86,7 @@ export async function route(deps: RouterDeps, req: LlmRequest): Promise<LlmResul
           runId: req.runId,
           purpose: req.purpose,
           provider,
-          model: MODELS[provider][tier],
+          model: chain[modelIndex],
           promptTokens: 0,
           completionTokens: 0,
           totalTokens: 0,
@@ -95,7 +99,7 @@ export async function route(deps: RouterDeps, req: LlmRequest): Promise<LlmResul
         break; // move to the next provider; waiting longer helps nobody
       }
 
-      const model = MODELS[provider][tier];
+      const model = chain[modelIndex];
       const started = deps.now();
       try {
         const call = provider === "gemini" ? deps.callGemini : deps.callGroq;
@@ -157,7 +161,16 @@ export async function route(deps: RouterDeps, req: LlmRequest): Promise<LlmResul
           error: message,
         });
 
-        failures.push(`${provider} attempt ${attempt}: ${message}`);
+        failures.push(`${provider} ${model} attempt ${attempt}: ${message}`);
+
+        // A retired model id is not a provider failure — it is the wrong name.
+        // Walk the chain before writing the provider off, and don't spend one
+        // of its attempts doing it: nothing was wrong with the request.
+        if (isModelUnavailable(message) && modelIndex + 1 < chain.length) {
+          modelIndex++;
+          attempt--;
+          continue;
+        }
 
         // A 429 from Gemini is exactly the case the whole fallback exists for.
         // Do not burn the remaining attempts on a provider that just told us to

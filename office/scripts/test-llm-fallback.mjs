@@ -105,7 +105,7 @@ await test("happy path uses Gemini and does not fall back", async () => {
   const r = await route(deps, req);
   assert.equal(r.provider, "gemini");
   assert.equal(r.fellBack, false);
-  assert.equal(r.model, "gemini-2.5-flash");
+  assert.equal(r.model, "gemini-3.5-flash");
   assert.equal(logs.filter((l) => l.status === "ok").length, 1);
 });
 
@@ -188,7 +188,46 @@ await test("token bucket exhaustion moves to the next provider rather than stall
 await test("cheap tier picks the lite model", async () => {
   const { deps } = makeDeps();
   const r = await route(deps, { ...req, tier: "cheap" });
-  assert.equal(r.model, "gemini-2.5-flash-lite");
+  assert.equal(r.model, "gemini-3.5-flash-lite");
+});
+
+// The failure that actually shipped: both tiers pointed at model IDs the
+// providers had retired. Every call died with "Both Gemini and Groq failed"
+// while the keys were fine, because a retired name returns a 404 that looks
+// exactly like a broken key unless you read the body.
+await test("a retired model id moves to the next model, not the next provider", async () => {
+  let seen = [];
+  const { deps, logs } = makeDeps({
+    callGemini: async ({ model }) => {
+      seen.push(model);
+      if (model === "gemini-3.5-flash-lite") {
+        throw new Error(
+          'Gemini 404: { "error": { "code": 404, "message": "models/gemini-3.5-flash-lite is no longer available to new users." } }',
+        );
+      }
+      return { text: '{"from":"gemini"}', promptTokens: 1, completionTokens: 1, totalTokens: 2 };
+    },
+  });
+
+  const r = await route(deps, { ...req, tier: "cheap" });
+  assert.equal(r.provider, "gemini", "should have stayed on Gemini, not fallen over to Groq");
+  assert.equal(r.fellBack, false);
+  assert.equal(seen[0], "gemini-3.5-flash-lite");
+  assert.equal(seen[1], "gemini-2.5-flash-lite", "should try the next name in the chain");
+  // Walking the chain must not eat the provider's retries — nothing was wrong
+  // with the request, only with the name.
+  assert.ok(logs.length <= 3, `expected the chain walk to be cheap, got ${logs.length} calls`);
+});
+
+await test("a chain with every model retired still falls over to Groq", async () => {
+  const { deps } = makeDeps({
+    callGemini: async ({ model }) => {
+      throw new Error(`Gemini 404: models/${model} is no longer available to new users.`);
+    },
+  });
+  const r = await route(deps, { ...req, tier: "cheap" });
+  assert.equal(r.provider, "groq");
+  assert.equal(r.fellBack, true);
 });
 
 await test("backoff is exponential, jittered, and honours Retry-After", async () => {

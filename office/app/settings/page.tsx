@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const bots = useQuery(api.bots.list);
   const update = useMutation(api.settings.update);
   const sendTest = useAction(api.outbound.sendTest);
+  const probeModels = useAction(api.llm.probeModels);
 
   const [form, setForm] = useState({
     senderEmail: "",
@@ -32,6 +33,10 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [testTo, setTestTo] = useState("");
   const [testResult, setTestResult] = useState("");
+  const [models, setModels] = useState<
+    { provider: string; model: string; ok: boolean; note: string }[] | null
+  >(null);
+  const [probing, setProbing] = useState(false);
 
   useEffect(() => {
     if (!settings) return;
@@ -162,6 +167,48 @@ export default function SettingsPage() {
             These flags are set by the deploy script from what&apos;s actually in Convex env — they
             don&apos;t reveal the values.
           </p>
+
+          <div className="mt-4 border-t border-edge pt-4">
+            <p className="mb-2 text-xs leading-relaxed text-faint">
+              Providers retire model names without warning, and a retired name returns the same 404
+              as a bad key. This asks each provider which of our names it will actually answer to.
+              Costs a handful of tiny requests and touches no bot&apos;s budget.
+            </p>
+            <Button
+              disabled={probing}
+              onClick={async () => {
+                setProbing(true);
+                setModels(null);
+                try {
+                  setModels(await probeModels({}));
+                } finally {
+                  setProbing(false);
+                }
+              }}
+            >
+              {probing ? "Asking…" : "Check which models work"}
+            </Button>
+
+            {models && (
+              <div className="mt-3 space-y-1">
+                {models.map((m, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-2 rounded-lg border border-edge bg-panel-2/40 px-3 py-1.5 text-[11px]"
+                  >
+                    <Pill tone={m.ok ? "good" : "bad"}>{m.ok ? "works" : "no"}</Pill>
+                    <code className="shrink-0 text-cream">{m.model}</code>
+                    <span className="min-w-0 flex-1 text-faint">{m.note}</span>
+                  </div>
+                ))}
+                <p className="pt-1 text-[11px] text-faint">
+                  The first name marked <span className="text-lime">works</span> for each provider is
+                  the one in use. If none do, the names in{" "}
+                  <code className="text-lamp">packages/shared/llm/models.ts</code> need updating.
+                </p>
+              </div>
+            )}
+          </div>
         </Card>
 
         <Card className="p-5">
