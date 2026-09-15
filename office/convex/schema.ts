@@ -472,6 +472,9 @@ export default defineSchema({
     // refuses to draft at all while sending is off, deliberately, so there is
     // no way to read what she would have written before a stranger does.
     holdForApproval: v.optional(v.boolean()),
+    // BCC every send to the reply-to inbox, so Gmail holds both sides of the
+    // conversation rather than only what comes back.
+    bccSelf: v.optional(v.boolean()),
 
     senderEmail: v.string(), // "" => sending is disabled entirely
     senderName: v.string(),

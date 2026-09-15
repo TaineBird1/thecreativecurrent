@@ -29,6 +29,7 @@ export default function SettingsPage() {
     bookingUrl: "",
     dailySendCap: 20,
     holdForApproval: false,
+    bccSelf: false,
   });
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [pricing, setPricing] = useState("");
@@ -49,6 +50,7 @@ export default function SettingsPage() {
       bookingUrl: settings.bookingUrl,
       dailySendCap: settings.dailySendCap,
       holdForApproval: settings.holdForApproval ?? false,
+      bccSelf: settings.bccSelf ?? false,
     });
     setBudgets((settings.budgets ?? {}) as Record<string, number>);
     setPricing(settings.pricingYaml);
@@ -106,6 +108,24 @@ export default function SettingsPage() {
                 Bots write as normal, and every outbound email stops in Approvals for you to read
                 instead of going out. Different from pausing: pausing stops Lerato writing at all,
                 so you never get to see what she would have said.
+              </span>
+            </span>
+          </label>
+
+          <label className="mt-2 flex cursor-pointer items-start gap-2 rounded-lg border border-edge bg-ink p-3">
+            <input
+              type="checkbox"
+              checked={form.bccSelf}
+              onChange={(e) => setForm({ ...form, bccSelf: e.target.checked })}
+              className="mt-0.5"
+            />
+            <span className="text-xs leading-relaxed">
+              <span className="font-semibold">BCC me on every email</span>
+              <span className="block text-faint">
+                A copy goes to your reply-to address, so your own inbox holds both sides of each
+                conversation instead of only what comes back. Sending still happens through Resend
+                on the subdomain — this does not put your Gmail&apos;s reputation behind cold
+                outreach. Needs a reply-to address set above.
               </span>
             </span>
           </label>

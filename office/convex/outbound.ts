@@ -173,6 +173,7 @@ export const sendEmail = internalAction({
       ...args,
       from: `${state.senderName} <${state.senderEmail}>`,
       replyTo: state.replyToEmail || state.senderEmail,
+      bcc: selfCopy(state),
       bodySkeleton: candidateSkeleton,
     });
   },
@@ -211,12 +212,33 @@ export const sendApproved = internalAction({
       sequenceStep: payload.sequenceStep,
       from: `${state.senderName} <${state.senderEmail}>`,
       replyTo: state.replyToEmail || state.senderEmail,
+      bcc: selfCopy(state),
       bodySkeleton: skeleton(body, payload.personalisation ?? []),
       runId: undefined,
     });
     return outcome.reason;
   },
 });
+
+/**
+ * Where a copy of each send goes, or nothing.
+ *
+ * Sends go through Resend, so they never appear in the Gmail account Taine
+ * actually works in — replies arrive there but his own side of the
+ * conversation does not, which makes a thread impossible to read. A BCC puts
+ * it there without moving the sending itself onto Gmail, where cold outreach
+ * would be spending the reputation of the address he uses with real clients.
+ *
+ * Deliberately the reply-to address rather than a field of its own: it is by
+ * definition the inbox he reads, and one address to keep correct beats two
+ * that can disagree. If reply-to is not set there is nowhere sensible to send
+ * a copy, so none is sent.
+ */
+function selfCopy(state: { bccSelf?: boolean; replyToEmail: string }): string | undefined {
+  if (!state.bccSelf) return undefined;
+  const address = state.replyToEmail.trim();
+  return address.includes("@") ? address : undefined;
+}
 
 /** The actual network call. Nothing else in the codebase talks to Resend. */
 async function deliver(
@@ -228,6 +250,7 @@ async function deliver(
     body: string;
     from: string;
     replyTo: string;
+    bcc?: string;
     bodySkeleton: string;
     leadId?: string;
     clientId?: string;
@@ -269,6 +292,10 @@ async function deliver(
         from: args.from,
         to: [args.to],
         reply_to: args.replyTo,
+        // Omitted entirely when off — an empty bcc array is not the same thing
+        // to every provider, and a header that is present but empty is the
+        // kind of detail that gets an unfamiliar sender filtered.
+        ...(args.bcc ? { bcc: [args.bcc] } : {}),
         subject: args.subject,
         text: args.body,
       }),
