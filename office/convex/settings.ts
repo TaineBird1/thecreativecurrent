@@ -21,6 +21,7 @@ export const sendState = query({
       halted: s?.killSwitch.active ?? false,
       reason: s?.killSwitch.reason,
       paused: s?.pauseSending ?? false,
+      holdForApproval: s?.holdForApproval ?? false,
       senderEmail: s?.senderEmail ?? "",
       senderName: s?.senderName ?? "The Creative Current",
       replyToEmail: s?.replyToEmail ?? "",
@@ -165,6 +166,7 @@ export const update = mutation({
     similarityCeiling: v.optional(v.number()),
     budgets: v.optional(v.any()),
     pricingYaml: v.optional(v.string()),
+    holdForApproval: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const s = await ensureSettings(ctx);

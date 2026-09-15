@@ -28,6 +28,7 @@ export default function SettingsPage() {
     replyToEmail: "",
     bookingUrl: "",
     dailySendCap: 20,
+    holdForApproval: false,
   });
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [pricing, setPricing] = useState("");
@@ -47,6 +48,7 @@ export default function SettingsPage() {
       replyToEmail: settings.replyToEmail,
       bookingUrl: settings.bookingUrl,
       dailySendCap: settings.dailySendCap,
+      holdForApproval: settings.holdForApproval ?? false,
     });
     setBudgets((settings.budgets ?? {}) as Record<string, number>);
     setPricing(settings.pricingYaml);
@@ -90,6 +92,23 @@ export default function SettingsPage() {
               placeholder="https://cal.com/taine/discovery"
             />
           </div>
+
+          <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-edge bg-ink p-3">
+            <input
+              type="checkbox"
+              checked={form.holdForApproval}
+              onChange={(e) => setForm({ ...form, holdForApproval: e.target.checked })}
+              className="mt-0.5"
+            />
+            <span className="text-xs leading-relaxed">
+              <span className="font-semibold">Review every email before it sends</span>
+              <span className="block text-faint">
+                Bots write as normal, and every outbound email stops in Approvals for you to read
+                instead of going out. Different from pausing: pausing stops Lerato writing at all,
+                so you never get to see what she would have said.
+              </span>
+            </span>
+          </label>
 
           <div className="mt-3">
             <label className="mb-1 block text-[11px] uppercase tracking-wider text-faint">

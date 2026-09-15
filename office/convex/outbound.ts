@@ -134,16 +134,27 @@ export const sendEmail = internalAction({
       }
     }
 
-    // ── Money and claims ──────────────────────────────────────────────────
+    // ── Money and claims, and the review switch ───────────────────────────
+    //
+    // Both end in the same place, so they share one branch. "Review every email
+    // before it sends" is not a guard finding — it is the boss saying he wants
+    // to read them — but the handling is identical and a second, parallel path
+    // to Approvals would be one more thing to keep in step with this one.
     const verdict = gateAll({ subject: args.subject, body: args.body });
-    if (!verdict.clear) {
+    const held = state.holdForApproval;
+    if (!verdict.clear || held) {
+      const reason = !verdict.clear
+        ? verdict.reason
+        : "Review before sending is switched on in Settings.";
       const approvalId = await ctx.runMutation(internal.approvals.create, {
         kind: args.leadId ? "outreach_email" : "client_email",
         botKey: args.botKey,
         title: `${args.subject} → ${args.to}`,
         body: args.body,
-        reason: verdict.reason,
-        guard: verdict.guard!,
+        reason,
+        // "manual" rather than a new guard kind: nothing caught this, a person
+        // asked to see it. That is what manual already means here.
+        guard: verdict.guard ?? ("manual" as const),
         matches: verdict.matches,
         payload: {
           to: args.to,
@@ -154,8 +165,8 @@ export const sendEmail = internalAction({
         leadId: args.leadId,
         clientId: args.clientId,
       });
-      await recordBlocked(ctx, args, `Held for approval: ${verdict.reason}`);
-      return { sent: false, approvalId, reason: `Held for your approval. ${verdict.reason}` };
+      await recordBlocked(ctx, args, `Held for approval: ${reason}`);
+      return { sent: false, approvalId, reason: `Held for your approval. ${reason}` };
     }
 
     return await deliver(ctx, {

@@ -467,6 +467,11 @@ export default defineSchema({
     }),
     // Separate, weaker switch: stops sending, bots keep thinking.
     pauseSending: v.boolean(),
+    // Weaker still: bots write as normal, but every outbound email stops in
+    // Approvals instead of going out. Pausing cannot do this job — Lerato
+    // refuses to draft at all while sending is off, deliberately, so there is
+    // no way to read what she would have written before a stranger does.
+    holdForApproval: v.optional(v.boolean()),
 
     senderEmail: v.string(), // "" => sending is disabled entirely
     senderName: v.string(),
