@@ -140,7 +140,7 @@ export const run = internalAction({
             purpose: "health_check",
             runId: handle.runId,
             user: `${safe}\n\nWrite the monthly health check. If the month was uneventful, say so — do not invent activity.\nReturn the health check JSON from your instructions.`,
-            maxOutputTokens: 1000,
+            maxOutputTokens: 1800,
           });
 
           const parsed = parseJson<{
@@ -193,7 +193,7 @@ async function triageRequests(ctx: Parameters<typeof withRun>[0], runId: string)
       runId,
       tier: "cheap",
       user: `A client asked for this:\n\n"${request.description}"\n\nIs it inside a normal care plan, or does it have a cost attached (extra pages, a new feature, anything outside the plan)?\nReturn the change request triage JSON from your instructions.`,
-      maxOutputTokens: 500,
+      maxOutputTokens: 1000,
     });
 
     const parsed = parseJson<{ summary?: string; costFlagged?: boolean; why?: string }>(text);
@@ -258,7 +258,7 @@ export const draftEmail = action({
           purpose: `draft_${kind}`,
           runId: handle.runId,
           user: safe,
-          maxOutputTokens: 700,
+          maxOutputTokens: 1400,
         });
 
         const parsed = parseJson<{ subject: string; body: string }>(text);

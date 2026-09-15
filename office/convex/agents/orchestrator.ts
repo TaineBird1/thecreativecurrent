@@ -196,7 +196,7 @@ async function writeStandup(ctx: Parameters<typeof withRun>[0], runId: string): 
       "",
       "Three sections, no padding. If nothing is blocked on Taine, needsYou is exactly \"Nothing.\" Do not manufacture work for him.",
     ].join("\n"),
-    maxOutputTokens: 900,
+    maxOutputTokens: 1800,
   });
 
   const parsed = parseJson<{ yesterday: string; today: string; needsYou: string }>(text);

@@ -157,7 +157,7 @@ async function sendFirstTouch(
     user: safe,
     runId,
     temperature: 0.85, // genuinely varied wording, not shuffled synonyms
-    maxOutputTokens: 900,
+    maxOutputTokens: 2400,
   });
 
   const draft = parseJson<{ subject: string; body: string }>(text);
@@ -239,7 +239,7 @@ async function sendFollowUp(
     user: safe,
     runId,
     temperature: 0.85,
-    maxOutputTokens: 600,
+    maxOutputTokens: 1600,
   });
 
   const draft = parseJson<{ subject: string; body: string }>(text);
@@ -299,7 +299,7 @@ export const handleReply = internalAction({
           purpose: "classify_reply",
           user: safe,
           runId: handle.runId,
-          maxOutputTokens: 900,
+          maxOutputTokens: 2000,
         });
 
         const parsed = parseJson<{

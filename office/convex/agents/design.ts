@@ -61,7 +61,7 @@ export const run = internalAction({
             "The audience is KZN trade businesses. Real sites, real bakkies, real Durban light — nothing that would look at home in a bank advert.",
             "Return the image JSON from your instructions.",
           ].join("\n"),
-          maxOutputTokens: 800,
+          maxOutputTokens: 1500,
         });
 
         const parsed = parseJson<{
@@ -180,7 +180,7 @@ async function makeImage(
     purpose: "image_prompt",
     runId,
     user: `Write an image prompt for: ${brief}\n\nReturn the image JSON from your instructions.`,
-    maxOutputTokens: 800,
+    maxOutputTokens: 1500,
   });
 
   const parsed = parseJson<{ title: string; prompt: string; tags?: string[]; aspect?: string }>(text);

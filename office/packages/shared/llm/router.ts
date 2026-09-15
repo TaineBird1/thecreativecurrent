@@ -214,6 +214,13 @@ async function waitForToken(deps: RouterDeps, provider: ProviderName): Promise<b
  * Bots are told to return JSON. Models sometimes wrap it in a ```json fence or
  * add a sentence of preamble anyway. Recover what we can rather than failing a
  * whole run over punctuation.
+ *
+ * What it deliberately does NOT do is repair a truncated reply. A reply that
+ * ran out of output budget is half an email, and half an email stitched back
+ * together is worse than none — it would read as finished and go to a real
+ * prospect. So truncation fails, and says plainly that it was truncated: the
+ * first time this happened the error blamed JSON formatting and sent us
+ * looking at the parser instead of at maxOutputTokens.
  */
 export function parseJson<T>(text: string): T {
   const cleaned = text
@@ -227,8 +234,40 @@ export function parseJson<T>(text: string): T {
     const start = cleaned.search(/[[{]/);
     const end = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
     if (start !== -1 && end > start) {
-      return JSON.parse(cleaned.slice(start, end + 1)) as T;
+      try {
+        return JSON.parse(cleaned.slice(start, end + 1)) as T;
+      } catch {
+        /* fall through to the diagnosis below */
+      }
+    }
+    if (looksTruncated(cleaned)) {
+      throw new Error(
+        `The model's reply was cut off before it finished — it ran out of output budget. ` +
+          `Raise maxOutputTokens for this call. Got ${cleaned.length} characters ending: ` +
+          `"…${cleaned.slice(-80)}"`,
+      );
     }
     throw new Error(`Model did not return JSON. Got: ${text.slice(0, 200)}`);
   }
+}
+
+/** An opening brace with no partner, or a string left hanging open. */
+function looksTruncated(text: string): boolean {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (const ch of text) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') inString = !inString;
+    else if (!inString && (ch === "{" || ch === "[")) depth++;
+    else if (!inString && (ch === "}" || ch === "]")) depth--;
+  }
+  return depth > 0 || inString;
 }

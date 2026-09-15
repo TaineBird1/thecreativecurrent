@@ -630,7 +630,7 @@ async function judge(
     runId: args.runId,
     tier: "cheap",
     temperature: 0.2,
-    maxOutputTokens: 1200,
+    maxOutputTokens: 2000,
   });
 
   const raw = parseJson<Partial<Judgement>>(text);

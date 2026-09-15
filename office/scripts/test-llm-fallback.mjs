@@ -255,4 +255,23 @@ await test("parseJson survives a markdown fence and a chatty preamble", () => {
   assert.equal(parseJson('Sure! Here you go:\n{"a":2}').a, 2);
 });
 
+// The real thing Lerato produced when her output ceiling was too low. The old
+// message blamed JSON formatting, which sent us to the parser instead of to
+// maxOutputTokens.
+await test("a reply cut off mid-sentence is reported as truncated, not as bad JSON", () => {
+  const truncated = '{\n  "subject": "your site on a phone",\n  "body": "Hi «PERSON_1»';
+  assert.throws(
+    () => parseJson(truncated),
+    /cut off before it finished|output budget/,
+    "should name the real cause",
+  );
+});
+
+await test("a truncated reply is never stitched back together", () => {
+  // Half an email that parses is worse than one that fails: it reads as
+  // finished and goes to a real prospect.
+  const truncated = '{"subject":"your site on a phone","body":"Hi there, I had a look at your';
+  assert.throws(() => parseJson(truncated));
+});
+
 console.log(`\n${passed} passed${process.exitCode ? ", SOME FAILED" : ""}\n`);
