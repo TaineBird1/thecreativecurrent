@@ -55,6 +55,7 @@ writeFileSync(
 
 const { route, backoffMs, parseJson } = await import(pathToFileURL(join(out, "router.js")).href);
 const { RateLimitedError } = await import(pathToFileURL(join(out, "types.js")).href);
+const { MODELS } = await import(pathToFileURL(join(out, "models.js")).href);
 
 // ── Test harness ────────────────────────────────────────────────────────────
 function makeDeps(overrides = {}) {
@@ -200,7 +201,7 @@ await test("a retired model id moves to the next model, not the next provider", 
   const { deps, logs } = makeDeps({
     callGemini: async ({ model }) => {
       seen.push(model);
-      if (model === "gemini-3.5-flash-lite") {
+      if (model === MODELS.gemini.cheap[0]) {
         throw new Error(
           'Gemini 404: { "error": { "code": 404, "message": "models/gemini-3.5-flash-lite is no longer available to new users." } }',
         );
@@ -212,8 +213,12 @@ await test("a retired model id moves to the next model, not the next provider", 
   const r = await route(deps, { ...req, tier: "cheap" });
   assert.equal(r.provider, "gemini", "should have stayed on Gemini, not fallen over to Groq");
   assert.equal(r.fellBack, false);
-  assert.equal(seen[0], "gemini-3.5-flash-lite");
-  assert.equal(seen[1], "gemini-2.5-flash-lite", "should try the next name in the chain");
+  // Read from the chain rather than written out here. Pinning the literal name
+  // meant this test failed every time the chain was legitimately corrected —
+  // including when the retired ids it exists to guard against were finally
+  // taken out. It should assert that the NEXT name is tried, not which one.
+  assert.equal(seen[0], MODELS.gemini.cheap[0]);
+  assert.equal(seen[1], MODELS.gemini.cheap[1], "should try the next name in the chain");
   // Walking the chain must not eat the provider's retries — nothing was wrong
   // with the request, only with the name.
   assert.ok(logs.length <= 3, `expected the chain walk to be cheap, got ${logs.length} calls`);

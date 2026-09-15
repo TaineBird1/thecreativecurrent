@@ -20,8 +20,14 @@ import type { ProviderName, Tier } from "./types";
  */
 export const MODELS: Record<ProviderName, Record<Tier, string[]>> = {
   gemini: {
-    reasoning: ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-flash-latest"],
-    cheap: ["gemini-3.5-flash-lite", "gemini-2.5-flash-lite", "gemini-3.5-flash"],
+    // Every name here was read off this key's own model list via the Settings
+    // button, not recalled. The 2.5 pair that used to sit at position 2 in both
+    // chains is not on the key at all any more — so the first fallback hop,
+    // the one that exists for when the primary fails, was itself a guaranteed
+    // 404. A dead name in a fallback chain is worse than no fallback: it costs
+    // a round trip to discover and hides the real reason for the failure.
+    reasoning: ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-flash-latest"],
+    cheap: ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.5-flash"],
   },
   groq: {
     // Taken from what this account's key actually lists, not from memory —
