@@ -3,6 +3,7 @@
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Gate } from "@/app/components/Gate";
+import { SessionBoundary } from "@/app/components/SessionBoundary";
 
 /**
  * One Convex client for the whole app. Every screen subscribes through it, so
@@ -34,9 +35,23 @@ export function Providers({ children }: { children: ReactNode }) {
   // different tree than it was built with.
   if (!mounted) return null;
 
+  // The boundary wraps Gate, not the other way round: a query that throws
+  // "not signed in" has to be caught above the thing that decides whether you
+  // are, or the catch happens inside a tree that is already unmounting.
   return (
     <ConvexProvider client={convex}>
-      <Gate>{children}</Gate>
+      <SessionBoundary
+        onSignOut={() => {
+          try {
+            localStorage.removeItem("tcc-office-token");
+          } catch {
+            /* blocked storage: the reload still lands on the passcode screen */
+          }
+          window.location.reload();
+        }}
+      >
+        <Gate>{children}</Gate>
+      </SessionBoundary>
     </ConvexProvider>
   );
 }
