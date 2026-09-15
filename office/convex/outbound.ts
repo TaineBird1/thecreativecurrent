@@ -13,8 +13,10 @@
  *   2. Pause sending      — the softer switch.
  *   3. Sender configured  — no address, no sending. Not a silent no-op: it says so.
  *   4. Daily cap          — 20 outreach emails a day, counted in SAST days.
- *   5. Template check     — skeleton similarity against recent sends.
- *   6. Money + claims     — anything that trips goes to Approvals instead.
+ *   5. Orphan tokens      — a pseudonym the restore step failed to swap back.
+ *                           Never an approval: it is simply not fit to send.
+ *   6. Template check     — skeleton similarity against recent sends.
+ *   7. Money + claims     — anything that trips goes to Approvals instead.
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
@@ -22,6 +24,7 @@ import type { ActionCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { gateAll } from "../packages/shared/guards";
 import { skeleton, checkAgainstRecent } from "../packages/shared/guards/similarity";
+import { hasOrphanTokens } from "../packages/shared/guards/pii";
 import { checkHalt } from "./lib/killSwitch";
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
@@ -86,6 +89,28 @@ export const sendEmail = internalAction({
           reason: `Daily cap of ${state.dailySendCap} outreach emails reached. This one waits for tomorrow.`,
         };
       }
+    }
+
+    // ── Unreplaced pseudonym tokens ───────────────────────────────────────
+    //
+    // Contact details are swapped for «PERSON_1»-style tokens before anything
+    // reaches the model, and swapped back in its reply. When that restore
+    // misses — the model returns «URL_1» as <URL_1>, say — the token travels
+    // all the way to the recipient. It has: a prospect got "Here's a site we
+    // built — <URL_1>", with the proof link that paragraph exists for replaced
+    // by a placeholder.
+    //
+    // This is never a judgement call and never worth an approval: nothing with
+    // a token left in it is fit to send. `hasOrphanTokens` was written for this
+    // and then never called from anywhere, which is why the email went out.
+    if (hasOrphanTokens(args.body) || hasOrphanTokens(args.subject)) {
+      await recordBlocked(ctx, args, "Unreplaced pseudonym token in the text.");
+      return {
+        sent: false,
+        reason:
+          "Blocked: a placeholder token (URL_1, PERSON_1 or similar) survived into the text. " +
+          "The real value never got put back, so this would have reached the recipient as-is. Re-draft it.",
+      };
     }
 
     // ── Template check ────────────────────────────────────────────────────

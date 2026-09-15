@@ -63,18 +63,48 @@ export function pseudonymise(
   return { text: out, map };
 }
 
+/**
+ * The delimiters a model actually returns a token in.
+ *
+ * We hand it «URL_1». It hands back `<URL_1>`, `[URL_1]`, `(URL_1)` or a bare
+ * `URL_1`, because models normalise punctuation they think is decorative. An
+ * exact-string replace matches none of those, and the consequence is not a
+ * cosmetic one: a prospect received an email reading "Here's a site we built —
+ * <URL_1>", with the proof link — the entire reason for the paragraph — replaced
+ * by a placeholder.
+ *
+ * Built per token id with a negative lookahead on the digits, so restoring
+ * URL_1 can never eat the front of URL_10.
+ */
+function tokenPattern(kind: string, index: string): RegExp {
+  return new RegExp(`[«<\\[{(\`"']?\\s*${kind}_${index}(?!\\d)\\s*[»>\\]})\`"']?`, "g");
+}
+
+const TOKEN_ID_RE = /^«(PERSON|EMAIL|PHONE|URL)_(\d+)»$/;
+
 /** Put the real values back into whatever the model wrote. */
 export function restore(text: string, map: Map<string, string>): string {
   let out = text ?? "";
-  for (const [token, value] of map) {
+  // Longest ids first: with «URL_1» and «URL_10» both live, replacing the
+  // shorter one first would be wrong even with the lookahead guarding it.
+  const entries = [...map.entries()].sort((a, b) => b[0].length - a[0].length);
+  for (const [token, value] of entries) {
     out = out.split(token).join(value);
+    const id = TOKEN_ID_RE.exec(token);
+    if (id) out = out.replace(tokenPattern(id[1], id[2]), value);
   }
   return out;
 }
 
-/** True if any pseudonym token survived into the final text unreplaced. */
+/**
+ * True if any pseudonym token survived into the final text unreplaced.
+ *
+ * Matches the same delimiter variants `restore` handles — the previous version
+ * only looked for «…», so it agreed with the bug rather than catching it. This
+ * is the last line before an email leaves; see convex/outbound.ts.
+ */
 export function hasOrphanTokens(text: string): boolean {
-  return /«(?:PERSON|EMAIL|PHONE|URL)_\d+»/.test(text ?? "");
+  return /[«<\[{(`"']?\s*(?:PERSON|EMAIL|PHONE|URL)_\d+\s*[»>\]})`"']?/.test(text ?? "");
 }
 
 export class ForbiddenContentError extends Error {

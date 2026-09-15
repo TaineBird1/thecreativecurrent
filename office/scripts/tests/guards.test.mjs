@@ -15,9 +15,8 @@ const { checkMoney } = await loadTs("packages/shared/guards/money.ts");
 const { checkClaims } = await loadTs("packages/shared/guards/claims.ts", {
   "./money": "packages/shared/guards/money.ts",
 });
-const { pseudonymise, restore, assertNoForbiddenContent, prepareForLlm } = await loadTs(
-  "packages/shared/guards/pii.ts",
-);
+const { pseudonymise, restore, assertNoForbiddenContent, prepareForLlm, hasOrphanTokens } =
+  await loadTs("packages/shared/guards/pii.ts");
 const { similarity, checkAgainstRecent, skeleton } = await loadTs(
   "packages/shared/guards/similarity.ts",
 );
@@ -149,6 +148,45 @@ test("quotes, contracts and invoices are refused outright, not masked", () => {
   assert.throws(() => assertNoForbiddenContent("Branch code 250655, account number 62851…"), /banking details/);
   assert.throws(() => assertNoForbiddenContent("VAT number 4890265113"), /VAT registration/);
   assert.doesNotThrow(() => assertNoForbiddenContent("Their site has no contact form."));
+});
+
+test("restore handles the delimiters a model actually returns", () => {
+  // The old tests only fed the token back verbatim, which is the one case that
+  // already worked. This is what reached a real prospect: we hand over «URL_1»
+  // and the model returns <URL_1>.
+  const { map } = pseudonymise("See https://smit-kontrakteurs-site.vercel.app/ for an example.");
+  for (const variant of [
+    "Here's one we built — <URL_1>. Worth a look?",
+    "Here's one we built — [URL_1]. Worth a look?",
+    "Here's one we built — (URL_1). Worth a look?",
+    "Here's one we built — URL_1. Worth a look?",
+    "Here's one we built — `URL_1`. Worth a look?",
+  ]) {
+    const out = restore(variant, map);
+    assert.match(out, /smit-kontrakteurs-site\.vercel\.app/, `not restored: ${variant}`);
+    assert.equal(hasOrphanTokens(out), false, `token survived: ${variant}`);
+  }
+});
+
+test("restoring URL_1 does not eat the front of URL_10", () => {
+  const many = Array.from({ length: 10 }, (_, i) => `https://example-${i}.co.za`).join(" and ");
+  const { text, map } = pseudonymise(many);
+  assert.match(text, /URL_10/);
+  const out = restore(text, map);
+  assert.equal(out, many, "round trip must survive double-digit token ids");
+  assert.equal(hasOrphanTokens(out), false);
+});
+
+test("hasOrphanTokens catches a leak the restore missed", () => {
+  // The exact body that went out. It read as a finished email, which is what
+  // made it dangerous — nothing about it looked broken except the link.
+  const leaked =
+    "Here's a site we built to show what this can look like — <URL_1>. " +
+    "It has bilingual EN/AF, WhatsApp quote button, filterable project gallery.";
+  assert.equal(hasOrphanTokens(leaked), true, "this is the email that was actually sent");
+  assert.equal(hasOrphanTokens("«PERSON_1» runs the business."), true);
+  assert.equal(hasOrphanTokens("Morning Dean. Your site takes 8.4 seconds to load."), false);
+  assert.equal(hasOrphanTokens("Have a look at https://example.co.za — no tokens here."), false);
 });
 
 test("prepareForLlm gives back a safe string and a working restore", () => {
