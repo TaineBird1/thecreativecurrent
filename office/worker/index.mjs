@@ -46,6 +46,8 @@ const convex = new ConvexHttpClient(CONVEX_URL);
 const WORKER_ID = `${process.env.COMPUTERNAME ?? process.env.HOSTNAME ?? "pc"}-${process.pid}`;
 
 const POLL_MS = 15_000;
+/** Say something every few minutes even when idle, so silence is never the only signal. */
+const IDLE_REPORT_MS = 3 * 60_000;
 const HEARTBEAT_MS = 60_000;
 const NAV_TIMEOUT = 25_000;
 
@@ -310,17 +312,38 @@ async function harvestUrls(payload) {
   }
 }
 
+let lastIdleReport = 0;
+
 async function tick() {
   let jobs = [];
   try {
     jobs = await convex.mutation("scrapeJobs:lease", { workerId: WORKER_ID, max: 3 });
   } catch (err) {
-    console.error(`  Couldn't reach Convex: ${err.message}`);
+    console.error(`  ${stamp()} Couldn't reach Convex: ${err.message}`);
     return;
   }
 
-  if (jobs.length === 0) return;
-  console.log(`  Leased ${jobs.length} job(s).`);
+  if (jobs.length === 0) {
+    // An idle worker used to print nothing at all, which looks exactly like a
+    // broken one. Say so occasionally, with the queue depth, so "no jobs" and
+    // "not working" are never the same picture.
+    if (Date.now() - lastIdleReport > IDLE_REPORT_MS) {
+      lastIdleReport = Date.now();
+      let depth = null;
+      try {
+        depth = await convex.query("scrapeJobs:queueDepth", {});
+      } catch {
+        /* the message below still says more than nothing */
+      }
+      console.log(
+        depth
+          ? `  ${stamp()} idle — ${depth.queued} queued, ${depth.leased} in progress, ${depth.failed} failed`
+          : `  ${stamp()} idle — nothing queued`,
+      );
+    }
+    return;
+  }
+  console.log(`  ${stamp()} Leased ${jobs.length} job(s).`);
 
   for (const job of jobs) {
     if (stopping) break;
@@ -334,12 +357,16 @@ async function tick() {
             ? await scrapeMaps(job.payload)
             : await harvestUrls(job.payload);
       await convex.mutation("scrapeJobs:complete", { id: job.id, result });
-      console.log(`  done  ${label}${result.note ? ` — ${result.note}` : ""}`);
+      console.log(`  ${stamp()} done  ${label}${result.note ? ` — ${result.note}` : ""}`);
     } catch (err) {
       await convex.mutation("scrapeJobs:fail", { id: job.id, error: err.message });
-      console.log(`  fail  ${label} — ${err.message}`);
+      console.log(`  ${stamp()} fail  ${label} — ${err.message}`);
     }
   }
+}
+
+function stamp() {
+  return new Date().toLocaleTimeString("en-ZA", { hour12: false });
 }
 
 async function heartbeat() {
