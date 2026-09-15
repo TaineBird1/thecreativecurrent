@@ -253,17 +253,23 @@ without ever seeing the passcode screen.
 On localhost that does not matter. On a public URL it does. Two ways to close
 it, and you want one of them:
 
-- **Cloudflare Access** in front of the Pages project (free up to 50 users).
-  Email one-time-PIN at the edge, so a stranger never receives the bundle and
-  never learns the Convex URL. Ten minutes, and enough for a single-operator
-  back office.
+- **`functions/_middleware.js`** — a Pages Function that demands a password
+  before any file is served, so a stranger never receives the bundle and never
+  learns the Convex URL. Already in the repo; it only needs the password set.
 - **Per-function auth** — every query and mutation takes and verifies the
   session token. The real answer if this ever holds anything you would be
-  embarrassed to leak.
+  embarrassed to leak. The middleware is a door, not a safe.
 
-Setting up Access: Cloudflare dashboard → Zero Trust → Access → Applications →
-Add an application → Self-hosted → point it at the Pages domain → policy
-"Allow" with Include → Emails → your address → Login method: One-time PIN.
+**Not Cloudflare Access**, which is the usual advice and was the first thing
+tried here: Zero Trust Free asks for a credit card before it will activate at
+all. This project's brief rules that out, and a free tier you cannot enter
+without card details does not qualify.
+
+Setting the password: Pages project → Settings → Environment variables → add
+`OFFICE_WEB_PASSWORD` (production), then redeploy. Any username works at the
+browser prompt; only the password is checked. If the variable is missing the
+site serves a 503 to everybody rather than opening — a lock that silently does
+nothing is worse than no lock, because you would never find out.
 
 ---
 
