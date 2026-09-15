@@ -511,8 +511,10 @@ export default defineSchema({
     result: v.optional(v.any()),
     error: v.optional(v.string()),
     leadId: v.optional(v.id("leads")),
-    /** Set once Lead-gen has taken the results, so a batch isn't worked twice. */
+    /** Set once every result in this job has been worked, so a batch isn't repeated. */
     consumedAt: v.optional(v.number()),
+    /** How many of this job's results have been worked so far — a big batch spans runs. */
+    consumedCount: v.optional(v.number()),
     ...stamps,
   })
     .index("by_status", ["status", "priority"])

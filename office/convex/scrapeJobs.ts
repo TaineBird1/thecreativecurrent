@@ -128,11 +128,28 @@ export const completedResults = query({
   },
 });
 
-/** Taken. Without this every run re-works the same batch and reports it all as already known. */
-export const markConsumed = internalMutation({
-  args: { ids: v.array(v.id("scrapeJobs")) },
-  handler: async (ctx, { ids }) => {
-    for (const id of ids) await ctx.db.patch(id, { consumedAt: Date.now(), ...touch() });
+/**
+ * Record how much of each job has been worked.
+ *
+ * Counted rather than flagged because one Google Maps search can return 26
+ * businesses and a single run only works through a dozen — marking the whole
+ * job done would quietly bin the rest. A job is finished only when its results
+ * are.
+ */
+export const recordConsumption = internalMutation({
+  args: { progress: v.array(v.object({ id: v.id("scrapeJobs"), consumed: v.number() })) },
+  handler: async (ctx, { progress }) => {
+    for (const { id, consumed } of progress) {
+      const job = await ctx.db.get(id);
+      if (!job) continue;
+      const total =
+        (job.result?.businesses?.length ?? 0) + (job.result?.urls?.length ?? 0);
+      await ctx.db.patch(id, {
+        consumedCount: consumed,
+        ...(consumed >= total ? { consumedAt: Date.now() } : {}),
+        ...touch(),
+      });
+    }
   },
 });
 

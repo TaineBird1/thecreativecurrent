@@ -144,22 +144,26 @@ export const run = internalAction({
         // back as whole businesses read off the rendered page; everything else
         // as candidate links.
         const fromWorker = await ctx.runQuery(api.scrapeJobs.completedResults, { limit: 40 });
-        const businesses: { biz: ScrapedBusiness; sourceId: string }[] = [];
+        // Each item remembers which job it came from and where in that job it
+        // sits, so a batch bigger than one run's appetite carries over instead
+        // of being thrown away.
+        const businesses: { biz: ScrapedBusiness; sourceId: string; jobId: string; index: number }[] = [];
+        let waiting = 0;
         for (const job of fromWorker) {
           const sourceId = job.payload?.sourceId ?? "worker";
-          for (const url of (job.result?.urls ?? []) as string[]) {
-            candidates.push({ url, sourceId });
-          }
-          for (const biz of (job.result?.businesses ?? []) as ScrapedBusiness[]) {
-            businesses.push({ biz, sourceId });
-          }
-        }
-        if (fromWorker.length > 0) {
-          await ctx.runMutation(internal.scrapeJobs.markConsumed, {
-            ids: fromWorker.map((j) => j._id),
+          const already = job.consumedCount ?? 0;
+          const jobBusinesses = (job.result?.businesses ?? []) as ScrapedBusiness[];
+          const jobUrls = (job.result?.urls ?? []) as string[];
+          waiting += Math.max(0, jobBusinesses.length + jobUrls.length - already);
+
+          jobBusinesses.forEach((biz, i) => {
+            if (i >= already) businesses.push({ biz, sourceId, jobId: job._id, index: i });
           });
-          tried.push(`worker: ${businesses.length} businesses, ${candidates.length} links`);
+          jobUrls.forEach((url, i) => {
+            if (i >= already) candidates.push({ url, sourceId });
+          });
         }
+        if (waiting > 0) tried.push(`worker: ${waiting} waiting`);
 
         if (candidates.length === 0 && businesses.length === 0) {
           return (
@@ -176,8 +180,12 @@ export const run = internalAction({
         let discarded = 0;
         let skipped = 0;
 
-        for (const { biz, sourceId } of businesses.slice(0, MAX_CANDIDATES_PER_RUN)) {
+        const takingNow = businesses.slice(0, MAX_CANDIDATES_PER_RUN);
+        const progress = new Map<string, number>();
+
+        for (const { biz, sourceId, jobId, index } of takingNow) {
           if (await handle.stopped()) break;
+          progress.set(jobId, Math.max(progress.get(jobId) ?? 0, index + 1));
           await handle.say(`Checking ${biz.name.slice(0, 26)}`);
           const result = await processBusiness(ctx, {
             biz,
@@ -192,7 +200,13 @@ export const run = internalAction({
           else skipped++;
         }
 
-        for (const candidate of candidates.slice(0, Math.max(0, MAX_CANDIDATES_PER_RUN - businesses.length))) {
+        if (progress.size > 0) {
+          await ctx.runMutation(internal.scrapeJobs.recordConsumption, {
+            progress: [...progress].map(([id, consumed]) => ({ id: id as never, consumed })),
+          });
+        }
+
+        for (const candidate of candidates.slice(0, Math.max(0, MAX_CANDIDATES_PER_RUN - takingNow.length))) {
           if (await handle.stopped()) break;
           const result = await processCandidate(ctx, {
             url: candidate.url,
@@ -216,7 +230,8 @@ export const run = internalAction({
         return (
           `${prefix}${added} new lead${added === 1 ? "" : "s"} in ${location}, ` +
           `${discarded} discarded off-niche, ${skipped} already known ` +
-          `(${businesses.length} from the worker, ${candidates.length} from directories). ${worker}`
+          `(${takingNow.length} of ${businesses.length} from the worker, ${candidates.length} from directories). ` +
+          `${businesses.length > takingNow.length ? `${businesses.length - takingNow.length} still waiting — run again for more. ` : ""}${worker}`
         );
       },
     );
