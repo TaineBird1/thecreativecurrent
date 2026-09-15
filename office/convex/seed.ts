@@ -210,35 +210,68 @@ async function seedAll(ctx: MutationCtx) {
     report.push(`leads: ${existingLeads.length} already present, left alone`);
   }
 
-  // ── One sample client ─────────────────────────────────────────────────
+  // ── The client record ─────────────────────────────────────────────────
+  //
+  // This used to seed SMIT Kontrakteurs as a paying client on a R1,100/month
+  // growth plan, with a contact name and mobile number. SMIT is a spec build —
+  // nobody commissioned it and nobody pays for it, so every one of those fields
+  // was invented, and the fee was being counted as real money in Thabo's MRR.
+  //
+  // Champagne Holidays is the one genuine client, so it takes the slot. What is
+  // NOT filled in matters as much as what is:
+  //
+  //  - `email` stays "not_found" deliberately. Bongi can send a client email on
+  //    his own once the guards pass (clientsuccess.ts), and a real address here
+  //    means a bot may write to a real client unprompted. Put the address in
+  //    when you want that, as a decision rather than a side effect of seeding.
+  //  - `monthlyFee` is 0 and the tier is a placeholder because the real figures
+  //    are not known here. A guessed fee is revenue reported to you that does
+  //    not exist, which is worse than a gap you can see.
   const existingClients = alive(await ctx.db.query("clients").collect());
-  if (existingClients.length === 0) {
-    const clientId = await ctx.db.insert("clients", {
-      businessName: "SMIT Kontrakteurs",
-      contactName: "Johan",
+
+  // Retire the fabricated SMIT row if a previous seed created it. Soft delete,
+  // per the house rule — narrowly matched so a real client of the same name
+  // would never be touched.
+  const seededSmit = existingClients.find(
+    (c) => c.businessName === "SMIT Kontrakteurs" && c.siteUrl.includes("smitkontrakteurs.co.za"),
+  );
+  if (seededSmit) {
+    await ctx.db.patch(seededSmit._id, { deletedAt: Date.now(), updatedAt: Date.now() });
+    // The sample change request hung off that client. Left alone it outlives the
+    // client it belongs to and shows up on the board attached to nobody.
+    const orphans = alive(await ctx.db.query("changeRequests").collect()).filter(
+      (r) => r.clientId === seededSmit._id,
+    );
+    for (const orphan of orphans) {
+      await ctx.db.patch(orphan._id, { deletedAt: Date.now(), updatedAt: Date.now() });
+    }
+    report.push(
+      `clients: retired the fabricated SMIT sample (spec build, never a client)` +
+        (orphans.length ? ` and ${orphans.length} change request(s) attached to it` : ""),
+    );
+  }
+
+  const remaining = existingClients.filter((c) => c._id !== seededSmit?._id);
+  if (remaining.length === 0) {
+    await ctx.db.insert("clients", {
+      businessName: "Champagne Holidays",
+      contactName: "not_found",
       email: "not_found",
-      mobile: "+27824550193",
-      siteUrl: "https://www.smitkontrakteurs.co.za",
-      carePlanTier: "growth" as const,
-      monthlyFee: 1100,
-      renewalDate: new Date(Date.now() + 74 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      mobile: "not_found",
+      siteUrl: "https://www.champagneholidays.com/",
+      carePlanTier: "essential" as const,
+      monthlyFee: 0,
       uptimePercent30d: 100,
-      lastCheckAt: Date.now() - 45 * 60 * 1000,
-      lastStatusCode: 200,
-      notes: "Bilingual EN/AF. WhatsApp quote button. Reference this one for every trades prospect.",
+      notes:
+        "Ski travel website. The studio's one real client build. " +
+        "Care plan and fee NOT recorded — tier is a placeholder and the fee is 0 " +
+        "so it cannot inflate MRR; set both once agreed. " +
+        "Email left unset on purpose so no bot can write to them unprompted.",
       ...stamps(),
     });
-    await ctx.db.insert("changeRequests", {
-      clientId,
-      description: "Add the three Terraforce retaining wall jobs from November to the gallery.",
-      submittedBy: "Johan",
-      status: "open" as const,
-      costFlagged: false,
-      ...stamps(),
-    });
-    report.push("clients: 1 sample row + 1 change request");
+    report.push("clients: Champagne Holidays added (fee and email left unset on purpose)");
   } else {
-    report.push(`clients: ${existingClients.length} already present, left alone`);
+    report.push(`clients: ${remaining.length} already present, left alone`);
   }
 
   return report;
