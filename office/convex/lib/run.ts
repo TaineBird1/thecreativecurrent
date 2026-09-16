@@ -198,6 +198,24 @@ export async function withRun(
   }
 }
 
+/**
+ * The least output budget a reasoning-tier call may have.
+ *
+ * A reasoning model spends output tokens thinking before it writes a word you
+ * can see, and that spending is invisible from here — the ceiling is reached
+ * with almost nothing returned. Thabo's KPI report had 1,200 and came back cut
+ * off after 380 characters; Lerato's first email had 900 and arrived as half an
+ * email. Both looked like the model misbehaving rather than a budget we set.
+ *
+ * Cheap-tier calls are left alone: they run on flash-lite, which does not do
+ * this, and some of them genuinely want a tiny answer (leadgen's instruction
+ * reader asks for two words and gets them on 300).
+ *
+ * The ceiling is a cap, not an allocation — raising it costs nothing when the
+ * reply is short.
+ */
+const MIN_REASONING_OUTPUT_TOKENS = 2400;
+
 /** Ask a bot's own model, using its live (possibly edited) system prompt. */
 export async function think(
   ctx: ActionCtx,
@@ -211,17 +229,22 @@ export async function think(
     maxOutputTokens?: number;
   },
 ): Promise<{ text: string; provider: string; fellBack: boolean }> {
-  const bot = await ctx.runQuery(api.bots.byKey, { ...machineArgs(),  key: args.botKey });
+  const bot = await ctx.runQuery(api.bots.byKey, { ...machineArgs(), key: args.botKey });
   if (!bot) throw new Error(`No bot called "${args.botKey}".`);
-  const result = await ctx.runAction(api.llm.complete, { ...machineArgs(), 
+  const tier = args.tier ?? "reasoning";
+  const result = await ctx.runAction(api.llm.complete, {
+    ...machineArgs(),
     botKey: args.botKey,
     purpose: args.purpose,
     system: bot.systemPrompt,
     user: args.user,
-    tier: args.tier ?? "reasoning",
+    tier,
     json: true,
     temperature: args.temperature,
-    maxOutputTokens: args.maxOutputTokens,
+    maxOutputTokens:
+      tier === "reasoning"
+        ? Math.max(args.maxOutputTokens ?? 0, MIN_REASONING_OUTPUT_TOKENS)
+        : args.maxOutputTokens,
     runId: args.runId,
   });
   return { text: result.text, provider: result.provider, fellBack: result.fellBack };
