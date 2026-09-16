@@ -13,6 +13,7 @@ import { machineArgs } from "./machine";
 import type { Id } from "../_generated/dataModel";
 import { HaltedError } from "./settings";
 import { checkHalt, haltMessage, isHalted } from "./killSwitch";
+import { errorIsNamed } from "../../packages/shared/errors";
 
 export interface ClaimedTask {
   id: Id<"tasks">;
@@ -118,24 +119,27 @@ export async function withRun(
     return { ok: true, summary };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const name = err instanceof Error ? err.name : "";
+    // Not err.name: these are thrown inside api.llm.complete and arrive here
+    // through ctx.runAction, which strips the class and leaves the name in the
+    // message. See packages/shared/errors.ts.
+    const outOfBudget = errorIsNamed(err, "BudgetExceededError");
+    const rateLimited = errorIsNamed(err, "AllProvidersRateLimitedError");
+    const halted = err instanceof HaltedError || errorIsNamed(err, "HaltedError");
 
     // Whatever went wrong, hand the task back rather than leaving it stuck in
     // "in progress" where nothing will ever pick it up again.
     if (claimed) {
       await ctx.runMutation(internal.tasks.setStatus, {
         id: claimed.id,
-        status:
-          name === "BudgetExceededError" ||
-          name === "HaltedError" ||
-          name === "AllProvidersRateLimitedError"
-            ? "todo"
-            : "failed",
+        // Handed back rather than failed: none of these is the task's fault,
+        // and a failure here counts a retry and eventually lands in the Boss
+        // inbox as a decision he cannot make.
+        status: outOfBudget || halted || rateLimited ? "todo" : "failed",
         error: message,
       });
     }
 
-    if (name === "BudgetExceededError") {
+    if (outOfBudget) {
       // Not an error — an expected, visible, self-clearing state.
       await ctx.runMutation(internal.runs.finish, {
         id: runId,
@@ -151,7 +155,7 @@ export async function withRun(
       return { ok: false, summary: message };
     }
 
-    if (name === "AllProvidersRateLimitedError") {
+    if (rateLimited) {
       // Both free tiers are spent. Not a fault, and not something a human can
       // act on — the window resets on its own. Treated like the budget case:
       // visible, self-clearing, task handed back rather than failed, and no
@@ -171,7 +175,7 @@ export async function withRun(
       return { ok: false, summary: message };
     }
 
-    if (err instanceof HaltedError || name === "HaltedError") {
+    if (halted) {
       await ctx.runMutation(internal.runs.finish, { id: runId, status: "halted", summary: message });
       await ctx.runMutation(internal.bots.setStatus, {
         key: opts.botKey,
