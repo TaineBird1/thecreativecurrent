@@ -120,16 +120,72 @@ export function dedupeKey(businessName: string, suburb: string, websiteUrl: stri
   return `${norm(businessName)}|${norm(suburb)}`;
 }
 
-/** True if we have any way at all to reach them. No contact = discard. */
+/**
+ * True if we have any way at all to reach them. No contact = discard.
+ *
+ * A guessed address does not count, and used not to: this read `lead.email`
+ * without looking at `emailStatus`, so every business with a website came with
+ * a free `info@theirdomain.co.za` and therefore always looked contactable. The
+ * outreach queue then excluded guesses — correctly — and the lead sat in the
+ * hold-back pile, qualified and permanently unwritable.
+ *
+ * Six of them were checked by hand and not one published an address anywhere,
+ * which is the same thing said out loud: this function was passing leads
+ * nobody could reach. The guess is still kept on the row and still offered for
+ * a human to confirm; it is just no longer evidence of anything.
+ */
 export function isReachable(lead: {
   mobile: string;
   landline: string;
   email: string;
+  emailStatus: "published" | "inferred" | "not_found";
   facebookUrl: string;
 }): boolean {
-  return [lead.mobile, lead.landline, lead.email, lead.facebookUrl].some(
+  const email = lead.emailStatus === "published" ? lead.email : NOT_FOUND;
+  return [lead.mobile, lead.landline, email, lead.facebookUrl].some(
     (f) => f && f !== NOT_FOUND,
   );
+}
+
+/**
+ * The page on their own site most likely to carry an email address.
+ *
+ * Reading only the homepage is why so many leads arrive with a guess: a small
+ * trade business puts the address on its contact page and links to it from the
+ * nav. One extra fetch is cheap, deterministic, and needs no model — and each
+ * one it resolves is a lead a person does not have to go and look up by hand.
+ *
+ * Same origin only, so a "Contact" link pointing at a Facebook page or a
+ * directory listing cannot send the scraper wandering.
+ */
+export function contactPageUrl(pageLinks: string[], baseUrl: string): string | null {
+  let origin: string;
+  try {
+    origin = new URL(baseUrl.startsWith("http") ? baseUrl : `https://${baseUrl}`).origin;
+  } catch {
+    return null;
+  }
+
+  // Best first: a page whose whole job is contact details, then an about page,
+  // which is where a one-page site usually hides them instead.
+  const patterns = [
+    /\/(?:contact|contact-us|contactus|kontak|get-in-touch|enquir\w*)\/?$/i,
+    /\/(?:about|about-us|aboutus|oor-ons)\/?$/i,
+  ];
+
+  for (const pattern of patterns) {
+    for (const href of pageLinks) {
+      let url: URL;
+      try {
+        url = new URL(href);
+      } catch {
+        continue;
+      }
+      if (url.origin !== origin) continue;
+      if (pattern.test(url.pathname)) return url.href;
+    }
+  }
+  return null;
 }
 
 /**

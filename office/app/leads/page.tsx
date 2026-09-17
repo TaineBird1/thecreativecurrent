@@ -3,7 +3,7 @@
 import { useAuthedAction, useAuthedMutation, useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Header } from "../components/Header";
 import { Button, Card, Empty, Pill, relativeTime } from "../components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -24,8 +24,8 @@ export default function LeadsPage() {
   const [status, setStatus] = useState<string>("");
   const [tier, setTier] = useState<number>(0);
   const [search, setSearch] = useState("");
-  // The held-back set is otherwise a hunt through ninety-odd rows for six.
-  const [onlyWaiting, setOnlyWaiting] = useState(false);
+  // Either pile is otherwise a hunt through ninety-odd rows for six.
+  const [focus, setFocus] = useState<"" | "waiting" | "call">("");
   const [selected, setSelected] = useState<Id<"leads"> | null>(null);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,6 +39,7 @@ export default function LeadsPage() {
   });
   const counts = useAuthedQuery(api.leads.counts);
   const waitingOnAddress = useAuthedQuery(api.leads.waitingOnAddress);
+  const callable = useAuthedQuery(api.leads.callable);
   const addByUrl = useAuthedAction(api.agents.leadgen.addByUrl);
   const runNow = useAuthedAction(api.agents.leadgen.runNow);
 
@@ -130,18 +131,23 @@ export default function LeadsPage() {
             <span>· {counts.contacted} contacted</span>
             <span>· {counts.replied + counts.interested} replied</span>
             <span>· {counts.discarded} discarded off-niche</span>
-            {/* Held-back leads are otherwise invisible: qualified, in the list,
-                and silently never written to. */}
+            {/* Both of these are otherwise invisible: qualified, in the list,
+                and silently never written to by anything. */}
             {waitingOnAddress ? (
-              <button
-                onClick={() => setOnlyWaiting((v) => !v)}
-                className={`underline decoration-dotted underline-offset-2 ${
-                  onlyWaiting ? "text-cream" : "text-lamp"
-                }`}
+              <FocusToggle
+                on={focus === "waiting"}
+                onClick={() => setFocus((f) => (f === "waiting" ? "" : "waiting"))}
               >
-                · {waitingOnAddress} waiting on you to check a guessed address
-                {onlyWaiting ? " — showing only these" : ""}
-              </button>
+                {waitingOnAddress} waiting on you to check a guessed address
+              </FocusToggle>
+            ) : null}
+            {callable?.length ? (
+              <FocusToggle
+                on={focus === "call"}
+                onClick={() => setFocus((f) => (f === "call" ? "" : "call"))}
+              >
+                {callable.length} to phone — no email to be found
+              </FocusToggle>
             ) : null}
           </div>
         )}
@@ -167,7 +173,15 @@ export default function LeadsPage() {
             </thead>
             <tbody>
               {leads
-                ?.filter((lead) => !onlyWaiting || lead.emailStatus === "inferred")
+                ?.filter((lead) =>
+                  focus === "waiting"
+                    ? lead.emailStatus === "inferred"
+                    : focus === "call"
+                      ? lead.status === "qualified" &&
+                        lead.emailStatus === "not_found" &&
+                        (lead.mobile !== "not_found" || lead.landline !== "not_found")
+                      : true,
+                )
                 .map((lead) => (
                 <tr
                   key={lead._id}
@@ -259,6 +273,7 @@ function LeadPanel({ id, onClose }: { id: Id<"leads">; onClose: () => void }) {
   const detail = useAuthedQuery(api.leads.byId, { id });
   const setStatus = useAuthedMutation(api.leads.setStatus);
   const confirmEmail = useAuthedMutation(api.leads.confirmEmail);
+  const noEmailPublished = useAuthedMutation(api.leads.noEmailPublished);
   const logReply = useAuthedAction(api.agents.outreach.logReply);
   const draftProposal = useAuthedAction(api.agents.proposal.draft);
 
@@ -317,6 +332,7 @@ function LeadPanel({ id, onClose }: { id: Id<"leads">; onClose: () => void }) {
             <ConfirmAddress
               lead={lead}
               onConfirm={(email) => confirmEmail({ id: lead._id, email })}
+              onNotPublished={() => noEmailPublished({ id: lead._id })}
             />
           )}
         </section>
@@ -522,16 +538,41 @@ function Field({
  * Confirming is a person saying they checked. Nothing here verifies anything,
  * and the wording does not pretend otherwise.
  */
+/** A count in the summary row that doubles as a filter. */
+function FocusToggle({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`underline decoration-dotted underline-offset-2 ${on ? "text-cream" : "text-lamp"}`}
+    >
+      · {children}
+      {on ? " — showing only these" : ""}
+    </button>
+  );
+}
+
 function ConfirmAddress({
   lead,
   onConfirm,
+  onNotPublished,
 }: {
-  lead: { email: string; websiteUrl: string };
+  lead: { email: string; websiteUrl: string; mobile: string; landline: string };
   onConfirm: (email: string) => Promise<unknown>;
+  /** The third answer: looked, and there is nothing to find. */
+  onNotPublished: () => Promise<unknown>;
 }) {
   const [email, setEmail] = useState(lead.email);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const hasPhone = lead.mobile !== "not_found" || lead.landline !== "not_found";
 
   return (
     <div className="mt-3 rounded-lg border border-lamp/30 bg-lamp/5 p-3">
@@ -575,6 +616,32 @@ function ConfirmAddress({
           {email.trim().toLowerCase() === lead.email ? "Confirm" : "Use this instead"}
         </Button>
       </div>
+      {/* Without this the only outcomes on offer were "the guess is right" and
+          "here is the right one", and the one people actually reach — there is
+          no address on the site at all — had nowhere to go, so the check they
+          had just done went unrecorded and got asked for again tomorrow. */}
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError("");
+          try {
+            await onNotPublished();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="mt-2 text-[11px] text-muted underline decoration-dotted underline-offset-2 hover:text-cream disabled:opacity-50"
+      >
+        No email anywhere on their site
+      </button>
+      <p className="mt-1 text-[11px] leading-relaxed text-faint">
+        {hasPhone
+          ? "Drops the guess and moves this one to the call list — it stays qualified, it is just a phone call rather than an email."
+          : "Drops the guess. With no phone number or Facebook page either there is no way to reach them, so this lead gets discarded — the row stays, so Sipho will not go and find them again."}
+      </p>
       {error && <p className="mt-1.5 text-[11px] text-rust">{error}</p>}
     </div>
   );

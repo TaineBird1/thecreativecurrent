@@ -237,6 +237,90 @@ export const confirmEmail = authedMutation({
   },
 });
 
+/**
+ * Record that a person looked and there is no address to find.
+ *
+ * The missing third answer. `confirmEmail` assumed the guess was either right
+ * or correctable, and the Leads screen offered only those two buttons — so the
+ * outcome someone actually reaches, "I opened their site and there is no email
+ * anywhere", had nowhere to go. Six leads were checked by hand and every one of
+ * them came back that way, and none of it could be written down: the badge
+ * still said six, and the next person to look would have checked the same six
+ * sites again.
+ *
+ * So this records the looking. The guess is cleared — keeping it would leave an
+ * address on the row that nothing may ever use — and kept in the event log,
+ * because "we guessed info@ and it was wrong" is worth knowing next time the
+ * same domain turns up.
+ *
+ * What happens to the lead then depends on whether there is another way to
+ * reach them. A phone number means it is a call rather than an email, and it
+ * stays qualified and shows up on the call list. Nothing at all means it is
+ * genuinely unreachable and is discarded, with the reason saying who decided
+ * that and why — the row itself stays, so the dedupe check still knows the
+ * business and Lead-gen will not spend another run rediscovering it.
+ */
+export const noEmailPublished = authedMutation({
+  args: { id: v.id("leads") },
+  handler: async (ctx, { id }) => {
+    const lead = await getAlive(ctx, id);
+    if (!lead) throw new Error("That lead no longer exists.");
+
+    const guess = lead.email;
+    const stillReachable =
+      lead.mobile !== "not_found" ||
+      lead.landline !== "not_found" ||
+      lead.facebookUrl !== "not_found";
+
+    await ctx.db.patch(id, {
+      email: "not_found",
+      emailStatus: "not_found" as const,
+      ...(stillReachable
+        ? {}
+        : {
+            status: "discarded" as const,
+            discardReason:
+              "You checked their site and there is no email published, and there is no phone " +
+              "number or Facebook page either — no way to reach them at all.",
+          }),
+      ...touch(),
+    });
+
+    await ctx.db.insert("leadEvents", {
+      leadId: id,
+      type: "email_not_published",
+      detail: stillReachable
+        ? `You checked their site: no email published anywhere. The guess ${guess} was dropped. ` +
+          `Still reachable by phone, so this one is a call rather than an email.`
+        : `You checked their site: no email published anywhere. The guess ${guess} was dropped, ` +
+          `and with no phone or Facebook page either there is no way to reach them — discarded.`,
+      botKey: "boss",
+      ...stamps(),
+    });
+
+    return { ok: true, discarded: !stillReachable };
+  },
+});
+
+/**
+ * Leads worth a phone call: qualified, no email we may use, but a number.
+ *
+ * Lerato only sends email, so without this these would be qualified leads that
+ * quietly never get touched by anything — the same disappearing act the
+ * held-back pile was doing, one step further along.
+ */
+export const callable = authedQuery({
+  args: {},
+  handler: async (ctx) =>
+    alive(await ctx.db.query("leads").withIndex("by_status", (q) => q.eq("status", "qualified")).collect())
+      .filter(
+        (l) =>
+          l.emailStatus === "not_found" &&
+          (l.mobile !== "not_found" || l.landline !== "not_found"),
+      )
+      .sort((a, b) => b.score - a.score),
+});
+
 /** How many good leads are waiting on someone to check a guessed address. */
 export const waitingOnAddress = authedQuery({
   args: {},

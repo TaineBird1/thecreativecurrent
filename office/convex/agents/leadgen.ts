@@ -24,6 +24,7 @@ import { fetchPage, stripTags, title as pageTitle, emails as findEmails, links }
 import {
   NOT_FOUND,
   addressFromCard,
+  contactPageUrl,
   dedupeKey as makeDedupeKey,
   extractDomain,
   findNumbers,
@@ -34,6 +35,50 @@ import {
 import { auditSite, scoreLead, type Fault } from "../../packages/shared/tools/faults";
 import { prepareForLlm } from "../../packages/shared/guards/pii";
 import { TIER_CATEGORIES, LOCATIONS, sourcesForTier } from "../../packages/shared/tools/sources";
+
+/**
+ * Read the one page on their site most likely to carry contact details.
+ *
+ * Only called when the homepage published nothing, so the cost is one extra
+ * fetch on exactly the leads that would otherwise arrive with a guessed
+ * address and wait for a person to go and look the same page up by hand.
+ *
+ * Deterministic throughout — the model is not involved and never sees any of
+ * it. Returns null on anything at all going wrong, because a slow contact page
+ * must not be the reason a lead fails to be created.
+ */
+async function readContactPage(
+  siteLinks: string[],
+  websiteUrl: string,
+): Promise<{ email: ReturnType<typeof pickEmail>; mobile: string; landline: string } | null> {
+  const url = contactPageUrl(siteLinks, websiteUrl);
+  if (!url) return null;
+
+  const page = await fetchPage(url);
+  if (!page.html) return null;
+
+  const email = pickEmail(findEmails(page.html), websiteUrl);
+  const { mobile, landline } = splitNumbers(findNumbers(stripTags(page.html)));
+  return { email, mobile, landline };
+}
+
+/**
+ * Why a lead was dropped for having no contact method.
+ *
+ * Spelling out the guessed-address case rather than saying "no email": the row
+ * does carry an address, it is just one we invented from the domain and will
+ * never write to. Read on the Leads screen, "no email" would be plainly untrue
+ * and would send whoever read it off to check a thing that is not the problem.
+ */
+function unreachableReason(lead: { email: string; emailStatus: string; hasWebsite: boolean }): string {
+  if (lead.emailStatus === "inferred") {
+    return (
+      `No reachable contact method — no mobile, landline or Facebook page, and nothing ` +
+      `published on their site. ${lead.email} is a guess from the domain, so it does not count.`
+    );
+  }
+  return "No reachable contact method — no mobile, landline, email or Facebook page.";
+}
 
 /** Below this, Outreach's time is better spent elsewhere. */
 const QUALIFY_FLOOR = 40;
@@ -334,8 +379,20 @@ async function processBusiness(
       if (mobile === NOT_FOUND) mobile = numbers.mobile;
       if (landline === NOT_FOUND) landline = numbers.landline;
       emailGuess = pickEmail(findEmails(site.html), websiteUrl);
-      facebookUrl =
-        links(site.html, site.finalUrl).find((l) => /facebook\.com\/[^/]+\/?$/.test(l)) ?? NOT_FOUND;
+      const siteLinks = links(site.html, site.finalUrl);
+      facebookUrl = siteLinks.find((l) => /facebook\.com\/[^/]+\/?$/.test(l)) ?? NOT_FOUND;
+
+      // A small business puts its address on the contact page, not the front
+      // page. Worth one more fetch before falling back to a guess a human then
+      // has to go and check.
+      if (emailGuess.status !== "published") {
+        const contact = await readContactPage(siteLinks, websiteUrl);
+        if (contact) {
+          if (contact.email.status === "published") emailGuess = contact.email;
+          if (mobile === NOT_FOUND) mobile = contact.mobile;
+          if (landline === NOT_FOUND) landline = contact.landline;
+        }
+      }
 
       const audit = auditSite({
         url: websiteUrl,
@@ -368,9 +425,15 @@ async function processBusiness(
   // caller forgetting to finish the job.
   restoreJudgement(judgement, restoreOutput);
 
-  const reachableChannels = [mobile, landline, emailGuess.email, facebookUrl].filter(
-    (f) => f && f !== NOT_FOUND,
-  ).length;
+  // Only a published address counts. Counting the guess gave every business
+  // with a website a free contact channel and a free five points, which is how
+  // leads nobody could reach came to be scored as qualified.
+  const reachableChannels = [
+    mobile,
+    landline,
+    emailGuess.status === "published" ? emailGuess.email : NOT_FOUND,
+    facebookUrl,
+  ].filter((f) => f && f !== NOT_FOUND).length;
 
   const lead = {
     businessName: biz.name,
@@ -402,7 +465,7 @@ async function processBusiness(
       ...lead,
       score: 0,
       status: "discarded" as const,
-      discardReason: "No reachable contact method — no mobile, landline, email or Facebook page.",
+      discardReason: unreachableReason(lead),
     });
     return "discarded";
   }
@@ -466,16 +529,26 @@ async function processCandidate(
   const hasWebsite = websiteUrl !== NOT_FOUND;
 
   // ── Deterministic contact extraction. No model involved. ──────────────────
-  const { mobile, landline } = splitNumbers(findNumbers(text));
-  const emailGuess = pickEmail(findEmails(page.html), hasWebsite ? websiteUrl : args.url);
-  const facebookUrl =
-    links(page.html, page.finalUrl).find((l) => /facebook\.com\/[^/]+\/?$/.test(l)) ?? NOT_FOUND;
+  let { mobile, landline } = splitNumbers(findNumbers(text));
+  let emailGuess = pickEmail(findEmails(page.html), hasWebsite ? websiteUrl : args.url);
+  const pageLinks = links(page.html, page.finalUrl);
+  const facebookUrl = pageLinks.find((l) => /facebook\.com\/[^/]+\/?$/.test(l)) ?? NOT_FOUND;
   const suburb = guessSuburb(text, args.location);
   const address = guessAddress(text);
 
   const dedupe = makeDedupeKey(businessName, suburb, hasWebsite ? websiteUrl : args.url);
   const existing = await ctx.runQuery(api.leads.findByDedupeKey, { ...machineArgs(),  dedupeKey: dedupe });
   if (existing) return "skipped";
+
+  // After the dedupe check, so a business we already have never costs a fetch.
+  if (hasWebsite && emailGuess.status !== "published") {
+    const contact = await readContactPage(pageLinks, websiteUrl);
+    if (contact) {
+      if (contact.email.status === "published") emailGuess = contact.email;
+      if (mobile === NOT_FOUND) mobile = contact.mobile;
+      if (landline === NOT_FOUND) landline = contact.landline;
+    }
+  }
 
   // ── Site fault audit ──────────────────────────────────────────────────────
   let faults: Fault[] = [];
@@ -509,9 +582,15 @@ async function processCandidate(
 
   restoreJudgement(judgement, restoreOutput);
 
-  const reachableChannels = [mobile, landline, emailGuess.email, facebookUrl].filter(
-    (f) => f && f !== NOT_FOUND,
-  ).length;
+  // Only a published address counts. Counting the guess gave every business
+  // with a website a free contact channel and a free five points, which is how
+  // leads nobody could reach came to be scored as qualified.
+  const reachableChannels = [
+    mobile,
+    landline,
+    emailGuess.status === "published" ? emailGuess.email : NOT_FOUND,
+    facebookUrl,
+  ].filter((f) => f && f !== NOT_FOUND).length;
 
   const lead = {
     businessName,
@@ -541,7 +620,7 @@ async function processCandidate(
       ...lead,
       score: 0,
       status: "discarded" as const,
-      discardReason: "No reachable contact method — no mobile, landline, email or Facebook page.",
+      discardReason: unreachableReason(lead),
     });
     return "discarded";
   }
