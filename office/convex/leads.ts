@@ -474,6 +474,86 @@ export const directoryAddresses = authedQuery({
     }),
 });
 
+/**
+ * Repair the leads whose "website" was never theirs.
+ *
+ * Maps returns whatever the owner typed into the website box, and for a small
+ * trade that is often a Facebook page or a WhatsApp catalogue. Lead-gen no
+ * longer accepts those, but it does not go back and rewrite rows already in the
+ * database — and those rows are wrong in a way that reads as authoritative:
+ * Musawakhe Energy Solutions still shows five findings about "their site",
+ * under a line saying Lerato can quote one straight into an email. Every one of
+ * them was measured against wa.me.
+ *
+ * So: the site is recorded as what it is — not theirs — and the findings about
+ * it go with it. Deleting the faults is deliberate and is the point. They are
+ * not data about this business; keeping them would mean keeping a sentence
+ * about Facebook filed under a plumber, waiting to be read out.
+ *
+ * What they had is not thrown away: the Facebook page moves to the Facebook
+ * field where it belongs, and the event log records the whole exchange. A
+ * business with no website is also a better lead than one with a bad website,
+ * so nothing is lost by saying so.
+ */
+export const repairMisreadSites = authedMutation({
+  args: {},
+  handler: async (ctx) => {
+    const rows = alive(await ctx.db.query("leads").collect());
+    let repaired = 0;
+
+    for (const lead of rows) {
+      const siteIsTheirs = !lead.hasWebsite || isOwnWebsite(lead.websiteUrl);
+      const borrowedSocial = isDirectoryOwnedSocial(lead.facebookUrl);
+      const borrowedEmail =
+        lead.email.includes("@") &&
+        (isDirectoryHost(lead.email.split("@")[1]) || isSocialHost(lead.email.split("@")[1]));
+      if (siteIsTheirs && !borrowedSocial && !borrowedEmail) continue;
+
+      const patch: Record<string, unknown> = {};
+      const changed: string[] = [];
+
+      if (!siteIsTheirs) {
+        // A Facebook page in the website box is still a Facebook page.
+        if (/facebook\.com/i.test(lead.websiteUrl) && !isDirectoryOwnedSocial(lead.websiteUrl)) {
+          patch.facebookUrl = lead.websiteUrl;
+          changed.push("their Facebook page moved to the Facebook field");
+        } else if (borrowedSocial) {
+          patch.facebookUrl = "not_found";
+        }
+        patch.websiteUrl = "not_found";
+        patch.hasWebsite = false;
+        patch.loadSeconds = undefined;
+        if (lead.faults.length > 0) {
+          patch.faults = [];
+          changed.push(`${lead.faults.length} findings dropped — they were about ${lead.websiteUrl}, not about this business`);
+        }
+        changed.push("recorded as having no website");
+      } else if (borrowedSocial) {
+        patch.facebookUrl = "not_found";
+        changed.push(`${lead.facebookUrl} belongs to the directory, not to them`);
+      }
+
+      if (borrowedEmail) {
+        patch.email = "not_found";
+        patch.emailStatus = "not_found";
+        changed.push(`the address ${lead.email} was guessed from somebody else's domain`);
+      }
+
+      await ctx.db.patch(lead._id, { ...patch, ...touch() });
+      await ctx.db.insert("leadEvents", {
+        leadId: lead._id,
+        type: "repaired",
+        detail: `Corrected what was read off their listing: ${changed.join("; ")}.`,
+        botKey: "boss",
+        ...stamps(),
+      });
+      repaired++;
+    }
+
+    return { repaired };
+  },
+});
+
 /** Drafts written but never sent — waiting on sending being switched on. */
 export const draftedNotSent = authedQuery({
   args: {},

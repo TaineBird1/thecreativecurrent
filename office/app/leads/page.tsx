@@ -47,6 +47,7 @@ export default function LeadsPage() {
   const addByUrl = useAuthedAction(api.agents.leadgen.addByUrl);
   const runNow = useAuthedAction(api.agents.leadgen.runNow);
   const recheckGuessed = useAuthedAction(api.agents.leadgen.recheckGuessed);
+  const repairMisreadSites = useAuthedMutation(api.leads.repairMisreadSites);
 
   return (
     <div className="min-h-screen">
@@ -176,6 +177,40 @@ export default function LeadsPage() {
         )}
 
         {showSources && <SourceHealth rows={sourceHealth} />}
+
+        {focus === "directory" && (
+          <Card className="flex flex-wrap items-center gap-3 p-3 text-xs">
+            <Button
+              tone="primary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const { repaired } = await repairMisreadSites({});
+                  setResult(
+                    repaired === 0
+                      ? "Nothing to repair — every lead's website is its own."
+                      : `Repaired ${repaired}. Their sites were a Facebook page or a directory listing, so the findings measured against them are gone and they are recorded as having no website.`,
+                  );
+                } catch (err) {
+                  setResult(err instanceof Error ? err.message : String(err));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {busy ? "Repairing…" : "Repair these"}
+            </Button>
+            <span className="min-w-0 flex-1 leading-relaxed text-faint">
+              Each of these has a Facebook page, a WhatsApp catalogue or a directory listing
+              recorded as its website — so everything measured about &ldquo;their site&rdquo; was
+              measured about that instead, and is sitting on the lead under a line saying Lerato
+              can quote one straight into an email. This drops those findings, moves a Facebook
+              page to the Facebook field, and records the business as having no website, which is
+              both true and a better lead.
+            </span>
+          </Card>
+        )}
 
         {/* Only where the pile it works on is the thing on screen. */}
         {focus === "waiting" && (
