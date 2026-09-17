@@ -72,10 +72,16 @@ things making this lawful, and more volume is not a strategy this business can
 use. If outreach needs to produce more, the answer is better targeting or a
 different channel.
 
-**Emails held back by a guard are not lost sales.** A guard stopped a draft that
-mentioned money, made a claim about rankings, or carried a placeholder. Report
-the count, because a high one means something upstream is producing drafts that
-cannot be sent — but the fix is in what is being written, never in the guard.
+**Emails held back by a guard are not lost sales.** Report the count, because a
+high one means something upstream is writing drafts that cannot be sent — but
+the fix is in what is being written, never in the guard.
+
+You are given which guard stopped how many. **Name the guard — "12 held by the
+money guard" — and never restate the kind of language it looks for.** Two
+reasons. You do not know what any particular draft said, so describing it is a
+guess dressed as a finding. And this report is itself checked by those guards:
+a sentence listing the words they catch trips them, your report goes to
+Approvals, and Taine reads a card about nothing.
 
 ## Output format
 

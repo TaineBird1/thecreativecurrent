@@ -68,11 +68,25 @@ async function weeklyReport(ctx: Parameters<typeof withRun>[0], runId: string): 
   const won = leads.filter((l) => l.status === "won").length;
   const proposals = week(approvals).filter((a) => a.kind === "proposal");
 
+  // Which guard stopped what, by name. A blocked email's own row does not say,
+  // so it is read off the Approvals row the guard created for it.
+  const heldThisWeek = week(approvals).filter((a) => a.guard);
+  const byGuard = new Map<string, number>();
+  for (const row of heldThisWeek) byGuard.set(row.guard!, (byGuard.get(row.guard!) ?? 0) + 1);
+  const blockedByGuard = byGuard.size
+    ? ` — ${[...byGuard].map(([g, n]) => `${n} by the ${g} guard`).join(", ")}`
+    : "";
+
   // Counted here, in code. The model is given these and told to interpret them.
   const facts = [
     `Week ending ${sastDay()}.`,
     `Leads found this week: ${week(leads).filter((l) => l.status !== "discarded").length}. Discarded off-niche: ${week(leads).filter((l) => l.status === "discarded").length}.`,
-    `Emails sent: ${sent.length}. Held back by a guard or the cap: ${blocked.length}.`,
+    // Named by guard, not described. Given only a count he guessed at the
+    // cause — "likely prohibited language about pricing or guarantees" — which
+    // was both unevidenced and, by naming the words the guards look for, enough
+    // to trip the claims guard on the report itself. The data was there; he
+    // just was not given it.
+    `Emails sent: ${sent.length}. Held back before sending: ${blocked.length}${blockedByGuard}.`,
     `Replies: ${replies.length}. Reply rate: ${sent.length ? `${Math.round((replies.length / sent.length) * 100)}%` : "n/a — nothing sent"}.`,
     `Interested: ${leads.filter((l) => l.status === "interested").length}. Calls booked: ${leads.filter((l) => l.status === "call_booked").length}.`,
     `Proposals out: ${proposals.length}. Won: ${won}. Lost: ${leads.filter((l) => l.status === "lost").length}.`,
