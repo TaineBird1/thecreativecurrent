@@ -3,7 +3,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { authedQuery, authedMutation } from "./lib/authed";
 import { stamps, touch, alive, getAlive, softDelete } from "./lib/soft";
 import { leadStatus } from "./schema";
-import { isDirectoryHost } from "../packages/shared/tools/sources";
+import { isDirectoryHost, isSocialHost, isOwnWebsite } from "../packages/shared/tools/sources";
 
 /**
  * Leads.
@@ -455,9 +455,15 @@ export const sourceHealth = authedQuery({
 export const directoryAddresses = authedQuery({
   args: {},
   handler: async (ctx) =>
-    alive(await ctx.db.query("leads").collect()).filter(
-      (l) => l.email.includes("@") && isDirectoryHost(l.email.split("@")[1]),
-    ),
+    alive(await ctx.db.query("leads").collect()).filter((l) => {
+      const domain = l.email.includes("@") ? l.email.split("@")[1] : null;
+      if (domain && (isDirectoryHost(domain) || isSocialHost(domain))) return true;
+      // The cause behind most of those addresses, and worth showing on its own:
+      // a lead whose "website" is a Facebook page. Everything measured about
+      // that site was measured about Facebook, including the faults written for
+      // Lerato to quote.
+      return l.hasWebsite && !isOwnWebsite(l.websiteUrl);
+    }),
 });
 
 /** Drafts written but never sent — waiting on sending being switched on. */

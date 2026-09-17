@@ -38,7 +38,13 @@ import {
 import { auditSite, scoreLead, type Fault } from "../../packages/shared/tools/faults";
 import { splitRunBudget } from "../../packages/shared/tools/runBudget";
 import { prepareForLlm } from "../../packages/shared/guards/pii";
-import { TIER_CATEGORIES, LOCATIONS, sourcesForTier, looksLikeBusinessName } from "../../packages/shared/tools/sources";
+import {
+  TIER_CATEGORIES,
+  LOCATIONS,
+  sourcesForTier,
+  looksLikeBusinessName,
+  isOwnWebsite,
+} from "../../packages/shared/tools/sources";
 
 /**
  * How many of their pages we will read looking for an address.
@@ -700,8 +706,17 @@ async function processBusiness(
   const { biz } = args;
   if (!looksLikeBusinessName(biz.name)) return "skipped";
   const cardText = biz.cardText ?? "";
-  const hasWebsite = Boolean(biz.website);
-  const websiteUrl = biz.website ?? NOT_FOUND;
+
+  // Maps returns whatever the owner typed into the "website" box, and for a
+  // small trade that is very often their Facebook page. Treated as a website it
+  // is wrong in every direction at once: the address gets guessed from the
+  // domain, the audit runs against Facebook, and the faults it reports — no
+  // contact form, no address, no photos of the work — are handed to Lerato to
+  // quote at a plumber. A business with only a Facebook page has no website,
+  // which is a better lead and an easier conversation anyway.
+  const listed = biz.website ?? NOT_FOUND;
+  const hasWebsite = isOwnWebsite(listed);
+  const websiteUrl = hasWebsite ? listed : NOT_FOUND;
 
   const suburb = guessSuburb(cardText, args.location);
   // These three lines are computed a second time in runNow, before the run
@@ -717,7 +732,7 @@ async function processBusiness(
   let mobile = cardMobile;
   let landline = cardLandline;
   let emailGuess = pickEmail([], websiteUrl);
-  let facebookUrl = NOT_FOUND;
+  let facebookUrl = !hasWebsite && /facebook\.com/i.test(listed) ? listed : NOT_FOUND;
   let faults: Fault[] = [];
   let loadSeconds: number | undefined;
   let siteText = "";
@@ -731,7 +746,9 @@ async function processBusiness(
       if (landline === NOT_FOUND) landline = numbers.landline;
       emailGuess = pickEmail(findEmails(site.html), websiteUrl);
       const siteLinks = links(site.html, site.finalUrl);
-      facebookUrl = siteLinks.find((l) => /facebook\.com\/[^/]+\/?$/.test(l)) ?? NOT_FOUND;
+      if (facebookUrl === NOT_FOUND) {
+        facebookUrl = siteLinks.find((l) => /facebook\.com\/[^/]+\/?$/.test(l)) ?? NOT_FOUND;
+      }
 
       // A small business puts its address on the contact page, not the front
       // page. Worth one more fetch before falling back to a guess a human then

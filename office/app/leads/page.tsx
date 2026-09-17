@@ -160,8 +160,8 @@ export default function LeadsPage() {
                 onClick={() => setFocus((f) => (f === "directory" ? "" : "directory"))}
               >
                 <span className="text-rust">
-                  {directoryAddresses.length} carrying a directory&apos;s own address — check before
-                  sending
+                  {directoryAddresses.length} with a Facebook page or directory in place of their
+                  own site — check before sending
                 </span>
               </FocusToggle>
             ) : null}

@@ -179,6 +179,41 @@ export const DIRECTORY_HOSTS: string[] = [
   ),
 ];
 
+/**
+ * Somewhere a business is present, rather than somewhere it is published.
+ *
+ * Google Maps returns whatever the owner typed into the "website" box, and for
+ * a small trade that is very often their Facebook page. Taken as a website it
+ * poisons everything downstream at once: the address is guessed from the domain
+ * ("info@facebook.com"), the site audit runs against Facebook and reports that
+ * the site has no contact form, no physical address and no photos of the work,
+ * and those findings are then handed to Lerato to quote in an email. All true
+ * of facebook.com. None of it about the plumber.
+ */
+const SOCIAL_HOSTS = [
+  "facebook.com", "fb.com", "m.me", "instagram.com", "tiktok.com", "linkedin.com",
+  "twitter.com", "x.com", "youtube.com", "youtu.be", "whatsapp.com", "wa.me",
+  "pinterest.com", "linktr.ee",
+];
+
+export function isSocialHost(host: string | null | undefined): boolean {
+  if (!host) return false;
+  const clean = host.replace(/^www\./, "").toLowerCase();
+  return SOCIAL_HOSTS.some((d) => clean === d || clean.endsWith(`.${d}`));
+}
+
+/** True only for a site that is actually the business's own. */
+export function isOwnWebsite(url: string | null | undefined): boolean {
+  if (!url || url === "not_found") return false;
+  try {
+    const host = new URL(url.startsWith("http") ? url : `https://${url}`).hostname;
+    if (!host.includes(".")) return false;
+    return !isDirectoryHost(host) && !isSocialHost(host);
+  } catch {
+    return false;
+  }
+}
+
 export function isDirectoryHost(host: string | null | undefined): boolean {
   if (!host) return false;
   const clean = host.replace(/^www\./, "").toLowerCase();

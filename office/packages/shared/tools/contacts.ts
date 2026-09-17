@@ -7,7 +7,7 @@
  * actively harmful.
  */
 
-import { isDirectoryHost } from "./sources";
+import { isDirectoryHost, isSocialHost } from "./sources";
 
 export const NOT_FOUND = "not_found";
 
@@ -82,7 +82,7 @@ export function pickEmail(published: string[], websiteUrl: string): EmailGuess {
     // and the directory's, and taking the wrong one means an email addressed
     // to a plumber and delivered to Snupit — marked "published", so nothing
     // downstream would hold it back.
-    .filter((e) => !isDirectoryHost(e.split("@")[1]));
+    .filter((e) => !isDirectoryHost(e.split("@")[1]) && !isSocialHost(e.split("@")[1]));
 
   if (clean.length > 0) {
     // Prefer a role address that a human actually reads.
@@ -103,7 +103,7 @@ export function pickEmail(published: string[], websiteUrl: string): EmailGuess {
   //
   // Held back as a guess rather than sent, so nothing went out. It is still an
   // address nobody should be asked to confirm.
-  if (isDirectoryHost(domain)) return { email: NOT_FOUND, status: "not_found" };
+  if (isDirectoryHost(domain) || isSocialHost(domain)) return { email: NOT_FOUND, status: "not_found" };
 
   // info@ is the overwhelmingly common pattern for a small SA trade business.
   return { email: `info@${domain}`, status: "inferred" };

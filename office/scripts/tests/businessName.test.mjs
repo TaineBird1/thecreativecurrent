@@ -59,3 +59,49 @@ test("nothing at all is not a business", () => {
     assert.equal(looksLikeBusinessName(value), false, JSON.stringify(value));
   }
 });
+
+const { isOwnWebsite, isSocialHost } = await loadTs("packages/shared/tools/sources.ts");
+
+test("a Facebook page is not a website", () => {
+  // Verbatim from the P4plumbing lead: Maps returned this in the website box,
+  // and the site audit then reported that "the site" has no contact form, no
+  // physical address and no photos of the work. All true of facebook.com.
+  assert.equal(isOwnWebsite("https://www.facebook.com/P4plumbing"), false);
+  for (const url of [
+    "https://instagram.com/someplumber",
+    "https://www.tiktok.com/@someplumber",
+    "https://linktr.ee/someplumber",
+    "https://wa.me/27821234567",
+    "https://m.me/someplumber",
+  ]) {
+    assert.equal(isOwnWebsite(url), false, url);
+  }
+});
+
+test("a directory listing is not a website either", () => {
+  assert.equal(isOwnWebsite("https://www.snupit.co.za/durban/plumbers"), false);
+  assert.equal(isOwnWebsite("https://www.yellowpages.co.za/search?what=plumber"), false);
+});
+
+test("their own site is their own site", () => {
+  for (const url of [
+    "https://p4plumbing.co.za",
+    "http://www.hitecplumbing.co.za/",
+    "daveplumbing.co.za",
+  ]) {
+    assert.equal(isOwnWebsite(url), true, url);
+  }
+});
+
+test("nothing is not a website", () => {
+  for (const value of ["", "not_found", null, undefined, "localhost", "just some words"]) {
+    assert.equal(isOwnWebsite(value), false, JSON.stringify(value));
+  }
+});
+
+test("a business is not social for having the word in its domain", () => {
+  assert.equal(isSocialHost("facebookmarketing.co.za"), false);
+  assert.equal(isSocialHost("notfacebook.com"), false);
+  // But a subdomain of the real thing is.
+  assert.equal(isSocialHost("business.facebook.com"), true);
+});
