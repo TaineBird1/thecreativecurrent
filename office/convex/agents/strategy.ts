@@ -70,7 +70,15 @@ async function weeklyReport(ctx: Parameters<typeof withRun>[0], runId: string): 
 
   // Which guard stopped what, by name. A blocked email's own row does not say,
   // so it is read off the Approvals row the guard created for it.
-  const heldThisWeek = week(approvals).filter((a) => a.guard);
+  //
+  // Only the email ones. Counting every held artefact gave "20 held back by
+  // guards (1 claims, 11 money, 11 manual)" — twenty-three inside a bracket
+  // labelled twenty, because content drafts and Thabo's own reports were being
+  // counted against a number that only ever meant emails. A breakdown that
+  // does not add up to the figure beside it makes a reader distrust both.
+  const heldThisWeek = week(approvals).filter(
+    (a) => a.guard && (a.kind === "outreach_email" || a.kind === "client_email"),
+  );
   const byGuard = new Map<string, number>();
   for (const row of heldThisWeek) byGuard.set(row.guard!, (byGuard.get(row.guard!) ?? 0) + 1);
   const blockedByGuard = byGuard.size
