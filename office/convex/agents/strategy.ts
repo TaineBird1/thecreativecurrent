@@ -19,7 +19,7 @@ import { withRun, think } from "../lib/run";
 import { parseJson } from "../../packages/shared/llm/router";
 import { fetchPage, stripTags } from "../../packages/shared/tools/html";
 import { prepareForLlm } from "../../packages/shared/guards/pii";
-import { gateAll } from "../../packages/shared/guards";
+import { gateAll, checkClaims } from "../../packages/shared/guards";
 import { sastDay, DAY_MS } from "../lib/time";
 
 export const run = internalAction({
@@ -101,18 +101,33 @@ async function weeklyReport(ctx: Parameters<typeof withRun>[0], runId: string): 
     .join("\n")
     .trim();
 
-  // Even an internal report goes through the guards — a forecast in a KPI
-  // report is exactly the kind of thing that ends up pasted into an email.
-  const verdict = gateAll({ report: body });
-  if (!verdict.clear) {
+  // The claims guard, and only the claims guard.
+  //
+  // An internal report still needs it: a forecast in a KPI report is exactly
+  // the kind of thing that ends up pasted into an email, and that was always
+  // the reason for gating this.
+  //
+  // The money guard is a different matter, and running it here was wrong. This
+  // report's whole job is to count money — proposals out, care plan MRR, win
+  // rate — so it trips every week, by design, on the thing it was asked to
+  // produce. Two reports in a row went to Approvals for the word "proposals"
+  // in a sentence saying none had come back. A guard that fires on every
+  // instance of an artefact is not protecting anything; it is training whoever
+  // reads Approvals to click past it, and that inbox is only worth having
+  // while everything in it deserves to be there.
+  //
+  // Nothing is lost by this: the report is saved to the Library and shown to
+  // Taine. It is not sent to anyone, so there is no price here to honour.
+  const claims = checkClaims(body);
+  if (claims.tripped) {
     await ctx.runMutation(internal.approvals.create, {
       kind: "content",
       botKey: "strategy",
       title: `Weekly KPI report — ${sastDay()}`,
       body,
-      reason: verdict.reason,
-      guard: verdict.guard!,
-      matches: verdict.matches,
+      reason: claims.reason,
+      guard: "claims" as const,
+      matches: claims.hits.map((h) => h.match),
     });
     return "Weekly report written — held for approval, it contained a forward-looking claim.";
   }
