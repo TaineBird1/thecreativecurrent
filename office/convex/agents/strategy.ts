@@ -81,9 +81,34 @@ async function weeklyReport(ctx: Parameters<typeof withRun>[0], runId: string): 
   );
   const byGuard = new Map<string, number>();
   for (const row of heldThisWeek) byGuard.set(row.guard!, (byGuard.get(row.guard!) ?? 0) + 1);
-  const blockedByGuard = byGuard.size
-    ? ` — ${[...byGuard].map(([g, n]) => `${n} by the ${g} guard`).join(", ")}`
-    : "";
+  // Every blocked email carries its own reason, and only some of them are a
+  // guard: the rest are STOP being engaged, a missing key, the daily cap. The
+  // first attempt at this reported twenty held back and then listed fifteen,
+  // because the breakdown and the total were counting different things. A
+  // breakdown that does not add up makes a reader distrust the figure beside
+  // it, so the remainder is now named rather than quietly dropped.
+  const heldForApproval = heldThisWeek.length;
+  const stoppedOtherwise = Math.max(0, blocked.length - heldForApproval);
+  const otherReasons = [
+    ...new Set(
+      blocked
+        .map((e) => e.error?.replace(/\.$/, ""))
+        .filter((r): r is string => Boolean(r) && !/held for approval/i.test(r!)),
+    ),
+  ].slice(0, 3);
+
+  const blockedByGuard = [
+    heldForApproval
+      ? `${heldForApproval} waiting for your approval (${[...byGuard]
+          .map(([g, n]) => `${n} ${g === "manual" ? "because you review every email" : `by the ${g} guard`}`)
+          .join(", ")})`
+      : "",
+    stoppedOtherwise
+      ? `${stoppedOtherwise} stopped for another reason${otherReasons.length ? ` (${otherReasons.join("; ")})` : ""}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   // Counted here, in code. The model is given these and told to interpret them.
   const facts = [
@@ -94,7 +119,7 @@ async function weeklyReport(ctx: Parameters<typeof withRun>[0], runId: string): 
     // was both unevidenced and, by naming the words the guards look for, enough
     // to trip the claims guard on the report itself. The data was there; he
     // just was not given it.
-    `Emails sent: ${sent.length}. Held back before sending: ${blocked.length}${blockedByGuard}.`,
+    `Emails sent: ${sent.length}. Held back before sending: ${blocked.length}${blockedByGuard ? ` — ${blockedByGuard}` : ""}.`,
     `Replies: ${replies.length}. Reply rate: ${sent.length ? `${Math.round((replies.length / sent.length) * 100)}%` : "n/a — nothing sent"}.`,
     `Interested: ${leads.filter((l) => l.status === "interested").length}. Calls booked: ${leads.filter((l) => l.status === "call_booked").length}.`,
     `Proposals out: ${proposals.length}. Won: ${won}. Lost: ${leads.filter((l) => l.status === "lost").length}.`,
