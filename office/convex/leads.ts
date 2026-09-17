@@ -329,6 +329,54 @@ export const waitingOnAddress = authedQuery({
       .filter((l) => l.emailStatus === "inferred").length,
 });
 
+/**
+ * How each source is actually performing, by whether its leads can be emailed.
+ *
+ * Twenty-four qualified leads turned out to have no email address at all, which
+ * raises a question the lead rows cannot answer one at a time: is that what
+ * small SA trade businesses are like, or is it what one directory is like? The
+ * two have completely different fixes — the first is a call list, the second is
+ * Sipho searching somewhere else — and guessing between them would mean
+ * rebuilding the wrong half.
+ *
+ * `emailable` is the rate that matters: the share of a source's leads carrying
+ * an address published on their own site, which is the only kind Outreach will
+ * write to. A source with good coverage and a low emailable rate is costing a
+ * run every morning and filling the pipeline with leads only a phone can reach.
+ */
+export const sourceHealth = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const rows = alive(await ctx.db.query("leads").collect());
+
+    const by = new Map<
+      string,
+      { source: string; total: number; published: number; inferred: number; none: number; withPhone: number; qualified: number; contacted: number }
+    >();
+
+    for (const lead of rows) {
+      const key = lead.source || "unknown";
+      const row =
+        by.get(key) ??
+        { source: key, total: 0, published: 0, inferred: 0, none: 0, withPhone: 0, qualified: 0, contacted: 0 };
+
+      row.total += 1;
+      if (lead.emailStatus === "published") row.published += 1;
+      else if (lead.emailStatus === "inferred") row.inferred += 1;
+      else row.none += 1;
+      if (lead.mobile !== "not_found" || lead.landline !== "not_found") row.withPhone += 1;
+      if (lead.status === "qualified") row.qualified += 1;
+      if (lead.status === "contacted") row.contacted += 1;
+
+      by.set(key, row);
+    }
+
+    return [...by.values()]
+      .map((r) => ({ ...r, emailable: r.total === 0 ? 0 : Math.round((r.published / r.total) * 100) }))
+      .sort((a, b) => b.total - a.total);
+  },
+});
+
 /** Drafts written but never sent — waiting on sending being switched on. */
 export const draftedNotSent = authedQuery({
   args: {},

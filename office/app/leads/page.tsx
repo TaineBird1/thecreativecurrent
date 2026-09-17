@@ -7,6 +7,7 @@ import { useState, type ReactNode } from "react";
 import { Header } from "../components/Header";
 import { Button, Card, Empty, Pill, relativeTime } from "../components/ui";
 import type { Id } from "@/convex/_generated/dataModel";
+import { SOURCE_BY_ID } from "@shared/tools/sources";
 
 const STATUSES = [
   "qualified", "contacted", "replied", "interested", "call_booked",
@@ -40,6 +41,8 @@ export default function LeadsPage() {
   const counts = useAuthedQuery(api.leads.counts);
   const waitingOnAddress = useAuthedQuery(api.leads.waitingOnAddress);
   const callable = useAuthedQuery(api.leads.callable);
+  const sourceHealth = useAuthedQuery(api.leads.sourceHealth);
+  const [showSources, setShowSources] = useState(false);
   const addByUrl = useAuthedAction(api.agents.leadgen.addByUrl);
   const runNow = useAuthedAction(api.agents.leadgen.runNow);
 
@@ -149,8 +152,17 @@ export default function LeadsPage() {
                 {callable.length} to phone — no email to be found
               </FocusToggle>
             ) : null}
+            <FocusToggle
+              on={showSources}
+              onClick={() => setShowSources((v) => !v)}
+              whenOn=""
+            >
+              where they come from
+            </FocusToggle>
           </div>
         )}
+
+        {showSources && <SourceHealth rows={sourceHealth} />}
 
         {leads?.length === 0 && (
           <Empty>
@@ -543,10 +555,12 @@ function FocusToggle({
   on,
   onClick,
   children,
+  whenOn = " — showing only these",
 }: {
   on: boolean;
   onClick: () => void;
   children: ReactNode;
+  whenOn?: string;
 }) {
   return (
     <button
@@ -554,8 +568,71 @@ function FocusToggle({
       className={`underline decoration-dotted underline-offset-2 ${on ? "text-cream" : "text-lamp"}`}
     >
       · {children}
-      {on ? " — showing only these" : ""}
+      {on ? whenOn : ""}
     </button>
+  );
+}
+
+/**
+ * Which directories are worth searching, judged on the only thing that decides
+ * it: how often a lead from there carries an email we may actually write to.
+ *
+ * A source can look productive on lead count alone and still be feeding the
+ * pipeline businesses Outreach can never contact — which is exactly what
+ * twenty-four uncontactable qualified leads turned out to be. Coverage and
+ * emailable rate side by side is what tells those apart.
+ */
+function SourceHealth({
+  rows,
+}: {
+  rows: FunctionReturnType<typeof api.leads.sourceHealth> | undefined;
+}) {
+  if (!rows?.length) return null;
+
+  return (
+    <Card className="p-3">
+      <table className="w-full text-xs">
+        <thead className="text-left text-[11px] uppercase tracking-wider text-faint">
+          <tr>
+            <th className="pb-1.5 pr-3">Source</th>
+            <th className="pb-1.5 pr-3">Leads</th>
+            <th className="pb-1.5 pr-3">Emailable</th>
+            <th className="pb-1.5 pr-3">Published</th>
+            <th className="pb-1.5 pr-3">Guessed</th>
+            <th className="pb-1.5 pr-3">No email</th>
+            <th className="pb-1.5">Has a phone</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.source} className="border-t border-edge/60">
+              <td className="py-1.5 pr-3 font-medium text-cream">
+                {SOURCE_BY_ID[r.source]?.label ?? r.source}
+              </td>
+              <td className="py-1.5 pr-3 text-muted">{r.total}</td>
+              <td className="py-1.5 pr-3">
+                <span
+                  className={
+                    r.emailable >= 60 ? "text-lime" : r.emailable >= 25 ? "text-lamp" : "text-rust"
+                  }
+                >
+                  {r.emailable}%
+                </span>
+              </td>
+              <td className="py-1.5 pr-3 text-muted">{r.published}</td>
+              <td className="py-1.5 pr-3 text-muted">{r.inferred}</td>
+              <td className="py-1.5 pr-3 text-muted">{r.none}</td>
+              <td className="py-1.5 text-muted">{r.withPhone}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-2 text-[11px] leading-relaxed text-faint">
+        Emailable is the share carrying an address published on their own site — the only kind
+        Lerato writes to. A source low here is still finding real businesses; it is just finding
+        ones only a phone call can reach, and it costs a run every morning either way.
+      </p>
+    </Card>
   );
 }
 
