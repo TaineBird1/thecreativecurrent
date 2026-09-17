@@ -95,6 +95,30 @@ export const knownSourceUrls = authedQuery({
   },
 });
 
+/**
+ * Which of these businesses we already have, asked in one round trip.
+ *
+ * The worker hands back whole businesses off a rendered Maps page, and a
+ * business we already know is recognised for free — name, suburb and website
+ * are all in hand, no fetch and no model call. It was still costing a slot in
+ * the run, which is how twelve slots produced three leads while fifty-odd
+ * businesses waited behind them.
+ */
+export const knownDedupeKeys = authedQuery({
+  args: { keys: v.array(v.string()) },
+  handler: async (ctx, { keys }) => {
+    const known: string[] = [];
+    for (const key of [...new Set(keys)]) {
+      const hit = await ctx.db
+        .query("leads")
+        .withIndex("by_dedupe", (q) => q.eq("dedupeKey", key))
+        .first();
+      if (hit) known.push(key);
+    }
+    return known;
+  },
+});
+
 export const create = internalMutation({
   args: {
     businessName: v.string(),

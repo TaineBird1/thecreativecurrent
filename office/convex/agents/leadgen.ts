@@ -261,18 +261,57 @@ export const run = internalAction({
         // away. So the worker taking every slot does not delay its own leads;
         // it discards the directory ones, which are also the only leads that
         // arrive with an email address already on them.
+        // A business the worker already scraped is recognised for free — its
+        // name, suburb and website are all in hand, so no fetch and no model
+        // call is needed to know we have it. It was still costing a slot, which
+        // is how a twelve-slot run produced three leads with fifty-odd
+        // businesses queued behind the duplicates.
+        const workerKeys = businesses.map(({ biz }) =>
+          makeDedupeKey(
+            biz.name,
+            guessSuburb(biz.cardText ?? "", location),
+            biz.website ?? NOT_FOUND,
+          ),
+        );
+        const knownWorkerKeys =
+          businesses.length > 0
+            ? new Set<string>(
+                await ctx.runQuery(api.leads.knownDedupeKeys, {
+                  ...machineArgs(),
+                  keys: workerKeys,
+                }),
+              )
+            : new Set<string>();
+        const workerFresh = workerKeys.filter((k) => !knownWorkerKeys.has(k)).length;
+
         const budget = splitRunBudget({
-          workerWaiting: businesses.length,
+          workerWaiting: workerFresh,
           directoryWaiting: candidates.length,
           total: MAX_CANDIDATES_PER_RUN,
           floor: DIRECTORY_FLOOR,
         });
         const directoryBudget = budget.directory;
-        const takingNow = businesses.slice(0, budget.worker);
         const progress = new Map<string, number>();
+        let workerSlots = budget.worker;
+        let takenFromWorker = 0;
 
-        for (const { biz, sourceId, jobId, index } of takingNow) {
+        // Walked in order, and consumption only ever advances over businesses
+        // actually dealt with. Filtering the list first and marking the
+        // survivors consumed would quietly write off any fresh business sitting
+        // behind the last one taken.
+        for (let i = 0; i < businesses.length; i++) {
           if (await handle.stopped()) break;
+          const { biz, sourceId, jobId, index } = businesses[i];
+
+          if (knownWorkerKeys.has(workerKeys[i])) {
+            progress.set(jobId, Math.max(progress.get(jobId) ?? 0, index + 1));
+            skipped++;
+            continue;
+          }
+          if (workerSlots === 0) break;
+          workerSlots--;
+          takenFromWorker++;
+
           progress.set(jobId, Math.max(progress.get(jobId) ?? 0, index + 1));
           await handle.say(`Checking ${biz.name.slice(0, 26)}`);
           const result = await processBusiness(ctx, {
@@ -318,10 +357,10 @@ export const run = internalAction({
         return (
           `${prefix}${added} new lead${added === 1 ? "" : "s"} in ${location}, ` +
           `${discarded} discarded off-niche, ${skipped} already known ` +
-          `(${takingNow.length} of ${businesses.length} from the worker, ` +
+          `(${takenFromWorker} of ${workerFresh} new from the worker, ` +
           `${Math.min(candidates.length, directoryBudget)} of ${candidates.length} new from directories` +
           `${harvested > candidates.length ? `, ${harvested - candidates.length} already seen` : ""}). ` +
-          `${businesses.length > takingNow.length ? `${businesses.length - takingNow.length} still waiting — run again for more. ` : ""}${worker}`
+          `${workerFresh > takenFromWorker ? `${workerFresh - takenFromWorker} still waiting — run again for more. ` : ""}${worker}`
         );
       },
     );
@@ -399,6 +438,10 @@ async function processBusiness(
   const websiteUrl = biz.website ?? NOT_FOUND;
 
   const suburb = guessSuburb(cardText, args.location);
+  // These three lines are computed a second time in runNow, before the run
+  // spends a slot getting here. If this ever stops matching that, the run
+  // either skips businesses it has never seen or pays a slot to rediscover
+  // ones it has — so they move together or not at all.
   const dedupe = makeDedupeKey(biz.name, suburb, websiteUrl);
   const existing = await ctx.runQuery(api.leads.findByDedupeKey, { ...machineArgs(),  dedupeKey: dedupe });
   if (existing) return "skipped";
