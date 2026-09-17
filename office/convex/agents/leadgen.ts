@@ -85,8 +85,34 @@ function unreachableReason(lead: { email: string; emailStatus: string; hasWebsit
 
 /** Below this, Outreach's time is better spent elsewhere. */
 const QUALIFY_FLOOR = 40;
-/** Per run. Keeps well inside the daily LLM budget and inside politeness. */
-const MAX_CANDIDATES_PER_RUN = 12;
+/**
+ * Per run. Keeps well inside the daily LLM budget and inside politeness.
+ *
+ * Raised from twelve once seventy-three scraped businesses were queued behind
+ * it — at twelve a run that is a dozen clicks of "Find leads now" to work
+ * through a backlog the worker refills every morning. One call per candidate
+ * plus one per run, against Sipho's daily budget of 250, leaves room for
+ * roughly eight runs a day, which is far more than he is ever asked for.
+ *
+ * The number of candidates is no longer what bounds a run, though. The
+ * deadline below is.
+ */
+const MAX_CANDIDATES_PER_RUN = 30;
+/**
+ * When a run stops starting new work, whatever it has left.
+ *
+ * A candidate is one or two page fetches — each of which may sit out its full
+ * twelve-second timeout against a slow site — and a model call. Thirty of those
+ * back to back is nowhere near thirty times the typical run; it is the
+ * occasional run where a dozen sites are asleep, and that run would be killed
+ * mid-way by the platform's own limit, losing the work and reporting nothing
+ * useful about why.
+ *
+ * So the count is generous and the clock is the real bound. Stopping early is
+ * not a failure and is not reported as one: the leads found are saved, the rest
+ * are still queued, and the summary says to run again.
+ */
+const RUN_DEADLINE_MS = 5 * 60_000;
 /**
  * The share of a run held for directory listings when both have work waiting.
  *
@@ -304,6 +330,9 @@ export const run = internalAction({
         // actually dealt with. Filtering the list first and marking the
         // survivors consumed would quietly write off any fresh business sitting
         // behind the last one taken.
+        const deadline = Date.now() + RUN_DEADLINE_MS;
+        let ranOutOfTime = false;
+
         for (let i = 0; i < businesses.length; i++) {
           if (await handle.stopped()) break;
           const { biz, sourceId, jobId, index } = businesses[i];
@@ -314,6 +343,10 @@ export const run = internalAction({
             continue;
           }
           if (workerSlots === 0) break;
+          if (Date.now() > deadline) {
+            ranOutOfTime = true;
+            break;
+          }
           workerSlots--;
           takenFromWorker++;
 
@@ -338,8 +371,14 @@ export const run = internalAction({
           });
         }
 
+        let takenFromDirectories = 0;
         for (const candidate of candidates.slice(0, directoryBudget)) {
           if (await handle.stopped()) break;
+          if (Date.now() > deadline) {
+            ranOutOfTime = true;
+            break;
+          }
+          takenFromDirectories++;
           const result = await processCandidate(ctx, {
             url: candidate.url,
             sourceId: candidate.sourceId,
@@ -366,9 +405,10 @@ export const run = internalAction({
           `${enriched > 0 ? `${enriched} already known but filled in from their listing, ` : ""}` +
           `${skipped} already known ` +
           `(${takenFromWorker} of ${workerFresh} new from the worker, ` +
-          `${Math.min(candidates.length, directoryBudget)} of ${candidates.length} new from directories` +
+          `${takenFromDirectories} of ${candidates.length} new from directories` +
           `${harvested > candidates.length ? `, ${harvested - candidates.length} already seen` : ""}). ` +
-          `${workerFresh > takenFromWorker ? `${workerFresh - takenFromWorker} still waiting — run again for more. ` : ""}${worker}`
+          `${workerFresh > takenFromWorker ? `${workerFresh - takenFromWorker} still waiting — run again for more. ` : ""}` +
+          `${ranOutOfTime ? "Stopped at five minutes so the run would finish cleanly; everything found is saved. " : ""}${worker}`
         );
       },
     );

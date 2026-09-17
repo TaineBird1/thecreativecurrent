@@ -84,3 +84,18 @@ test("defaulting the floor gives the directories half", () => {
     directory: 6,
   });
 });
+
+test("at the raised cap the directories still get half", () => {
+  // The live numbers: 30 slots a run, floor of 15.
+  const LIVE = { total: 30, floor: 15 };
+  assert.deepEqual(splitRunBudget({ ...LIVE, workerWaiting: 73, directoryWaiting: 29 }), {
+    worker: 15,
+    directory: 15,
+  });
+  // And a backlog with no directory work still drains at the full rate — the
+  // whole point of raising it.
+  assert.deepEqual(splitRunBudget({ ...LIVE, workerWaiting: 73, directoryWaiting: 0 }), {
+    worker: 30,
+    directory: 0,
+  });
+});
