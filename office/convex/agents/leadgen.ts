@@ -856,7 +856,11 @@ function looksLikeDetailPage(url: string): boolean {
   }
   if (path === "/" || path.length < 6) return false;
   // Navigation, not businesses.
-  if (/\/(?:about|contact|privacy|terms|login|register|blog|news|help|faq|category|categories|search|tag|page)\b/i.test(path)) {
+  // "events" earns its place here: Master Builders KZN reports a healthy two
+  // matches every run, and one of them is /events/event_list.asp — an events
+  // calendar counted as a business, which is most of why a source that looks
+  // green has produced a single lead.
+  if (/\/(?:about|contact|privacy|terms|login|register|blog|news|events|help|faq|category|categories|search|tag|page)\b/i.test(path)) {
     return false;
   }
   if (/\.(?:jpg|png|svg|css|js|pdf|xml)$/i.test(path)) return false;

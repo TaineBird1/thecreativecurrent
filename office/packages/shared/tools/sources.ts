@@ -27,6 +27,44 @@ export interface Source {
 
 const q = encodeURIComponent;
 
+/**
+ * Snupit's search URL, which is not a search URL any more.
+ *
+ * It was `/search?q=plumber&location=Durban`, and that has been answering
+ * HTTP 410 Gone — deliberately retired, not broken — on every run for as far
+ * back as the logs go, while the source sat at one lead total and looked like
+ * a directory that simply had nothing to offer. It is now a page per location
+ * and trade: `/durban/plumbers`.
+ *
+ * The trade is pluralised because the path names a category, not a search
+ * term. Anything already plural or ending in -ing is left alone, since
+ * "waterproofings" and "self-caterings" are pages that do not exist.
+ *
+ * A category whose plural we guess wrong lands on a 404, and that now says so
+ * out loud in Logs -> Tools rather than looking like an empty result.
+ */
+export function snupitUrl(category: string, location: string): string {
+  return `https://www.snupit.co.za/${slug(location)}/${slug(pluralise(category))}`;
+}
+
+function slug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function pluralise(category: string): string {
+  const words = category.trim().split(/\s+/);
+  const last = (words.pop() ?? "").toLowerCase();
+  if (!last) return category;
+  // "renovations" and "retaining walls" are already plural; "waterproofing"
+  // and "self catering" are gerunds and never take one.
+  const plural = last.endsWith("s") || last.endsWith("ing") ? last : `${last}s`;
+  return [...words, plural].join(" ");
+}
+
 export const SOURCES: Source[] = [
   {
     id: "snupit",
@@ -34,16 +72,22 @@ export const SOURCES: Source[] = [
     tiers: [1, 2],
     reliability: "good",
     needsBrowser: false,
-    note: "SA trade directory. Plain server-rendered HTML, contact details usually on the listing page.",
-    search: (c, l) => `https://www.snupit.co.za/search?q=${q(c)}&location=${q(l)}`,
+    note: "SA trade directory. Plain server-rendered HTML, contact details usually on the listing page — the only source that hands over an email rather than making us go and look for one.",
+    search: (c, l) => snupitUrl(c, l),
   },
   {
     id: "yellowpages_sa",
     label: "Yellow Pages SA",
     tiers: [1, 2, 3],
     reliability: "fragile",
-    needsBrowser: false,
-    note: "Broad coverage, inconsistent markup — expect a handful of results per search, not a page.",
+    // Every plain fetch came back HTTP 200 with ZERO links on the page — not
+    // zero matching links, none at all. A served HTML page always has anchors,
+    // so what arrives is an empty shell that builds its results in the browser.
+    // No URL fixes that; it needs something that runs JavaScript, which is the
+    // worker. Costs a worker job per search and finds nothing when the worker
+    // is off, which is the honest trade rather than a silent daily zero.
+    needsBrowser: true,
+    note: "Broad coverage, but the results are rendered in JavaScript — a plain fetch sees an empty page, so this only works while the local worker is running.",
     search: (c, l) => `https://www.yellowpages.co.za/search?what=${q(c)}&where=${q(l)}`,
   },
   {
