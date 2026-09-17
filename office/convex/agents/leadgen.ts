@@ -26,7 +26,8 @@ import { fetchPage, stripTags, title as pageTitle, emails as findEmails, links }
 import {
   NOT_FOUND,
   addressFromCard,
-  contactPageUrl,
+  contactPageUrls,
+  contactPagesFromSitemap,
   dedupeKey as makeDedupeKey,
   extractDomain,
   findNumbers,
@@ -40,29 +41,79 @@ import { prepareForLlm } from "../../packages/shared/guards/pii";
 import { TIER_CATEGORIES, LOCATIONS, sourcesForTier, looksLikeBusinessName } from "../../packages/shared/tools/sources";
 
 /**
- * Read the one page on their site most likely to carry contact details.
+ * How many of their pages we will read looking for an address.
  *
- * Only called when the homepage published nothing, so the cost is one extra
- * fetch on exactly the leads that would otherwise arrive with a guessed
- * address and wait for a person to go and look the same page up by hand.
+ * Only ever spent on a business that published nothing on its homepage — the
+ * ones that would otherwise arrive as a guess for a person to go and check by
+ * hand, which is the queue this is here to shrink. Three is enough for a
+ * contact page, an about page, and one wrong turn.
+ */
+const MAX_CONTACT_PAGES = 3;
+
+/**
+ * Look harder for an address, on their own site only.
  *
- * Deterministic throughout — the model is not involved and never sees any of
- * it. Returns null on anything at all going wrong, because a slow contact page
- * must not be the reason a lead fails to be created.
+ * The first version read one linked contact page, which misses a small trade
+ * site every time it links that page from an image, a JavaScript menu, or a
+ * footer widget — none of which is an anchor anything can read. So: the pages
+ * their own links point at, then the addresses a contact page usually lives at
+ * anyway, then, if all of that came back with nothing, the sitemap — the site's
+ * own index of itself, and the one place that cannot be wrong about what pages
+ * exist.
+ *
+ * Deterministic throughout; no model is involved and none of this is shown one.
+ * Stops the moment it has a published address, so the full budget is only ever
+ * spent on a business that has none.
  */
 async function readContactPage(
   siteLinks: string[],
   websiteUrl: string,
 ): Promise<{ email: ReturnType<typeof pickEmail>; mobile: string; landline: string } | null> {
-  const url = contactPageUrl(siteLinks, websiteUrl);
-  if (!url) return null;
+  const tried = new Set<string>();
+  let best: { email: ReturnType<typeof pickEmail>; mobile: string; landline: string } | null = null;
 
-  const page = await fetchPage(url);
-  if (!page.html) return null;
+  const read = async (url: string) => {
+    if (tried.has(url) || tried.size >= MAX_CONTACT_PAGES) return null;
+    tried.add(url);
 
-  const email = pickEmail(findEmails(page.html), websiteUrl);
-  const { mobile, landline } = splitNumbers(findNumbers(stripTags(page.html)));
-  return { email, mobile, landline };
+    const page = await fetchPage(url);
+    if (!page.html) return null;
+
+    const email = pickEmail(findEmails(page.html), websiteUrl);
+    const { mobile, landline } = splitNumbers(findNumbers(stripTags(page.html)));
+    const result = { email, mobile, landline };
+
+    if (email.status === "published") return result;
+    // A phone number is worth keeping hold of while we carry on looking.
+    if (!best && (mobile !== NOT_FOUND || landline !== NOT_FOUND)) best = result;
+    return null;
+  };
+
+  for (const url of contactPageUrls(siteLinks, websiteUrl)) {
+    const hit = await read(url);
+    if (hit) return hit;
+  }
+
+  // Their own index of themselves, read only when nothing else worked.
+  if (tried.size < MAX_CONTACT_PAGES) {
+    let origin: string | null = null;
+    try {
+      origin = new URL(websiteUrl.startsWith("http") ? websiteUrl : `https://${websiteUrl}`).origin;
+    } catch {
+      origin = null;
+    }
+    if (origin) {
+      const sitemap = await fetchPage(`${origin}/sitemap.xml`);
+      if (sitemap.html) {
+        for (const url of contactPagesFromSitemap(sitemap.html, websiteUrl)) {
+          const hit = await read(url);
+          if (hit) return hit;
+        }
+      }
+    }
+  }
+
+  return best;
 }
 
 /**

@@ -14,7 +14,7 @@ import { loadTs } from "./_load.mjs";
 
 // contacts.ts asks sources.ts which hosts belong to a directory, so that has
 // to be compiled alongside it.
-const { isReachable, contactPageUrl, pickEmail, NOT_FOUND } = await loadTs(
+const { isReachable, contactPageUrls, contactPagesFromSitemap, pickEmail, NOT_FOUND } = await loadTs(
   "packages/shared/tools/contacts.ts",
   { "./sources": "packages/shared/tools/sources.ts" },
 );
@@ -66,26 +66,31 @@ test("pickEmail still marks its guess as a guess", () => {
 
 const SITE = "https://plumber.co.za";
 
-test("the contact page wins over the about page", () => {
+/** What the old single-answer version would have returned. */
+const first = (links, site = SITE) => contactPageUrls(links, site)[0] ?? null;
+
+test("the contact page is read before the about page", () => {
   const links = [
     "https://plumber.co.za/about-us",
     "https://plumber.co.za/services",
     "https://plumber.co.za/contact",
   ];
-  assert.equal(contactPageUrl(links, SITE), "https://plumber.co.za/contact");
+  const order = contactPageUrls(links, SITE);
+  assert.equal(order[0], "https://plumber.co.za/contact");
+  assert.ok(order.indexOf("https://plumber.co.za/about-us") > 0);
 });
 
 test("an about page is taken when there is no contact page", () => {
   // A one-page trade site usually hides the address there instead.
   assert.equal(
-    contactPageUrl(["https://plumber.co.za/services", "https://plumber.co.za/about"], SITE),
+    first(["https://plumber.co.za/services", "https://plumber.co.za/about"]),
     "https://plumber.co.za/about",
   );
 });
 
 test("the usual spellings are all recognised", () => {
   for (const path of ["/contact", "/contact-us/", "/contactus", "/get-in-touch", "/enquiries", "/kontak"]) {
-    assert.equal(contactPageUrl([`${SITE}${path}`], SITE), `${SITE}${path}`, path);
+    assert.equal(first([`${SITE}${path}`]), `${SITE}${path}`, path);
   }
 });
 
@@ -96,18 +101,62 @@ test("a contact link pointing off their own site is not followed", () => {
     "https://facebook.com/plumber/contact",
     "https://www.yellowpages.co.za/plumber/contact-us",
   ];
-  assert.equal(contactPageUrl(links, SITE), null);
+  assert.deepEqual(
+    contactPageUrls(links, SITE).filter((u) => !u.startsWith(SITE)),
+    [],
+  );
 });
 
-test("no contact page means no contact page", () => {
-  assert.equal(contactPageUrl(["https://plumber.co.za/services"], SITE), null);
-  assert.equal(contactPageUrl([], SITE), null);
-  assert.equal(contactPageUrl(["not a url at all"], SITE), null);
-  assert.equal(contactPageUrl(["https://plumber.co.za/contact"], "not_found"), null);
+test("the usual addresses are tried even when nothing links to them", () => {
+  // The change that matters: a site whose contact page is linked from an image
+  // or a JavaScript menu used to be a dead end.
+  const guesses = contactPageUrls([], SITE);
+  assert.deepEqual(guesses, [
+    "https://plumber.co.za/contact",
+    "https://plumber.co.za/contact-us",
+    "https://plumber.co.za/about",
+  ]);
+});
+
+test("a page their own links point at is read before a guessed address", () => {
+  const order = contactPageUrls(["https://plumber.co.za/get-in-touch"], SITE);
+  assert.equal(order[0], "https://plumber.co.za/get-in-touch");
+  assert.ok(order.length > 1, "the guesses should still follow");
+});
+
+test("a real link is never queued twice as a guess", () => {
+  const order = contactPageUrls(["https://plumber.co.za/contact"], SITE);
+  assert.equal(order.filter((u) => u === "https://plumber.co.za/contact").length, 1);
+});
+
+test("nothing usable means nothing is tried", () => {
+  assert.deepEqual(contactPageUrls(["https://plumber.co.za/contact"], "not_found"), []);
+  assert.deepEqual(contactPageUrls(["not a url at all"], "not_found"), []);
 });
 
 test("a word merely containing 'contact' is not a contact page", () => {
-  assert.equal(contactPageUrl([`${SITE}/contactors-we-work-with`], SITE), null);
+  assert.ok(!contactPageUrls([`${SITE}/contactors-we-work-with`], SITE).includes(
+    `${SITE}/contactors-we-work-with`,
+  ));
+});
+
+test("the sitemap is read for pages nothing linked to", () => {
+  // The site's own index of itself — the one source that cannot be wrong about
+  // which pages exist.
+  const xml = `<?xml version="1.0"?><urlset>
+    <url><loc>https://plumber.co.za/</loc></url>
+    <url><loc>https://plumber.co.za/emergency-callouts</loc></url>
+    <url><loc> https://plumber.co.za/contact-us </loc></url>
+  </urlset>`;
+  assert.deepEqual(contactPagesFromSitemap(xml, SITE), ["https://plumber.co.za/contact-us"]);
+});
+
+test("the sitemap never invents a page it does not list", () => {
+  // The guessed addresses are useful from a homepage and misleading here: a
+  // sitemap that does not list /contact is saying there isn't one.
+  const xml = "<urlset><url><loc>https://plumber.co.za/services</loc></url></urlset>";
+  assert.deepEqual(contactPagesFromSitemap(xml, SITE), []);
+  assert.deepEqual(contactPagesFromSitemap("not xml at all", SITE), []);
 });
 
 test("a directory's own address is never taken as the business's", () => {

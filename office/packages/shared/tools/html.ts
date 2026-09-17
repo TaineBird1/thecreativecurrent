@@ -133,13 +133,42 @@ export function images(html: string): { src: string; alt: string | null }[] {
   return out;
 }
 
+/**
+ * Turn `&#105;nfo&#64;example.co.za` back into text before looking for an
+ * address in it.
+ *
+ * Usually not evasion — plenty of themes and page builders emit an entity for
+ * the @ sign as a matter of course — but the effect is the same either way: the
+ * address is on the page, a person reads it perfectly well, and the regex below
+ * never sees it.
+ */
+function decodeEntities(html: string): string {
+  return html
+    .replace(/&#x([0-9a-f]{1,6});/gi, (whole, hex) => codePoint(parseInt(hex, 16), whole))
+    .replace(/&#(\d{1,7});/g, (whole, dec) => codePoint(parseInt(dec, 10), whole))
+    .replace(/&commat;/gi, "@")
+    .replace(/&period;/gi, ".")
+    .replace(/&amp;/gi, "&");
+}
+
+function codePoint(value: number, whole: string): string {
+  // A malformed entity stays as it was rather than throwing mid-scrape.
+  if (!Number.isFinite(value) || value < 1 || value > 0x10ffff) return whole;
+  try {
+    return String.fromCodePoint(value);
+  } catch {
+    return whole;
+  }
+}
+
 export function emails(html: string): string[] {
+  const decoded = decodeEntities(html);
   const out = new Set<string>();
   const mailto = /mailto:([^"'?>\s]+)/gi;
   let m: RegExpExecArray | null;
-  while ((m = mailto.exec(html)) !== null) out.add(m[1].toLowerCase());
+  while ((m = mailto.exec(decoded)) !== null) out.add(m[1].toLowerCase());
 
-  const text = stripTags(html);
+  const text = stripTags(decoded);
   const bare = /\b[\w.+-]+@[\w-]+\.[\w.-]{2,}\b/g;
   while ((m = bare.exec(text)) !== null) out.add(m[0].toLowerCase());
 

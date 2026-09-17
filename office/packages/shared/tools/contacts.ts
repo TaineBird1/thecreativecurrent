@@ -165,44 +165,64 @@ export function isReachable(lead: {
 }
 
 /**
- * The page on their own site most likely to carry an email address.
+ * The pages on their own site most likely to carry an email address, in the
+ * order they are worth reading.
  *
- * Reading only the homepage is why so many leads arrive with a guess: a small
- * trade business puts the address on its contact page and links to it from the
- * nav. One extra fetch is cheap, deterministic, and needs no model — and each
- * one it resolves is a lead a person does not have to go and look up by hand.
+ * Reading the homepage and one linked contact page leaves a lot behind. A small
+ * trade site links its contact page from an image, a hamburger menu built in
+ * JavaScript, or a footer widget — none of which is an anchor we can read — and
+ * scatters the details across a services page and a footer besides.
  *
- * Same origin only, so a "Contact" link pointing at a Facebook page or a
+ * So: every same-origin link that looks like a contact page, then every one
+ * that looks like an about page, then the addresses those pages usually live at
+ * whether or not anything linked to them. The last group costs a fetch that
+ * often 404s, which is why it goes last and why the caller stops as soon as it
+ * has an address.
+ *
+ * Same origin throughout, so a "Contact" link pointing at a Facebook page or a
  * directory listing cannot send the scraper wandering.
  */
-export function contactPageUrl(pageLinks: string[], baseUrl: string): string | null {
+const CONTACT_PATTERN = /\/(?:contact|contact-us|contactus|kontak|get-in-touch|enquir\w*)\/?$/i;
+const ABOUT_PATTERN = /\/(?:about|about-us|aboutus|oor-ons)\/?$/i;
+
+/** Where a contact page lives when nothing on the homepage links to it. */
+const COMMON_CONTACT_PATHS = ["/contact", "/contact-us", "/about"];
+
+export function contactPageUrls(pageLinks: string[], baseUrl: string): string[] {
   let origin: string;
   try {
-    origin = new URL(baseUrl.startsWith("http") ? baseUrl : `https://${baseUrl}`).origin;
+    const base = new URL(baseUrl.startsWith("http") ? baseUrl : `https://${baseUrl}`);
+    // "not_found" parses as a perfectly valid URL with a hostname of
+    // "not_found", and the guessed paths below would then be built on it and
+    // fetched. A real host has a dot in it.
+    if (!base.hostname.includes(".")) return [];
+    origin = base.origin;
   } catch {
-    return null;
+    return [];
   }
 
-  // Best first: a page whose whole job is contact details, then an about page,
-  // which is where a one-page site usually hides them instead.
-  const patterns = [
-    /\/(?:contact|contact-us|contactus|kontak|get-in-touch|enquir\w*)\/?$/i,
-    /\/(?:about|about-us|aboutus|oor-ons)\/?$/i,
-  ];
-
-  for (const pattern of patterns) {
-    for (const href of pageLinks) {
-      let url: URL;
-      try {
-        url = new URL(href);
-      } catch {
-        continue;
-      }
-      if (url.origin !== origin) continue;
-      if (pattern.test(url.pathname)) return url.href;
+  const sameOrigin: URL[] = [];
+  for (const href of pageLinks) {
+    try {
+      const url = new URL(href);
+      if (url.origin === origin) sameOrigin.push(url);
+    } catch {
+      /* a malformed href is not worth failing a lookup over */
     }
   }
-  return null;
+
+  const found = [
+    ...sameOrigin.filter((u) => CONTACT_PATTERN.test(u.pathname)),
+    ...sameOrigin.filter((u) => ABOUT_PATTERN.test(u.pathname)),
+  ].map((u) => u.href);
+
+  return [...new Set([...found, ...COMMON_CONTACT_PATHS.map((path) => `${origin}${path}`)])];
+}
+
+/** Same rule, applied to the URLs a sitemap lists. */
+export function contactPagesFromSitemap(xml: string, baseUrl: string): string[] {
+  const locs = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)].map((m) => m[1]);
+  return contactPageUrls(locs, baseUrl).filter((url) => locs.includes(url));
 }
 
 /**

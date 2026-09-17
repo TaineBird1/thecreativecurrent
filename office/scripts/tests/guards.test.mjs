@@ -279,3 +279,37 @@ test("gateAll checks the subject as well as the body", () => {
   assert.equal(v.clear, false);
   assert.match(v.reason, /subject/);
 });
+
+// ── Addresses hidden by the way a page is written, not to hide them ──────────
+// A theme that emits &#64; for the @ sign puts the address on the page as
+// plainly as ever — a person reads it without noticing — while the regex that
+// looks for one sees nothing at all.
+const { emails: findEmails } = await loadTs("packages/shared/tools/html.ts");
+
+test("an address written in HTML entities is still found", () => {
+  assert.deepEqual(
+    findEmails("<p>Write to &#105;nfo&#64;daveplumbing.co.za any time</p>"),
+    ["info@daveplumbing.co.za"],
+  );
+  assert.deepEqual(
+    findEmails("<p>dave&#x40;daveplumbing.co.za</p>"),
+    ["dave@daveplumbing.co.za"],
+  );
+  assert.deepEqual(
+    findEmails('<a href="mailto:dave&#64;daveplumbing.co.za">Email us</a>'),
+    ["dave@daveplumbing.co.za"],
+  );
+});
+
+test("a plain address is unaffected by the decoding", () => {
+  assert.deepEqual(findEmails("<p>dave@daveplumbing.co.za</p>"), ["dave@daveplumbing.co.za"]);
+  assert.deepEqual(findEmails("<p>no address here at all</p>"), []);
+});
+
+test("a malformed entity does not stop the scan", () => {
+  // &#999999999; is not a character. The page still has an address on it.
+  assert.deepEqual(
+    findEmails("<p>&#999999999; dave@daveplumbing.co.za &#x; &#;</p>"),
+    ["dave@daveplumbing.co.za"],
+  );
+});
