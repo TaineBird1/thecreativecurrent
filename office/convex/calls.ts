@@ -33,15 +33,22 @@ import { isOwnWebsite } from "../packages/shared/tools/sources";
 function whatToMention(lead: {
   hasWebsite: boolean;
   websiteUrl: string;
+  facebookUrl: string;
   faults: { detail: string }[];
 }): string | null {
   if (lead.hasWebsite && isOwnWebsite(lead.websiteUrl)) {
     return lead.faults[0]?.detail ?? null;
   }
-  if (/facebook\.com/i.test(lead.websiteUrl)) {
+
+  // Naming what they do have is the better opening line, and it survives the
+  // repair: that moves a Facebook page out of the website field and into the
+  // Facebook one, so looking only at the website field is how P4plumbing went
+  // from "just a Facebook page" to the vaguer "no website at all".
+  const presence = [lead.websiteUrl, lead.facebookUrl].filter((u) => u && u !== "not_found");
+  if (presence.some((u) => /facebook\.com/i.test(u))) {
     return "They have no website — just a Facebook page.";
   }
-  if (/wa\.me|whatsapp/i.test(lead.websiteUrl)) {
+  if (presence.some((u) => /wa\.me|whatsapp/i.test(u))) {
     return "They have no website — just a WhatsApp catalogue.";
   }
   return "They have no website at all.";
