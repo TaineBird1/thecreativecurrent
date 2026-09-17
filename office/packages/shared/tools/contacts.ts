@@ -7,6 +7,8 @@
  * actively harmful.
  */
 
+import { isDirectoryHost } from "./sources";
+
 export const NOT_FOUND = "not_found";
 
 /**
@@ -75,7 +77,12 @@ export function pickEmail(published: string[], websiteUrl: string): EmailGuess {
     .filter((e) => /^[\w.+-]+@[\w-]+\.[\w.-]{2,}$/.test(e))
     .filter((e) => !/^(?:no-?reply|donotreply|postmaster|abuse|webmaster)@/.test(e))
     // Not the web designer's own address in the footer.
-    .filter((e) => !/@(?:wix|squarespace|wordpress|godaddy|gmail\.com\.)/.test(e));
+    .filter((e) => !/@(?:wix|squarespace|wordpress|godaddy|gmail\.com\.)/.test(e))
+    // Nor the directory's own. A listing page carries the business's details
+    // and the directory's, and taking the wrong one means an email addressed
+    // to a plumber and delivered to Snupit — marked "published", so nothing
+    // downstream would hold it back.
+    .filter((e) => !isDirectoryHost(e.split("@")[1]));
 
   if (clean.length > 0) {
     // Prefer a role address that a human actually reads.

@@ -155,6 +155,36 @@ export const SOURCES: Source[] = [
   },
 ];
 
+/**
+ * The hosts that belong to a directory rather than to a business.
+ *
+ * Derived from the sources' own search URLs rather than written out again, so
+ * adding a source cannot forget to add it here.
+ *
+ * Needed because a listing page carries the directory's own contact details as
+ * well as the business's — a Snupit listing has Snupit's address in its footer,
+ * and nothing distinguished the two. Picked up as "published" it would be
+ * written to the lead and then written to, which means an outreach email
+ * addressed to a business and delivered to the directory that listed it.
+ */
+export const DIRECTORY_HOSTS: string[] = [
+  ...new Set(
+    SOURCES.map((s) => {
+      try {
+        return new URL(s.search("category", "location")).hostname.replace(/^www\./, "").toLowerCase();
+      } catch {
+        return "";
+      }
+    }).filter(Boolean),
+  ),
+];
+
+export function isDirectoryHost(host: string | null | undefined): boolean {
+  if (!host) return false;
+  const clean = host.replace(/^www\./, "").toLowerCase();
+  return DIRECTORY_HOSTS.some((d) => clean === d || clean.endsWith(`.${d}`));
+}
+
 export const SOURCE_BY_ID = Object.fromEntries(SOURCES.map((s) => [s.id, s]));
 
 export function sourcesForTier(tier: TierNum, includeBrowser: boolean): Source[] {

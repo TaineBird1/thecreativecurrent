@@ -15,6 +15,8 @@
  */
 import { v } from "convex/values";
 import { action, internalAction } from "./../_generated/server";
+import type { ActionCtx } from "./../_generated/server";
+import type { Id } from "./../_generated/dataModel";
 import { authedAction } from "../lib/authed";
 import { api, internal } from "./../_generated/api";
 import { machineArgs } from "../lib/machine";
@@ -134,7 +136,9 @@ export const run = internalAction({
             ? `Checked ${hostOf(link)} — enriched, audited, and on the list.`
             : verdict === "discarded"
               ? `Checked ${hostOf(link)} and discarded it. The reason is on the lead.`
-              : `${hostOf(link)} is already on the list — nothing to add.`;
+              : verdict === "enriched"
+                ? `${hostOf(link)} was already on the list — filled in what that page knew and the lead did not.`
+                : `${hostOf(link)} is already on the list — nothing to add.`;
         }
 
         // What Taine typed beats the rotation. "Focus on roofers in Pinetown"
@@ -253,6 +257,7 @@ export const run = internalAction({
         let added = 0;
         let discarded = 0;
         let skipped = 0;
+        let enriched = 0;
 
         // Split the run rather than letting the worker's backlog have all of
         // it. Google Maps results carry over between runs — each job remembers
@@ -345,6 +350,7 @@ export const run = internalAction({
           });
           if (result === "added") added++;
           else if (result === "discarded") discarded++;
+          else if (result === "enriched") enriched++;
           else skipped++;
         }
 
@@ -356,7 +362,9 @@ export const run = internalAction({
           : "Worker offline, so Google Maps and Facebook were skipped.";
         return (
           `${prefix}${added} new lead${added === 1 ? "" : "s"} in ${location}, ` +
-          `${discarded} discarded off-niche, ${skipped} already known ` +
+          `${discarded} discarded off-niche, ` +
+          `${enriched > 0 ? `${enriched} already known but filled in from their listing, ` : ""}` +
+          `${skipped} already known ` +
           `(${takenFromWorker} of ${workerFresh} new from the worker, ` +
           `${Math.min(candidates.length, directoryBudget)} of ${candidates.length} new from directories` +
           `${harvested > candidates.length ? `, ${harvested - candidates.length} already seen` : ""}). ` +
@@ -406,6 +414,64 @@ export interface ScrapedBusiness {
   mapsUrl?: string;
   /** The result card's raw text — the address and phone live in here. */
   cardText?: string;
+}
+
+/**
+ * Fill in what a directory listing knows and the existing lead does not.
+ *
+ * Deliberately narrow. This runs on a business we already have, from a page
+ * about it that we happened to re-read, so it may only add what is missing —
+ * never overwrite a published address with another one, never touch anything
+ * a person has confirmed, and never resurrect a lead someone discarded.
+ */
+async function enrichExisting(
+  ctx: ActionCtx,
+  args: {
+    existing: { _id: Id<"leads">; email: string; emailStatus: string; mobile: string; landline: string; facebookUrl: string; businessName: string; status: string };
+    emailGuess: { email: string; status: "published" | "inferred" | "not_found" };
+    mobile: string;
+    landline: string;
+    facebookUrl: string;
+    sourceId: string;
+    listingUrl: string;
+  },
+): Promise<"enriched" | "skipped"> {
+  const { existing } = args;
+  const patch: Record<string, string> = {};
+  const gained: string[] = [];
+
+  // The whole point: an address published on a listing, for a lead that has
+  // none or has a guess.
+  if (args.emailGuess.status === "published" && existing.emailStatus !== "published") {
+    patch.email = args.emailGuess.email;
+    patch.emailStatus = "published";
+    gained.push(existing.emailStatus === "inferred" ? "a real address in place of the guess" : "an email address");
+  }
+  if (existing.mobile === NOT_FOUND && args.mobile !== NOT_FOUND) {
+    patch.mobile = args.mobile;
+    gained.push("a mobile number");
+  }
+  if (existing.landline === NOT_FOUND && args.landline !== NOT_FOUND) {
+    patch.landline = args.landline;
+    gained.push("a landline");
+  }
+  if (existing.facebookUrl === NOT_FOUND && args.facebookUrl !== NOT_FOUND) {
+    patch.facebookUrl = args.facebookUrl;
+    gained.push("a Facebook page");
+  }
+
+  if (gained.length === 0) return "skipped";
+
+  await ctx.runMutation(internal.leads.patchLead, {
+    id: existing._id,
+    patch,
+    event: {
+      type: "enriched",
+      detail: `Already on the list, and their ${args.sourceId} listing had ${gained.join(", ")}.`,
+      botKey: "leadgen",
+    },
+  });
+  return "enriched";
 }
 
 /**
@@ -604,7 +670,7 @@ async function processCandidate(
     location: string;
     runId: string;
   },
-): Promise<"added" | "discarded" | "skipped"> {
+): Promise<"added" | "discarded" | "skipped" | "enriched"> {
   const page = await fetchPage(args.url);
   if (!page.ok && !page.html) return "skipped";
 
@@ -623,7 +689,28 @@ async function processCandidate(
 
   const dedupe = makeDedupeKey(businessName, suburb, hasWebsite ? websiteUrl : args.url);
   const existing = await ctx.runQuery(api.leads.findByDedupeKey, { ...machineArgs(),  dedupeKey: dedupe });
-  if (existing) return "skipped";
+  if (existing) {
+    // A duplicate is not waste. The page is already fetched and paid for, and
+    // the business it describes is very often one Maps gave us with no way to
+    // email it — Maps has no email field, so more than half its leads have no
+    // address at all and a third have a guess.
+    //
+    // A directory listing publishes what Maps cannot. Throwing that away to
+    // report "already known" meant the one thing the overlap was good for was
+    // the one thing being discarded.
+    //
+    // Only ever an upgrade: a published address replaces a guess or a blank,
+    // never another published one, and a phone number only fills a gap.
+    return await enrichExisting(ctx, {
+      existing,
+      emailGuess,
+      mobile,
+      landline,
+      facebookUrl,
+      sourceId: args.sourceId,
+      listingUrl: args.url,
+    });
+  }
 
   // After the dedupe check, so a business we already have never costs a fetch.
   if (hasWebsite && emailGuess.status !== "published") {

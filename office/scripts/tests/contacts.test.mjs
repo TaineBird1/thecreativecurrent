@@ -12,8 +12,11 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { loadTs } from "./_load.mjs";
 
+// contacts.ts asks sources.ts which hosts belong to a directory, so that has
+// to be compiled alongside it.
 const { isReachable, contactPageUrl, pickEmail, NOT_FOUND } = await loadTs(
   "packages/shared/tools/contacts.ts",
+  { "./sources": "packages/shared/tools/sources.ts" },
 );
 
 const unreachable = {
@@ -105,4 +108,36 @@ test("no contact page means no contact page", () => {
 
 test("a word merely containing 'contact' is not a contact page", () => {
   assert.equal(contactPageUrl([`${SITE}/contactors-we-work-with`], SITE), null);
+});
+
+test("a directory's own address is never taken as the business's", () => {
+  // A Snupit listing carries Snupit's details in the footer alongside the
+  // plumber's. Taken as "published" it is written to the lead and then written
+  // to — an outreach email addressed to a business and delivered to the
+  // directory that listed it, with nothing downstream to hold it back.
+  const found = ["info@snupit.co.za", "dave@daveplumbing.co.za"];
+  assert.deepEqual(pickEmail(found, "https://daveplumbing.co.za"), {
+    email: "dave@daveplumbing.co.za",
+    status: "published",
+  });
+});
+
+test("a directory address alone falls back to the guess, not to the directory", () => {
+  assert.deepEqual(pickEmail(["support@snupit.co.za"], "https://daveplumbing.co.za"), {
+    email: "info@daveplumbing.co.za",
+    status: "inferred",
+  });
+});
+
+test("every directory we search is covered, including subdomains", async () => {
+  const { isDirectoryHost, SOURCES } = await loadTs("packages/shared/tools/sources.ts");
+  for (const source of SOURCES) {
+    const host = new URL(source.search("plumber", "Durban")).hostname;
+    assert.equal(isDirectoryHost(host), true, source.id);
+  }
+  assert.equal(isDirectoryHost("listings.snupit.co.za"), true);
+  assert.equal(isDirectoryHost("daveplumbing.co.za"), false);
+  // Not a substring match: a business is not a directory for sharing letters.
+  assert.equal(isDirectoryHost("notsnupit.co.za"), false);
+  assert.equal(isDirectoryHost(null), false);
 });
