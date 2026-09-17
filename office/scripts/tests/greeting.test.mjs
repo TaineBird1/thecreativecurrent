@@ -112,3 +112,14 @@ test("repetition is caught wherever it sits, not just next to itself", () => {
   assert.equal((fixed.match(/broken since at least March/g) ?? []).length, 1);
   assert.ok(fixed.includes("a site we built recently"));
 });
+
+test("two owners on one listing means writing to the first", () => {
+  // Verbatim from the inbox: "Hi Luke / Sulli,"
+  assert.equal(personalName("Luke / Sulli", "Oasis Plumbers"), "Luke");
+  assert.equal(personalName("Luke and Sulli", "Oasis Plumbers"), "Luke");
+  assert.equal(personalName("Luke & Sulli", "Oasis Plumbers"), "Luke");
+  assert.equal(personalName("Luke, Sulli", "Oasis Plumbers"), "Luke");
+  // And a name that merely contains those letters is not split.
+  assert.equal(personalName("Alexander", "Oasis Plumbers"), "Alexander");
+  assert.equal(personalName("Amanda", "Oasis Plumbers"), "Amanda");
+});

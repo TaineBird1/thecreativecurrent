@@ -240,8 +240,19 @@ export function personalName(
   contactName: string | null | undefined,
   businessName: string,
 ): string | null {
-  const raw = (contactName ?? "").trim();
+  let raw = (contactName ?? "").trim();
   if (!raw || raw === NOT_FOUND) return null;
+
+  // "Hi Luke / Sulli," went out to a real prospect. A listing that names two
+  // owners is not wrong, it just is not how anyone is greeted — write to the
+  // first one, the way you would if you had read the page yourself.
+  raw = raw.split(/\s*(?:\/|&|,|\band\b)\s*/i)[0].trim();
+  if (!raw) return null;
+
+  // Nobody's name has a number in it, and splitting on the comma above turns a
+  // whole street address into a plausible-looking two words — "Hi 23 Marine
+  // Drive," is worse than the address sitting unused in the field.
+  if (/\d/.test(raw)) return null;
 
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const name = norm(raw);
