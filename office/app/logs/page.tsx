@@ -23,6 +23,7 @@ export default function LogsPage() {
   const llm = useAuthedQuery(api.logs.llm, { botKey: botKey || undefined, limit: 200 });
   const tools = useAuthedQuery(api.logs.tools, { botKey: botKey || undefined, limit: 200 });
   const runs = useAuthedQuery(api.runs.recent, { limit: 150 });
+  const oldWording = useAuthedQuery(api.emails.sentWithOldWording);
 
   const filteredRuns = (runs ?? []).filter((r) => !botKey || r.botKey === botKey);
 
@@ -38,6 +39,40 @@ export default function LogsPage() {
           <Stat label="tokens" value={summary?.tokens} />
           <Stat label="avg latency" value={summary ? `${summary.avgLatencyMs}ms` : undefined} />
         </div>
+
+        {oldWording && oldWording.findings.length > 0 && (
+          <Card className="border-rust/40 p-4">
+            <p className="mb-1 text-xs font-semibold text-rust">
+              {oldWording.findings.length} sent email
+              {oldWording.findings.length === 1 ? "" : "s"} went out with wording since fixed
+            </p>
+            <p className="mb-3 text-[11px] leading-relaxed text-faint">
+              Checked all {oldWording.checked} sent emails for things a recipient can actually see.
+              Nothing here is automatic — whether any of these deserves a one-line correction from
+              your own inbox is your call.
+            </p>
+            <div className="space-y-2">
+              {oldWording.findings.map((f) => (
+                <details key={f.id} className="rounded-lg border border-edge bg-ink p-2.5">
+                  <summary className="cursor-pointer text-xs">
+                    <span className="font-medium text-cream">{f.businessName}</span>
+                    <span className="text-faint"> · {f.to} · {relativeTime(f.sentAt)}</span>
+                  </summary>
+                  <ul className="mt-2 space-y-0.5">
+                    {f.problems.map((p) => (
+                      <li key={p} className="text-[11px] text-lamp">
+                        — {p}
+                      </li>
+                    ))}
+                  </ul>
+                  <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded border border-edge bg-panel p-2 text-[11px] leading-relaxed text-muted">
+                    {f.body}
+                  </pre>
+                </details>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {usage && (
           <Card className="p-4">

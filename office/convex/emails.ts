@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { hasOrphanTokens } from "../packages/shared/guards/pii";
 import { internalMutation, query } from "./_generated/server";
 import { authedQuery } from "./lib/authed";
 import { stamps, alive, touch } from "./lib/soft";
@@ -108,5 +109,73 @@ export const classify = internalMutation({
   },
   handler: async (ctx, { id, classification }) => {
     await ctx.db.patch(id, { classification, ...touch() });
+  },
+});
+
+/**
+ * Sent emails that carry wording since found to be wrong.
+ *
+ * Twenty-one cold emails went out before three fixes landed on the same day,
+ * and "which ones" is not answerable by reading a list of names — the bodies
+ * are all stored, so it is answerable by reading the bodies.
+ *
+ * Each check is something a recipient can see, not a style preference:
+ *
+ *  - a placeholder token instead of the proof link, so the one paragraph meant
+ *    to be clicked reads "<URL_1>";
+ *  - a claim that SMIT Kontrakteurs is a client, which they are not — the
+ *    easiest sentence in the email for a prospect to check, by phoning them;
+ *  - a link to smitkontrakteurs.co.za, which is not a site that exists;
+ *  - a full stop welded onto the end of a link, which some clients pull into
+ *    the URL and break.
+ *
+ * Read-only, and deliberately says nothing about what to do. Whether any of
+ * these deserves a correction is a judgement about a real person's inbox.
+ */
+export const sentWithOldWording = authedQuery({
+  args: {},
+  handler: async (ctx) => {
+    const sent = alive(
+      await ctx.db.query("emails").withIndex("by_status", (q) => q.eq("status", "sent")).collect(),
+    ).filter((e) => e.direction === "out");
+
+    const findings = [];
+    for (const email of sent) {
+      const problems: string[] = [];
+      const body = email.body ?? "";
+
+      if (hasOrphanTokens(body) || hasOrphanTokens(email.subject)) {
+        problems.push("Placeholder token instead of the proof link");
+      }
+      // "built X for a contractor", "our client", "we work with" — the claim,
+      // not merely the name.
+      if (/\bbuilt\s+\S*smitkontrakteurs\S*\s+for\b/i.test(body) || /for a contractor in George/i.test(body)) {
+        problems.push("Says SMIT is a client — they are a spec build");
+      }
+      if (/\bsmitkontrakteurs\.co\.za/i.test(body)) {
+        problems.push("Links smitkontrakteurs.co.za, which does not resolve");
+      }
+      if (/https?:\/\/[^\s<>"']*\.{2,}(?=\s|$)|https?:\/\/[^\s<>"']*\/\.{1,2}(?=\s|$)/.test(body)) {
+        problems.push("Trailing dots on the link");
+      }
+
+      if (problems.length === 0) continue;
+
+      const lead = email.leadId ? await ctx.db.get(email.leadId) : null;
+      findings.push({
+        id: email._id,
+        businessName: lead?.businessName ?? "(no lead attached)",
+        to: email.to,
+        subject: email.subject,
+        sentAt: email.sentAt ?? email.createdAt,
+        problems,
+        body,
+      });
+    }
+
+    return {
+      checked: sent.length,
+      findings: findings.sort((a, b) => a.sentAt - b.sentAt),
+    };
   },
 });
