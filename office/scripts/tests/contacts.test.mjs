@@ -141,3 +141,19 @@ test("every directory we search is covered, including subdomains", async () => {
   assert.equal(isDirectoryHost("notsnupit.co.za"), false);
   assert.equal(isDirectoryHost(null), false);
 });
+
+test("a guess is never built from the directory we found them on", () => {
+  // A business with no site of its own falls back to the URL it was found at.
+  // For a listing that is the directory, and "info@snupit.co.za" is a guess at
+  // the address of the website we would be offering to rebuild.
+  assert.deepEqual(pickEmail([], "https://www.snupit.co.za/durban/plumbers"), {
+    email: "not_found",
+    status: "not_found",
+  });
+  assert.deepEqual(pickEmail([], "https://www.yellowpages.co.za/search?what=plumber"), {
+    email: "not_found",
+    status: "not_found",
+  });
+  // A real business domain still gets its guess.
+  assert.equal(pickEmail([], "https://daveplumbing.co.za").status, "inferred");
+});

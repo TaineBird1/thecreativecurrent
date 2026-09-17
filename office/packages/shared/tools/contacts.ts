@@ -95,6 +95,16 @@ export function pickEmail(published: string[], websiteUrl: string): EmailGuess {
   const domain = extractDomain(websiteUrl);
   if (!domain) return { email: NOT_FOUND, status: "not_found" };
 
+  // The half of this the published filter above did not cover, and it showed
+  // up within one run: a business with no website of its own falls back to the
+  // URL it was found at, which for a directory listing is the directory. Four
+  // Snupit leads came out holding "info@snupit.co.za" — a guess at the address
+  // of the website we would be offering to rebuild.
+  //
+  // Held back as a guess rather than sent, so nothing went out. It is still an
+  // address nobody should be asked to confirm.
+  if (isDirectoryHost(domain)) return { email: NOT_FOUND, status: "not_found" };
+
   // info@ is the overwhelmingly common pattern for a small SA trade business.
   return { email: `info@${domain}`, status: "inferred" };
 }
