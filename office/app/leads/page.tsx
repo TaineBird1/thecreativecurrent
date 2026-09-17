@@ -24,6 +24,8 @@ export default function LeadsPage() {
   const [status, setStatus] = useState<string>("");
   const [tier, setTier] = useState<number>(0);
   const [search, setSearch] = useState("");
+  // The held-back set is otherwise a hunt through ninety-odd rows for six.
+  const [onlyWaiting, setOnlyWaiting] = useState(false);
   const [selected, setSelected] = useState<Id<"leads"> | null>(null);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -131,9 +133,15 @@ export default function LeadsPage() {
             {/* Held-back leads are otherwise invisible: qualified, in the list,
                 and silently never written to. */}
             {waitingOnAddress ? (
-              <span className="text-lamp">
+              <button
+                onClick={() => setOnlyWaiting((v) => !v)}
+                className={`underline decoration-dotted underline-offset-2 ${
+                  onlyWaiting ? "text-cream" : "text-lamp"
+                }`}
+              >
                 · {waitingOnAddress} waiting on you to check a guessed address
-              </span>
+                {onlyWaiting ? " — showing only these" : ""}
+              </button>
             ) : null}
           </div>
         )}
@@ -158,7 +166,9 @@ export default function LeadsPage() {
               </tr>
             </thead>
             <tbody>
-              {leads?.map((lead) => (
+              {leads
+                ?.filter((lead) => !onlyWaiting || lead.emailStatus === "inferred")
+                .map((lead) => (
                 <tr
                   key={lead._id}
                   onClick={() => setSelected(lead._id)}
