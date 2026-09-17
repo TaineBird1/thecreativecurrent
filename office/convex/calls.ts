@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { authedMutation, authedQuery } from "./lib/authed";
 import { stamps, touch, alive, getAlive, softDelete } from "./lib/soft";
+import { isOwnWebsite } from "../packages/shared/tools/sources";
 
 /**
  * The call list.
@@ -15,6 +16,36 @@ import { stamps, touch, alive, getAlive, softDelete } from "./lib/soft";
  * the only job of this file is to remember what happened so the next call
  * starts where the last one ended.
  */
+
+/**
+ * What to open the call with, and what not to.
+ *
+ * A lead's faults are only about the business if they were measured against
+ * the business's own site. Where Maps returned a Facebook page or a WhatsApp
+ * catalogue in the website box, the audit ran against that instead, and
+ * "there's no contact form anywhere on the site" is a true sentence about
+ * facebook.com. Reading it down the phone to a plumber is worse than saying
+ * nothing, so where the site was not theirs the faults are not shown at all.
+ *
+ * The truth in that case is better anyway: they have no website. Naming what
+ * they do have is more use on a call than a fault list would have been.
+ */
+function whatToMention(lead: {
+  hasWebsite: boolean;
+  websiteUrl: string;
+  faults: { detail: string }[];
+}): string | null {
+  if (lead.hasWebsite && isOwnWebsite(lead.websiteUrl)) {
+    return lead.faults[0]?.detail ?? null;
+  }
+  if (/facebook\.com/i.test(lead.websiteUrl)) {
+    return "They have no website — just a Facebook page.";
+  }
+  if (/wa\.me|whatsapp/i.test(lead.websiteUrl)) {
+    return "They have no website — just a WhatsApp catalogue.";
+  }
+  return "They have no website at all.";
+}
 
 /** What each outcome means for the lead itself. */
 const MOVES_LEAD_TO: Record<string, string | null> = {
@@ -60,6 +91,7 @@ export const queue = authedQuery({
 
       rows.push({
         lead,
+        mention: whatToMention(lead),
         calls,
         attempts: calls.length,
         last,

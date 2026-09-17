@@ -134,7 +134,6 @@ function CallRow({ row }: { row: Queue[number] }) {
           </div>
           <p className="text-[11px] text-faint">
             {lead.category} · {lead.suburb}
-            {lead.hasWebsite ? "" : " · no website at all"}
           </p>
         </div>
 
@@ -161,13 +160,12 @@ function CallRow({ row }: { row: Queue[number] }) {
         </div>
       </div>
 
-      {/* Something true to open with, from what was measured about their site. */}
-      {(lead.faults.length > 0 || !lead.hasWebsite) && (
+      {/* Decided in the query, because whether a fault is about the business
+          at all depends on whether the audited site was theirs. */}
+      {row.mention && (
         <p className="mt-2 text-[11px] leading-relaxed text-muted">
           <span className="text-faint">Worth mentioning: </span>
-          {lead.hasWebsite
-            ? lead.faults[0]?.detail
-            : "they have no website at all — only a Facebook page or a WhatsApp catalogue."}
+          {row.mention}
         </p>
       )}
 
