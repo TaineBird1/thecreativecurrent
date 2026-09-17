@@ -472,6 +472,114 @@ export const run = internalAction({
  * Facebook page in and get a full lead back immediately — which also makes the
  * bot useful on a day when every directory has changed its markup.
  */
+/**
+ * Go back over the leads waiting on a guessed address, with the deeper lookup.
+ *
+ * Every one of them was scraped when Sipho read a homepage and, at most, one
+ * linked contact page. They are not a different kind of business from the ones
+ * that come through fine — they are the ones whose address happened to live
+ * somewhere the old lookup could not reach, and they have been accumulating
+ * ever since: ten, then fifteen, then twenty-two, each one a job for a person
+ * with a browser.
+ *
+ * So the improvement gets pointed at the backlog and not only at whatever
+ * arrives tomorrow. Reads their own site and nothing else, spends no model
+ * call, and can only ever upgrade a guess to a published address — it never
+ * downgrades one, never writes a second guess, and never touches a lead a
+ * person has already confirmed.
+ */
+export const recheckGuessed = authedAction({
+  args: {},
+  handler: async (ctx): Promise<string> => {
+    const outcome = await withRun(
+      ctx,
+      {
+        botKey: "leadgen",
+        trigger: "manual",
+        bubble: "Looking again for addresses",
+        claimTask: false,
+      },
+      async (handle) => {
+        const waiting: {
+          _id: Id<"leads">;
+          businessName: string;
+          websiteUrl: string;
+          email: string;
+          mobile: string;
+          landline: string;
+        }[] = await ctx.runQuery(api.leads.guessedAddresses, { ...machineArgs() });
+
+        if (waiting.length === 0) return "No leads are waiting on a guessed address.";
+
+        const deadline = Date.now() + RUN_DEADLINE_MS;
+        let found = 0;
+        let looked = 0;
+        let ranOutOfTime = false;
+
+        for (const lead of waiting) {
+          if (await handle.stopped()) break;
+          if (Date.now() > deadline) {
+            ranOutOfTime = true;
+            break;
+          }
+          looked++;
+          await handle.say(`Looking again at ${lead.businessName.slice(0, 22)}`);
+
+          const home = await fetchPage(lead.websiteUrl);
+          let guess = home.html
+            ? pickEmail(findEmails(home.html), lead.websiteUrl)
+            : { email: NOT_FOUND, status: "not_found" as const };
+          let mobile = NOT_FOUND;
+          let landline = NOT_FOUND;
+
+          if (guess.status !== "published") {
+            const deeper = await readContactPage(
+              home.html ? links(home.html, home.finalUrl) : [],
+              lead.websiteUrl,
+            );
+            if (deeper) {
+              if (deeper.email.status === "published") guess = deeper.email;
+              mobile = deeper.mobile;
+              landline = deeper.landline;
+            }
+          }
+
+          const patch: Record<string, string> = {};
+          if (guess.status === "published") {
+            patch.email = guess.email;
+            patch.emailStatus = "published";
+          }
+          if (lead.mobile === NOT_FOUND && mobile !== NOT_FOUND) patch.mobile = mobile;
+          if (lead.landline === NOT_FOUND && landline !== NOT_FOUND) patch.landline = landline;
+          if (Object.keys(patch).length === 0) continue;
+
+          if (patch.email) found++;
+          await ctx.runMutation(internal.leads.patchLead, {
+            id: lead._id,
+            patch,
+            event: {
+              type: patch.email ? "email_found" : "enriched",
+              detail: patch.email
+                ? `Looked again and found ${patch.email} published on their site. ` +
+                  `The guess ${lead.email} is gone and this one is in the outreach queue.`
+                : "Looked again for an address and found a phone number instead.",
+              botKey: "leadgen",
+            },
+          });
+        }
+
+        return (
+          `Looked again at ${looked} of ${waiting.length} waiting on a guessed address. ` +
+          `${found} now have a real one and are in the queue; ${looked - found} publish nothing ` +
+          `anywhere on their site. ` +
+          `${ranOutOfTime ? "Stopped at five minutes — run it again for the rest. " : ""}`
+        );
+      },
+    );
+    return outcome.summary;
+  },
+});
+
 export const addByUrl = authedAction({
   args: { url: v.string(), tierHint: v.optional(v.union(v.literal(1), v.literal(2), v.literal(3))) },
   handler: async (ctx, { url, tierHint }): Promise<string> => {

@@ -46,6 +46,7 @@ export default function LeadsPage() {
   const [showSources, setShowSources] = useState(false);
   const addByUrl = useAuthedAction(api.agents.leadgen.addByUrl);
   const runNow = useAuthedAction(api.agents.leadgen.runNow);
+  const recheckGuessed = useAuthedAction(api.agents.leadgen.recheckGuessed);
 
   return (
     <div className="min-h-screen">
@@ -175,6 +176,34 @@ export default function LeadsPage() {
         )}
 
         {showSources && <SourceHealth rows={sourceHealth} />}
+
+        {/* Only where the pile it works on is the thing on screen. */}
+        {focus === "waiting" && (
+          <Card className="flex flex-wrap items-center gap-3 p-3 text-xs">
+            <Button
+              tone="primary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  setResult(await recheckGuessed({}));
+                } catch (err) {
+                  setResult(err instanceof Error ? err.message : String(err));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {busy ? "Looking…" : "Look again for these addresses"}
+            </Button>
+            <span className="min-w-0 flex-1 leading-relaxed text-faint">
+              Every one of these was found when Sipho read a homepage and one contact page. He can
+              read their contact and about pages, the usual addresses nothing links to, and their
+              sitemap. Whatever he finds published goes straight into the queue; whatever he
+              doesn&apos;t is a business that publishes nothing, and that is worth knowing too.
+            </span>
+          </Card>
+        )}
 
         {leads?.length === 0 && (
           <Empty>

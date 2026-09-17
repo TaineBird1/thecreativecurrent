@@ -373,6 +373,15 @@ export const callable = authedQuery({
       .sort((a, b) => b.score - a.score),
 });
 
+/** The leads behind that count, for a re-check that has their own site to read. */
+export const guessedAddresses = authedQuery({
+  args: {},
+  handler: async (ctx) =>
+    alive(await ctx.db.query("leads").withIndex("by_status", (q) => q.eq("status", "qualified")).collect())
+      .filter((l) => l.emailStatus === "inferred" && l.websiteUrl !== "not_found")
+      .sort((a, b) => b.score - a.score),
+});
+
 /** How many good leads are waiting on someone to check a guessed address. */
 export const waitingOnAddress = authedQuery({
   args: {},
