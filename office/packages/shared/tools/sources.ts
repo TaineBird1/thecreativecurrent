@@ -185,6 +185,49 @@ export function isDirectoryHost(host: string | null | undefined): boolean {
   return DIRECTORY_HOSTS.some((d) => clean === d || clean.endsWith(`.${d}`));
 }
 
+/**
+ * Is this the name of a business, or of the page we read it off?
+ *
+ * The business name is taken from an h1 or a page title, and on a page that
+ * turned out not to be a business listing that produces a lead called
+ * "Google Maps" (a tiling contractor in Margate), "Request a Quote" (a builder
+ * in Durban), or the directory itself. Each one was fetched, audited, judged by
+ * the model and written to the database before anything noticed.
+ *
+ * They score zero and are discarded, so they never reach a prospect — this is
+ * about not spending a run and a model call to find that out, and about a lead
+ * list you can read without wondering what half of it is.
+ */
+const NOT_A_BUSINESS = [
+  "request a quote", "get a quote", "contact us", "contact", "about us", "about",
+  "home", "homepage", "search", "search results", "results", "sign in", "log in",
+  "login", "register", "menu", "privacy policy", "terms", "terms and conditions",
+  "page not found", "not found", "404", "untitled", "untitled document",
+  "index", "directory", "listings", "categories", "welcome",
+];
+
+/** "snupit", "masterbuilders", "google"… — a directory's name, not a business's. */
+const DIRECTORY_BRANDS: string[] = [
+  ...new Set(DIRECTORY_HOSTS.map((h) => h.split(".")[0].replace(/[^a-z0-9]/g, ""))),
+];
+
+export function looksLikeBusinessName(name: string): boolean {
+  const trimmed = (name ?? "").trim();
+  if (trimmed.length < 3) return false;
+
+  const words = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (!words) return false;
+  if (NOT_A_BUSINESS.includes(words)) return false;
+
+  // A real business is never named after the directory that lists it. Anchored
+  // to the start so a plumber is not rejected for mentioning one.
+  const squashed = words.replace(/\s+/g, "");
+  if (DIRECTORY_BRANDS.some((brand) => brand.length >= 5 && squashed.startsWith(brand))) {
+    return false;
+  }
+  return true;
+}
+
 export const SOURCE_BY_ID = Object.fromEntries(SOURCES.map((s) => [s.id, s]));
 
 export function sourcesForTier(tier: TierNum, includeBrowser: boolean): Source[] {

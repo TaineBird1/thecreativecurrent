@@ -37,7 +37,7 @@ import {
 import { auditSite, scoreLead, type Fault } from "../../packages/shared/tools/faults";
 import { splitRunBudget } from "../../packages/shared/tools/runBudget";
 import { prepareForLlm } from "../../packages/shared/guards/pii";
-import { TIER_CATEGORIES, LOCATIONS, sourcesForTier } from "../../packages/shared/tools/sources";
+import { TIER_CATEGORIES, LOCATIONS, sourcesForTier, looksLikeBusinessName } from "../../packages/shared/tools/sources";
 
 /**
  * Read the one page on their site most likely to carry contact details.
@@ -539,6 +539,7 @@ async function processBusiness(
   },
 ): Promise<"added" | "discarded" | "skipped"> {
   const { biz } = args;
+  if (!looksLikeBusinessName(biz.name)) return "skipped";
   const cardText = biz.cardText ?? "";
   const hasWebsite = Boolean(biz.website);
   const websiteUrl = biz.website ?? NOT_FOUND;
@@ -716,6 +717,10 @@ async function processCandidate(
 
   const text = stripTags(page.html);
   const businessName = guessBusinessName(page.html, args.url);
+  // Checked here, before the audit and before the model is asked anything. A
+  // page that is not a business listing still has an h1, and that is how a
+  // lead called "Google Maps" came to be a tiling contractor in Margate.
+  if (!looksLikeBusinessName(businessName)) return "skipped";
   const websiteUrl = guessOwnWebsite(page, args.url);
   const hasWebsite = websiteUrl !== NOT_FOUND;
 
