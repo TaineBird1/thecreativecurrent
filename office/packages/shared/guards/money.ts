@@ -80,6 +80,16 @@ const ALLOWED = [
   /\b(?:someone|anyone|somebody|people|customers?|visitors?|clients?|homeowners?)\s+(?:who\s+)?(?:wants?|wanting|needs?|needing|looking for)\s+a\s+quote\b/gi,
   /\bfree audit\b/gi,
   /\bat your own pace\b/gi,
+  // A COUNT of proposals is a number Thabo reports, not a price we are
+  // offering. "0 proposals out", "no proposals resulted", "4 proposals sent" —
+  // the weekly KPI report says one of these every single week, which makes
+  // this a guaranteed false positive rather than an occasional one, for ever.
+  // "I'll put a proposal together for you" has no count and still trips.
+  /\b(?:\d+|no|zero|any)\s+proposals?\b/gi,
+  /\bproposals?\s+(?:resulted|out|sent|drafted|written|this week|so far)\b/gi,
+  // Same for the LLM budgets on his own dashboard: a spend limit measured in
+  // requests per day is not money.
+  /\bdaily budget\b|\bbudget of \d+ (?:requests?|calls?)\b/gi,
 ];
 
 function stripAllowed(text: string): string {

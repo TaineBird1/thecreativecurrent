@@ -313,3 +313,41 @@ test("a malformed entity does not stop the scan", () => {
     ["dave@daveplumbing.co.za"],
   );
 });
+
+// ── A metric is not a price ──────────────────────────────────────────────────
+// Thabo's weekly KPI report counts proposals, because proposals out is one of
+// the numbers he reports. The money guard read the word and routed the whole
+// report to Approvals — not an occasional false positive but a guaranteed one,
+// every week, for ever, in an inbox whose value depends on being worth reading.
+test("a counted proposal in a report is not a price", () => {
+  for (const line of [
+    "No replies, calls, or proposals resulted, so the reply rate is 0%.",
+    "0 proposals out this week.",
+    "We sent 4 proposals and heard nothing back",
+    "any proposals at all would be an improvement",
+  ]) {
+    assert.equal(checkMoney(line).tripped, false, line);
+  }
+});
+
+test("a proposal that was signed is still contract language", () => {
+  // Counting them is fine; "none were signed" is about a signature, and that
+  // is a different rule doing its job rather than this exclusion failing.
+  assert.equal(checkMoney("We sent 4 proposals and none were signed").tripped, true);
+});
+
+test("an actual offer to send one still trips", () => {
+  for (const line of [
+    "I'll put a proposal together for you this week.",
+    "Happy to send a proposal over if that helps.",
+    "The proposal is R9,500 for the starter site.",
+  ]) {
+    assert.equal(checkMoney(line).tripped, true, line);
+  }
+});
+
+test("a daily LLM budget is not a budget figure", () => {
+  assert.equal(checkMoney("Sipho's daily budget is 250 requests.").tripped, false);
+  // A real budget conversation with a prospect still trips.
+  assert.equal(checkMoney("What sort of budget did you have in mind?").tripped, true);
+});
