@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const update = useAuthedMutation(api.settings.update);
   const sendTest = useAuthedAction(api.outbound.sendTest);
   const listModels = useAuthedAction(api.llm.listModels);
+  const repairLeads = useAuthedMutation(api.leads.repairMisreadSites);
 
   const [form, setForm] = useState({
     senderEmail: "",
@@ -34,6 +35,8 @@ export default function SettingsPage() {
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [pricing, setPricing] = useState("");
   const [saved, setSaved] = useState(false);
+  const [tidying, setTidying] = useState(false);
+  const [tidyResult, setTidyResult] = useState("");
   const [testTo, setTestTo] = useState("");
   const [testResult, setTestResult] = useState("");
   const [models, setModels] = useState<
@@ -334,6 +337,47 @@ export default function SettingsPage() {
           >
             Save budgets
           </Button>
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="mb-1 text-sm font-semibold">Tidy up the lead list</h2>
+          <p className="mb-3 text-xs leading-relaxed text-faint">
+            Two things drift. A lead&apos;s score is written once when it is found and never looked
+            at again, while the things it is made of keep moving — confirming an address, or
+            establishing there is none, changes how many ways there are to reach a business. And
+            where Google Maps returned a Facebook page or a WhatsApp catalogue in the website box,
+            everything measured about &ldquo;their site&rdquo; was measured about that instead.
+            <br />
+            <br />
+            This puts both right: findings that were never about the business are dropped, a
+            Facebook page moves to the Facebook field, and every live lead is scored again on what
+            it says today. Nothing is discarded and no status changes — a business does not get
+            worse because our record of it got more honest. Safe to run whenever; it does nothing
+            when there is nothing to do.
+          </p>
+          <Button
+            tone="primary"
+            disabled={tidying}
+            onClick={async () => {
+              setTidying(true);
+              setTidyResult("");
+              try {
+                const { repaired, rescored } = await repairLeads({});
+                setTidyResult(
+                  repaired === 0 && rescored === 0
+                    ? "Nothing to do — every lead's website is its own, and every score matches its facts."
+                    : `${repaired} repaired, ${rescored} re-scored.`,
+                );
+              } catch (err) {
+                setTidyResult(err instanceof Error ? err.message : String(err));
+              } finally {
+                setTidying(false);
+              }
+            }}
+          >
+            {tidying ? "Tidying…" : "Repair and re-score"}
+          </Button>
+          {tidyResult && <p className="mt-2 text-xs text-cream">{tidyResult}</p>}
         </Card>
 
         <Card className="p-5">
