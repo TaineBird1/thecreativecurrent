@@ -154,13 +154,37 @@ export default function LogsPage() {
 
         {tab === "tools" && (
           <Table
-            head={["bot", "tool", "args", "status", "took", "when"]}
+            head={["bot", "tool", "what it was looking for", "status", "took", "when"]}
             rows={(tools ?? []).map((t) => [
               t.botKey,
               t.tool,
-              t.args.slice(0, 80),
+              // The second line is the whole point of this tab and was being
+              // dropped on the floor. Lead-gen writes a sentence per directory
+              // search saying how many links were on the page, how many looked
+              // like businesses, the HTTP status and a sample of the paths —
+              // written, in its own words, so that "a directory redesigned" is
+              // distinguishable from "no leads today". None of it was rendered,
+              // so every failing source looked identical: an amber "blocked"
+              // and nothing else.
+              <div key="a" className="min-w-0">
+                <span className="block">{t.args.slice(0, 120)}</span>
+                {(t.error ?? t.result) && (
+                  <span
+                    className={`mt-0.5 block text-[11px] leading-snug ${
+                      t.error ? "text-rust" : "text-faint"
+                    }`}
+                  >
+                    {(t.error ?? t.result ?? "").slice(0, 400)}
+                  </span>
+                )}
+              </div>,
               <Pill key="s" tone={t.status === "ok" ? "good" : t.status === "blocked" ? "warn" : "bad"}>
-                {t.status}
+                {/* "blocked" is the stored value and the wrong word to show: it
+                    is written when the fetch succeeded and nothing on the page
+                    looked like a business, not when anyone refused us. Read as
+                    "they are blocking the scraper" it sends you to fix the
+                    wrong thing entirely. */}
+                {t.status === "blocked" ? "nothing matched" : t.status}
               </Pill>,
               `${t.durationMs}ms`,
               relativeTime(t.createdAt),
