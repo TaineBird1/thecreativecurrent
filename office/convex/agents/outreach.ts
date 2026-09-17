@@ -24,7 +24,8 @@ import { prepareForLlm } from "../../packages/shared/guards/pii";
 import { headlineFault } from "../../packages/shared/tools/faults";
 import { proposeCallTimes } from "../../packages/shared/tools/ics";
 import { isOfficeHoursSast } from "../lib/time";
-import { NOT_FOUND } from "../../packages/shared/tools/contacts";
+import { NOT_FOUND, personalName } from "../../packages/shared/tools/contacts";
+import { dropRepeatedParagraphs } from "../../packages/shared/tools/emailBody";
 
 /** Per 30-minute run. The daily cap is enforced separately in outbound.ts.
  *  Day 3 / day 8 follow-up timing lives in convex/sequences.ts, which owns the
@@ -252,7 +253,12 @@ async function sendFirstTouch(
 
   // No name is not a reason to write "Hi there" — that greeting tells the
   // reader in three words that whoever sent this does not know who they are.
-  const named = lead.contactName && lead.contactName !== NOT_FOUND ? lead.contactName : null;
+  //
+  // Having a name in the field is also not the same as having one. The contact
+  // name is written by a model reading a listing, and on at least one lead it
+  // was the business itself: "Hi STEVEN WELLS PLUMBING SERVICES," went out to a
+  // real prospect. personalName says whether this is a person.
+  const named = personalName(lead.contactName, lead.businessName);
   const greeting = named ? `Hi ${named},` : `Hello,`;
 
   // Why an earlier draft for this lead was turned down. Without this the same
@@ -270,6 +276,8 @@ async function sendFirstTouch(
       "",
       `The one specific thing to open with (quote it close to verbatim, it was measured):`,
       hook,
+      `Say that once. It is one sentence of the email, not a line to repeat` +
+        ` underneath the paragraph it already appears in.`,
       "",
       proofInstruction(lead.tier),
       "",
@@ -546,7 +554,7 @@ export const logReply = authedAction({
 const BOT_NAMES = ["Lerato", "Nomsa", "Thabo", "Sipho", "Anele", "Zanele", "Kagiso", "Naledi", "Bongi"];
 
 function withSignature(body: string): string {
-  let text = body.trim();
+  let text = dropRepeatedParagraphs(body.trim());
 
   // Full stops welded onto the end of a link. Deterministic, and the cost of
   // one slipping through is a dead link in the only paragraph whose job is to

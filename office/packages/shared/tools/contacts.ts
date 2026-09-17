@@ -222,3 +222,50 @@ export function addressFromCard(cardText: string): string {
   const match = lines.find((l) => !isNotAddress(l) && looksLikeAddress(l));
   return match ? match.replace(/\s+/g, " ").trim() : NOT_FOUND;
 }
+
+/**
+ * The name to greet someone by, or null if we do not actually have one.
+ *
+ * "Hi STEVEN WELLS PLUMBING SERVICES," went to a real prospect. The contact
+ * name on that lead was the business name, in the capitals the listing used,
+ * and the greeting line pasted it in as though it were a person — which tells
+ * the reader in four words that nobody read this before it was sent.
+ *
+ * The check that matters is against the business name itself: a "contact" that
+ * is the business is not a person, however it is spelled. "Hello," is a
+ * perfectly good greeting and is what we fall back to, exactly as we already do
+ * when no name was found at all.
+ */
+export function personalName(
+  contactName: string | null | undefined,
+  businessName: string,
+): string | null {
+  const raw = (contactName ?? "").trim();
+  if (!raw || raw === NOT_FOUND) return null;
+
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const name = norm(raw);
+  const business = norm(businessName);
+  if (!name) return null;
+
+  // The business under another spelling, or a fragment of it.
+  if (name === business) return null;
+  if (business.includes(name) || name.includes(business)) return null;
+
+  // A registered company, whatever else it says.
+  if (/\b(?:pty|ltd|cc|inc|proprietary|limited)\b/.test(name)) return null;
+
+  // Nobody is greeted by four words. A string this long is a company, a job
+  // title, or a whole address that got picked up by mistake.
+  const words = raw.split(/\s+/);
+  if (words.length > 3 || raw.length > 40) return null;
+
+  // A listing shouts; a greeting should not. Only reshaped when it is entirely
+  // upper case, so "McBride" and "van Niekerk" are left exactly as written.
+  if (raw === raw.toUpperCase()) {
+    return words
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+  }
+  return raw;
+}
