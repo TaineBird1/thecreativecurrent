@@ -1,0 +1,68 @@
+[
+  {
+    "slug": "nkosiyam-building",
+    "name": "Nkosiyam Building Contractors",
+    "trade": "Building contractor",
+    "suburb": "Pinetown",
+    "area": "Pinetown, Westville, Kloof and Hillcrest",
+    "phone": "+27662276342",
+    "accent": "#b45309",
+    "tagline": "Built properly, finished on time.",
+    "intro": "A family-run building team working across the Upper Highway. New builds, extensions, alterations and the kind of finishing that still looks right in ten years.",
+    "services": [
+      { "title": "New builds", "detail": "From foundation to handover, managed by one team." },
+      { "title": "Extensions and alterations", "detail": "Extra room, second storey, opening up a kitchen." },
+      { "title": "Renovations", "detail": "Bathrooms, kitchens, and putting right what somebody else did." },
+      { "title": "Boundary walls and paving", "detail": "Walls, driveways, and drainage that works in a Durban storm." }
+    ],
+    "reasons": [
+      { "title": "One number to call", "detail": "You speak to the person running the site, not an office." },
+      { "title": "Quoted properly", "detail": "A written quote with the materials listed, so you know what changed if it changes." },
+      { "title": "We clean up", "detail": "The site is swept at the end of every day. It matters more than people admit." }
+    ]
+  },
+  {
+    "slug": "apr-roofing",
+    "name": "APR Roofing Contractors",
+    "trade": "Roofing contractor",
+    "suburb": "Pinetown",
+    "area": "Pinetown, New Germany, Westville and surrounds",
+    "phone": "+27784976408",
+    "accent": "#0f766e",
+    "tagline": "A roof that holds, through a Durban summer.",
+    "intro": "Roof repairs, replacements and waterproofing across the Pinetown area. If it is leaking, we will tell you honestly whether it needs fixing or replacing.",
+    "services": [
+      { "title": "Leak repairs", "detail": "Found, fixed, and tested with a hose before we leave." },
+      { "title": "Re-roofing", "detail": "Tile, IBR and corrugated, stripped and replaced properly." },
+      { "title": "Waterproofing", "detail": "Flat roofs, parapets, and the valleys where it always starts." },
+      { "title": "Gutters and downpipes", "detail": "Cleared, repaired or replaced before the rainy season." }
+    ],
+    "reasons": [
+      { "title": "We climb up first", "detail": "No quote over the phone. We look at the roof, then tell you what it needs." },
+      { "title": "Honest about replacement", "detail": "A repair that will not last is not cheaper. We will say so." },
+      { "title": "Insurance paperwork", "detail": "Photographs and a written report for a storm-damage claim." }
+    ]
+  },
+  {
+    "slug": "p4plumbing",
+    "name": "P4 Plumbing",
+    "trade": "Plumber",
+    "suburb": "Durban",
+    "area": "Durban, Berea, Glenwood and the Bluff",
+    "phone": "+27822583354",
+    "accent": "#1d4ed8",
+    "tagline": "Blocked, burst or leaking — same day where we can.",
+    "intro": "A Durban plumber for the jobs that cannot wait, and the ones that can. Geysers, drains, leaks and bathroom installations.",
+    "services": [
+      { "title": "Blocked drains", "detail": "Cleared with a machine, not a chemical that works for a week." },
+      { "title": "Geysers", "detail": "Repairs, replacements, and the compliance certificate afterwards." },
+      { "title": "Burst pipes and leaks", "detail": "Traced, exposed and repaired, including under a slab." },
+      { "title": "Bathroom installations", "detail": "New taps to a full refit, plumbed to code." }
+    ],
+    "reasons": [
+      { "title": "We answer the phone", "detail": "A plumber you cannot reach is not a plumber." },
+      { "title": "Priced before we start", "detail": "You know the number before any work begins." },
+      { "title": "Certificates issued", "detail": "Plumbing compliance certificates for a sale or an insurance claim." }
+    ]
+  }
+]

@@ -7,7 +7,7 @@
     "dev": "concurrently -n next,convex -c cyan,magenta \"next dev\" \"convex dev\"",
     "dev:next": "next dev",
     "dev:convex": "convex dev",
-    "build": "pnpm prompts:build && next build",
+    "build": "pnpm prompts:build && pnpm demos:build && next build",
     "start": "npx serve out",
     "lint": "next lint",
     "typecheck": "node scripts/typecheck.mjs",
@@ -26,7 +26,8 @@
     "refresh": "node scripts/refresh.mjs",
     "check:tracked": "node scripts/check-tracked.mjs",
     "check:generated": "node scripts/check-generated.mjs",
-    "check:authed": "node scripts/check-authed.mjs"
+    "check:authed": "node scripts/check-authed.mjs",
+    "demos:build": "node scripts/build-demos.mjs"
   },
   "dependencies": {
     "convex": "^1.17.0",

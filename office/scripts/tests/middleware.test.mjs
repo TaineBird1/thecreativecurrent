@@ -89,3 +89,65 @@ test("nothing authenticated is left in a shared cache", async () => {
   const denied = await call(null);
   assert.equal(denied.headers.get("cache-control"), "no-store");
 });
+
+// ── The one exemption ────────────────────────────────────────────────────────
+// /demo/* holds one-page demonstration sites built for a named prospect, to be
+// opened by that prospect during a call. A password in front of them defeats
+// the point entirely. Tested in both directions, because an exemption written
+// loosely is how the lock quietly stops being a lock.
+
+function callPath(path, authHeader, password = PASSWORD) {
+  return onRequest({
+    request: new Request(
+      `https://office.pages.dev${path}`,
+      authHeader ? { headers: { Authorization: authHeader } } : {},
+    ),
+    env: password === null ? {} : { OFFICE_WEB_PASSWORD: password },
+    next: async () => new Response(served, { status: 200 }),
+  });
+}
+
+test("a demo page opens with no password at all", async () => {
+  for (const path of ["/demo/p4plumbing/", "/demo/apr-roofing/index.html", "/demo/robots.txt", "/demo"]) {
+    const res = await callPath(path, null);
+    assert.equal(res.status, 200, path);
+    assert.equal(await res.text(), served, path);
+  }
+});
+
+test("a demo page opens even when the office password is unset", async () => {
+  // The office itself refuses to serve anything in that state, deliberately.
+  // A prospect's demo is not part of what that protects.
+  const res = await callPath("/demo/p4plumbing/", null, null);
+  assert.equal(res.status, 200);
+  assert.equal((await callPath("/", null, null)).status, 503);
+});
+
+test("the exemption does not leak past the folder it names", async () => {
+  // Each of these contains "demo" and none of them is a demo page.
+  for (const path of [
+    "/demonstration",
+    "/demo-office",
+    "/leads?next=/demo/",
+    "/settings/demo",
+    "/demo../leads",
+  ]) {
+    const res = await callPath(path, null);
+    assert.equal(res.status, 401, `${path} should still need the password`);
+  }
+});
+
+test("traversal resolves before the check, not around it", async () => {
+  // "/../demo" is "/demo" by the time the URL is parsed, so it is the demo
+  // folder and serving it is right. What matters is that nothing resolves the
+  // other way — out of /demo and into the office.
+  assert.equal((await callPath("/../demo", null)).status, 200);
+  assert.equal((await callPath("/demo/../leads", null)).status, 401);
+  assert.equal((await callPath("/demo/../../settings", null)).status, 401);
+});
+
+test("the office itself is untouched by the exemption", async () => {
+  assert.equal((await callPath("/", null)).status, 401);
+  assert.equal((await callPath("/leads", null)).status, 401);
+  assert.equal((await callPath("/", basic("x", PASSWORD))).status, 200);
+});

@@ -52,9 +52,28 @@ function locked(body) {
   });
 }
 
+/**
+ * The one thing served without the password.
+ *
+ * /demo/* holds one-page demonstration sites built for a named prospect, to be
+ * opened by that prospect on a phone during a call. A password in front of them
+ * defeats the entire purpose — "have a look, the password is..." is not a
+ * conversation anyone has.
+ *
+ * Narrow on purpose, and worth stating plainly: anything written into
+ * public/demo is public. It holds generated HTML with a business name, a
+ * trade, and that business's own phone number — nothing from the office, no
+ * bundle, no Convex URL. Nothing else may ever be put there.
+ */
+function isPublicDemo(pathname) {
+  return pathname === "/demo" || pathname.startsWith("/demo/");
+}
+
 export async function onRequest(context) {
   const { request, env, next } = context;
   const expected = env.OFFICE_WEB_PASSWORD;
+
+  if (isPublicDemo(new URL(request.url).pathname)) return await next();
 
   // Fail closed. An unset password must not mean an open office — that is the
   // failure mode where the lock silently does nothing and everyone assumes it
