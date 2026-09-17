@@ -250,6 +250,35 @@ export default defineSchema({
     .index("by_tier", ["tier", "status"])
     .index("by_score", ["score"]),
 
+  /**
+   * Calls made by hand, to the leads no email can reach.
+   *
+   * A table rather than fields on the lead, because a business is rung more
+   * than once: no answer on Tuesday, a call back asked for on Thursday, a
+   * decision the week after. Flattened onto the lead, each call would erase the
+   * one before it, and the thing worth having is the sequence.
+   *
+   * Nothing writes here but a person. No bot rings anyone.
+   */
+  calls: defineTable({
+    leadId: v.id("leads"),
+    outcome: v.union(
+      v.literal("no_answer"),
+      v.literal("left_message"),
+      v.literal("spoke"),
+      v.literal("call_back"),
+      v.literal("not_interested"),
+      v.literal("wrong_number"),
+      v.literal("meeting_booked"),
+    ),
+    note: v.optional(v.string()),
+    /** When they asked to be rung again. Only set for call_back. */
+    callBackAt: v.optional(v.number()),
+    ...stamps,
+  })
+    .index("by_lead", ["leadId"])
+    .index("by_created", ["createdAt"]),
+
   leadEvents: defineTable({
     leadId: v.id("leads"),
     type: v.string(), // "discovered", "audited", "emailed", "replied", ...

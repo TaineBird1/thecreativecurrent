@@ -22,6 +22,7 @@ import type * as approvals from "../approvals.js";
 import type * as auth from "../auth.js";
 import type * as authStore from "../authStore.js";
 import type * as bots from "../bots.js";
+import type * as calls from "../calls.js";
 import type * as clients from "../clients.js";
 import type * as crons from "../crons.js";
 import type * as emails from "../emails.js";
@@ -68,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authStore: typeof authStore;
   bots: typeof bots;
+  calls: typeof calls;
   clients: typeof clients;
   crons: typeof crons;
   emails: typeof emails;

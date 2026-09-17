@@ -106,6 +106,7 @@ const NAV = [
   { href: "/inbox", label: "Boss inbox" },
   { href: "/goals", label: "Goals" },
   { href: "/leads", label: "Leads" },
+  { href: "/calls", label: "Calls" },
   { href: "/clients", label: "Clients" },
   { href: "/library", label: "Library" },
   { href: "/logs", label: "Logs" },
