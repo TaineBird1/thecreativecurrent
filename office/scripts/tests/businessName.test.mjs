@@ -105,3 +105,25 @@ test("a business is not social for having the word in its domain", () => {
   // But a subdomain of the real thing is.
   assert.equal(isSocialHost("business.facebook.com"), true);
 });
+
+const { isDirectoryOwnedSocial } = await loadTs("packages/shared/tools/sources.ts");
+
+test("the directory's own Facebook page is not the business's", () => {
+  // Verbatim from the Musawakhe Energy Solutions lead, found on Snupit.
+  assert.equal(isDirectoryOwnedSocial("https://www.facebook.com/SnupitSA"), true);
+  assert.equal(isDirectoryOwnedSocial("https://facebook.com/yellowpagessouthafrica"), true);
+  assert.equal(isDirectoryOwnedSocial("https://www.facebook.com/MasterBuildersKZN"), true);
+});
+
+test("a real business page is left alone", () => {
+  assert.equal(isDirectoryOwnedSocial("https://www.facebook.com/P4plumbing"), false);
+  assert.equal(isDirectoryOwnedSocial("https://www.facebook.com/HiTecPlumbingDurban"), false);
+  // Mentioning a directory is not being one.
+  assert.equal(isDirectoryOwnedSocial("https://www.facebook.com/PlumbersOnSnupit"), false);
+});
+
+test("a non-social link is not judged as one", () => {
+  assert.equal(isDirectoryOwnedSocial("https://www.snupit.co.za/durban/plumbers"), false);
+  assert.equal(isDirectoryOwnedSocial("not_found"), false);
+  assert.equal(isDirectoryOwnedSocial(null), false);
+});

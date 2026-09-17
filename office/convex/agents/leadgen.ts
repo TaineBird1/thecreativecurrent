@@ -44,6 +44,7 @@ import {
   sourcesForTier,
   looksLikeBusinessName,
   isOwnWebsite,
+  isDirectoryOwnedSocial,
 } from "../../packages/shared/tools/sources";
 
 /**
@@ -747,7 +748,7 @@ async function processBusiness(
       emailGuess = pickEmail(findEmails(site.html), websiteUrl);
       const siteLinks = links(site.html, site.finalUrl);
       if (facebookUrl === NOT_FOUND) {
-        facebookUrl = siteLinks.find((l) => /facebook\.com\/[^/]+\/?$/.test(l)) ?? NOT_FOUND;
+        facebookUrl = findFacebookPage(siteLinks);
       }
 
       // A small business puts its address on the contact page, not the front
@@ -904,7 +905,7 @@ async function processCandidate(
   let { mobile, landline } = splitNumbers(findNumbers(text));
   let emailGuess = pickEmail(findEmails(page.html), hasWebsite ? websiteUrl : args.url);
   const pageLinks = links(page.html, page.finalUrl);
-  const facebookUrl = pageLinks.find((l) => /facebook\.com\/[^/]+\/?$/.test(l)) ?? NOT_FOUND;
+  const facebookUrl = findFacebookPage(pageLinks);
   const suburb = guessSuburb(text, args.location);
   const address = guessAddress(text);
 
@@ -1291,6 +1292,20 @@ async function harvestListingUrls(searchUrl: string, sourceId: string): Promise<
     sameHost: sameHost.length,
     sample: [...new Set(sameHost.map((l) => { try { return new URL(l).pathname; } catch { return l; } }))].slice(0, 6),
   };
+}
+
+/**
+ * The business's Facebook page from a list of links — never the directory's.
+ *
+ * Taking the first facebook.com link on the page is how a solar installer in
+ * Pinetown ended up with Snupit's Facebook page as its own.
+ */
+function findFacebookPage(candidates: string[]): string {
+  return (
+    candidates.find(
+      (l) => /facebook\.com\/[^/]+\/?$/.test(l) && !isDirectoryOwnedSocial(l),
+    ) ?? NOT_FOUND
+  );
 }
 
 function guessBusinessName(html: string, url: string): string {

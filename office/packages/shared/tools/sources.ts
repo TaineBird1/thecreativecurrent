@@ -180,6 +180,30 @@ export const DIRECTORY_HOSTS: string[] = [
 ];
 
 /**
+ * A social link that belongs to the directory, not to the business.
+ *
+ * The third field this has gone wrong in. A listing page carries the
+ * directory's own details alongside the business's, and taking the first
+ * facebook.com link on the page gave a Pinetown solar installer
+ * "facebook.com/SnupitSA" as its Facebook presence — the directory's page,
+ * filed under the business we found there.
+ *
+ * Same shape as the address and the website before it, so the same answer:
+ * a handle that starts with a directory's own name is that directory's.
+ */
+export function isDirectoryOwnedSocial(url: string | null | undefined): boolean {
+  if (!url || url === "not_found") return false;
+  try {
+    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+    if (!isSocialHost(parsed.hostname)) return false;
+    const handle = parsed.pathname.replace(/[^a-z0-9]/gi, "").toLowerCase();
+    return DIRECTORY_BRANDS.some((brand) => brand.length >= 5 && handle.startsWith(brand));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Somewhere a business is present, rather than somewhere it is published.
  *
  * Google Maps returns whatever the owner typed into the "website" box, and for

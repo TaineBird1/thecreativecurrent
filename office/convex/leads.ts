@@ -3,7 +3,12 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { authedQuery, authedMutation } from "./lib/authed";
 import { stamps, touch, alive, getAlive, softDelete } from "./lib/soft";
 import { leadStatus } from "./schema";
-import { isDirectoryHost, isSocialHost, isOwnWebsite } from "../packages/shared/tools/sources";
+import {
+  isDirectoryHost,
+  isSocialHost,
+  isOwnWebsite,
+  isDirectoryOwnedSocial,
+} from "../packages/shared/tools/sources";
 
 /**
  * Leads.
@@ -462,7 +467,10 @@ export const directoryAddresses = authedQuery({
       // a lead whose "website" is a Facebook page. Everything measured about
       // that site was measured about Facebook, including the faults written for
       // Lerato to quote.
-      return l.hasWebsite && !isOwnWebsite(l.websiteUrl);
+      if (l.hasWebsite && !isOwnWebsite(l.websiteUrl)) return true;
+      // And the third field it went wrong in: the directory's own Facebook
+      // page, taken off their listing and filed under the business.
+      return isDirectoryOwnedSocial(l.facebookUrl);
     }),
 });
 
