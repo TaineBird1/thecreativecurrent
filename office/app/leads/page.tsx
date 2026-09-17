@@ -36,6 +36,7 @@ export default function LeadsPage() {
     limit: 300,
   });
   const counts = useAuthedQuery(api.leads.counts);
+  const waitingOnAddress = useAuthedQuery(api.leads.waitingOnAddress);
   const addByUrl = useAuthedAction(api.agents.leadgen.addByUrl);
   const runNow = useAuthedAction(api.agents.leadgen.runNow);
 
@@ -127,6 +128,13 @@ export default function LeadsPage() {
             <span>· {counts.contacted} contacted</span>
             <span>· {counts.replied + counts.interested} replied</span>
             <span>· {counts.discarded} discarded off-niche</span>
+            {/* Held-back leads are otherwise invisible: qualified, in the list,
+                and silently never written to. */}
+            {waitingOnAddress ? (
+              <span className="text-lamp">
+                · {waitingOnAddress} waiting on you to check a guessed address
+              </span>
+            ) : null}
           </div>
         )}
 
@@ -240,6 +248,7 @@ function ContactDots({ lead }: { lead: Lead }) {
 function LeadPanel({ id, onClose }: { id: Id<"leads">; onClose: () => void }) {
   const detail = useAuthedQuery(api.leads.byId, { id });
   const setStatus = useAuthedMutation(api.leads.setStatus);
+  const confirmEmail = useAuthedMutation(api.leads.confirmEmail);
   const logReply = useAuthedAction(api.agents.outreach.logReply);
   const draftProposal = useAuthedAction(api.agents.proposal.draft);
 
@@ -286,13 +295,20 @@ function LeadPanel({ id, onClose }: { id: Id<"leads">; onClose: () => void }) {
               label="Email"
               value={lead.email}
               href={lead.email !== "not_found" ? `mailto:${lead.email}` : undefined}
-              hint={lead.emailStatus === "inferred" ? "inferred from the domain — not verified" : undefined}
+              hint={lead.emailStatus === "inferred" ? "guessed — nobody writes here yet" : undefined}
             />
             <Field label="Website" value={lead.websiteUrl} href={lead.websiteUrl !== "not_found" ? lead.websiteUrl : undefined} />
             <Field label="Facebook" value={lead.facebookUrl} href={lead.facebookUrl !== "not_found" ? lead.facebookUrl : undefined} />
             <Field label="Address" value={lead.address} />
             <Field label="Found on" value={lead.source} href={lead.sourceUrl} />
           </dl>
+
+          {lead.emailStatus === "inferred" && (
+            <ConfirmAddress
+              lead={lead}
+              onConfirm={(email) => confirmEmail({ id: lead._id, email })}
+            />
+          )}
         </section>
 
         {lead.faults.length > 0 && (
@@ -481,6 +497,75 @@ function Field({
         )}
         {hint && <span className="ml-1 text-[10px] text-lamp">({hint})</span>}
       </dd>
+    </div>
+  );
+}
+
+/**
+ * A guessed address, and the one action that unblocks it.
+ *
+ * Lead-gen guesses `info@theirdomain.co.za` when nothing is published, and
+ * Outreach will not write to a guess — a bounce is a wasted lead and a dent in
+ * a new sending domain's reputation. So the lead waits here until someone has
+ * actually looked at the site, the Facebook page, or picked up the phone.
+ *
+ * Confirming is a person saying they checked. Nothing here verifies anything,
+ * and the wording does not pretend otherwise.
+ */
+function ConfirmAddress({
+  lead,
+  onConfirm,
+}: {
+  lead: { email: string; websiteUrl: string };
+  onConfirm: (email: string) => Promise<unknown>;
+}) {
+  const [email, setEmail] = useState(lead.email);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  return (
+    <div className="mt-3 rounded-lg border border-lamp/30 bg-lamp/5 p-3">
+      <p className="mb-1 text-xs font-semibold text-lamp">Guessed address — held back</p>
+      <p className="mb-2.5 text-[11px] leading-relaxed text-muted">
+        Nothing was published on their site, so this was guessed from the domain. Lerato will not
+        write to it until you say it is right — a bounce costs the lead and the sending domain&apos;s
+        reputation.{" "}
+        {lead.websiteUrl !== "not_found" && (
+          <a
+            href={lead.websiteUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-edge-2 hover:decoration-lamp"
+          >
+            Open their site
+          </a>
+        )}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="min-w-[200px] flex-1 rounded-lg border border-edge bg-ink px-3 py-1.5 text-xs outline-none focus:border-lamp"
+        />
+        <Button
+          tone="primary"
+          disabled={busy || !email.includes("@")}
+          onClick={async () => {
+            setBusy(true);
+            setError("");
+            try {
+              await onConfirm(email);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : String(err));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {email.trim().toLowerCase() === lead.email ? "Confirm" : "Use this instead"}
+        </Button>
+      </div>
+      {error && <p className="mt-1.5 text-[11px] text-rust">{error}</p>}
     </div>
   );
 }

@@ -164,13 +164,29 @@ export const archive = authedMutation({
  * A draft held back by a guard or by sending being off still exists, and
  * without this check Lerato rewrote the same three leads every half hour all
  * day, paying for each one.
+ *
+ * Also excluded: `emailStatus: "inferred"`. Where nothing was published,
+ * Lead-gen guesses `info@theirdomain.co.za` — a good guess for a small South
+ * African trade, and still a guess. The comment above the guessing code has
+ * always said "a bounced first impression is worse than no email at all", and
+ * this query then sent to them anyway, which made that sentence decoration.
+ *
+ * Bounces are also what damages a new sending domain's reputation, and
+ * office.thecreativecurrent.co.za has none yet to spend.
+ *
+ * So an inferred address waits for a human to look at it. Those leads stay
+ * qualified and visible on the Leads screen; confirm or correct the address and
+ * mark it published, and the lead joins the queue. Nothing is lost, it is just
+ * not sent to on a guess.
  */
 export const readyForOutreach = authedQuery({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     const rows = alive(
       await ctx.db.query("leads").withIndex("by_status", (q) => q.eq("status", "qualified")).collect(),
-    ).filter((l) => l.email !== "not_found" && l.email.includes("@"));
+    ).filter(
+      (l) => l.email !== "not_found" && l.email.includes("@") && l.emailStatus === "published",
+    );
 
     const ready = [];
     for (const lead of rows.sort((a, b) => b.score - a.score)) {
@@ -182,6 +198,51 @@ export const readyForOutreach = authedQuery({
     }
     return ready;
   },
+});
+
+/**
+ * Confirm or correct a guessed address, which lets the lead into the outreach
+ * queue.
+ *
+ * The other half of holding inferred addresses back. Without this they would be
+ * held back for ever — visible, qualified, and permanently unreachable — which
+ * is worse than sending to the guess, because at least a guess sometimes lands.
+ *
+ * Marking it published is a person saying they looked. Nothing here verifies
+ * anything, and nothing pretends to.
+ */
+export const confirmEmail = authedMutation({
+  args: { id: v.id("leads"), email: v.string() },
+  handler: async (ctx, { id, email }) => {
+    const lead = await getAlive(ctx, id);
+    if (!lead) throw new Error("That lead no longer exists.");
+
+    const clean = email.trim().toLowerCase();
+    if (!/^[\w.+-]+@[\w-]+\.[\w.-]{2,}$/.test(clean)) {
+      throw new Error(`"${email}" is not an email address.`);
+    }
+
+    const changed = clean !== lead.email;
+    await ctx.db.patch(id, { email: clean, emailStatus: "published" as const, ...touch() });
+    await ctx.db.insert("leadEvents", {
+      leadId: id,
+      type: "email_confirmed",
+      detail: changed
+        ? `Address corrected from the guess ${lead.email} to ${clean} (by you). Now in the outreach queue.`
+        : `Guessed address ${clean} confirmed by you. Now in the outreach queue.`,
+      botKey: "boss",
+      ...stamps(),
+    });
+    return { ok: true, email: clean };
+  },
+});
+
+/** How many good leads are waiting on someone to check a guessed address. */
+export const waitingOnAddress = authedQuery({
+  args: {},
+  handler: async (ctx) =>
+    alive(await ctx.db.query("leads").withIndex("by_status", (q) => q.eq("status", "qualified")).collect())
+      .filter((l) => l.emailStatus === "inferred").length,
 });
 
 /** Drafts written but never sent — waiting on sending being switched on. */
