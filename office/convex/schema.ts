@@ -242,6 +242,11 @@ export default defineSchema({
   })
     .index("by_status", ["status"])
     .index("by_dedupe", ["dedupeKey"])
+    // Lead-gen asks "have we already been to this listing page?" before
+    // spending a run's budget fetching it again. Without it, a directory that
+    // returns the same twenty listings every morning hands over the same first
+    // few every time and the rest are never reached.
+    .index("by_source_url", ["sourceUrl"])
     .index("by_tier", ["tier", "status"])
     .index("by_score", ["score"]),
 

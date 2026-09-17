@@ -68,6 +68,33 @@ export const findByDedupeKey = authedQuery({
     await ctx.db.query("leads").withIndex("by_dedupe", (q) => q.eq("dedupeKey", dedupeKey)).unique(),
 });
 
+/**
+ * Which of these listing URLs we have already processed.
+ *
+ * Called before a run spends its budget. A directory search returns the same
+ * page of listings every morning, so without this the first few are fetched,
+ * recognised as duplicates, counted against the run, and the ones further down
+ * are never reached at all — a source can look like it is working while making
+ * no progress whatsoever after its first run.
+ *
+ * Discarded leads count as known on purpose: they are exactly the ones we do
+ * not want to pay to look at twice.
+ */
+export const knownSourceUrls = authedQuery({
+  args: { urls: v.array(v.string()) },
+  handler: async (ctx, { urls }) => {
+    const known: string[] = [];
+    for (const url of urls) {
+      const hit = await ctx.db
+        .query("leads")
+        .withIndex("by_source_url", (q) => q.eq("sourceUrl", url))
+        .first();
+      if (hit) known.push(url);
+    }
+    return known;
+  },
+});
+
 export const create = internalMutation({
   args: {
     businessName: v.string(),

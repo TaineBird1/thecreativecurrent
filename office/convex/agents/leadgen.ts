@@ -33,6 +33,7 @@ import {
   splitNumbers,
 } from "../../packages/shared/tools/contacts";
 import { auditSite, scoreLead, type Fault } from "../../packages/shared/tools/faults";
+import { splitRunBudget } from "../../packages/shared/tools/runBudget";
 import { prepareForLlm } from "../../packages/shared/guards/pii";
 import { TIER_CATEGORIES, LOCATIONS, sourcesForTier } from "../../packages/shared/tools/sources";
 
@@ -84,6 +85,15 @@ function unreachableReason(lead: { email: string; emailStatus: string; hasWebsit
 const QUALIFY_FLOOR = 40;
 /** Per run. Keeps well inside the daily LLM budget and inside politeness. */
 const MAX_CANDIDATES_PER_RUN = 12;
+/**
+ * The share of a run held for directory listings when both have work waiting.
+ *
+ * Half. The worker had been taking the whole budget — eleven of twelve slots in
+ * the run where Snupit first came back to life, with twenty-one of its
+ * twenty-two listings thrown away unread — and the directory leads are the ones
+ * that arrive carrying an email, which is the only kind Outreach can use.
+ */
+const DIRECTORY_FLOOR = Math.floor(MAX_CANDIDATES_PER_RUN / 2);
 
 interface Judgement {
   tier: 1 | 2 | 3;
@@ -153,7 +163,7 @@ export const run = internalAction({
           });
         }
 
-        const candidates: { url: string; sourceId: string }[] = [];
+        let candidates: { url: string; sourceId: string }[] = [];
         const tried: string[] = [];
         let queuedForWorker = 0;
         for (const source of sources) {
@@ -213,6 +223,22 @@ export const run = internalAction({
         }
         if (waiting > 0) tried.push(`worker: ${waiting} waiting`);
 
+        // A directory returns the same page of listings every morning, and
+        // processCandidate only discovers a duplicate after paying for the
+        // fetch — and after it has cost a slot. Dropping the known ones here is
+        // what stops the first few being re-fetched for ever while the ones
+        // further down the page are never reached at all.
+        const harvested = candidates.length;
+        if (candidates.length > 0) {
+          const known = new Set<string>(
+            await ctx.runQuery(api.leads.knownSourceUrls, {
+              ...machineArgs(),
+              urls: candidates.map((c) => c.url),
+            }),
+          );
+          candidates = candidates.filter((c) => !known.has(c.url));
+        }
+
         if (candidates.length === 0 && businesses.length === 0) {
           return (
             `${steer ? "Looked where you asked. " : ""}Nothing found for ${category} in ${location}. ` +
@@ -228,7 +254,21 @@ export const run = internalAction({
         let discarded = 0;
         let skipped = 0;
 
-        const takingNow = businesses.slice(0, MAX_CANDIDATES_PER_RUN);
+        // Split the run rather than letting the worker's backlog have all of
+        // it. Google Maps results carry over between runs — each job remembers
+        // how much of it has been consumed — while directory listings are
+        // re-harvested from scratch and anything not taken is simply thrown
+        // away. So the worker taking every slot does not delay its own leads;
+        // it discards the directory ones, which are also the only leads that
+        // arrive with an email address already on them.
+        const budget = splitRunBudget({
+          workerWaiting: businesses.length,
+          directoryWaiting: candidates.length,
+          total: MAX_CANDIDATES_PER_RUN,
+          floor: DIRECTORY_FLOOR,
+        });
+        const directoryBudget = budget.directory;
+        const takingNow = businesses.slice(0, budget.worker);
         const progress = new Map<string, number>();
 
         for (const { biz, sourceId, jobId, index } of takingNow) {
@@ -254,7 +294,7 @@ export const run = internalAction({
           });
         }
 
-        for (const candidate of candidates.slice(0, Math.max(0, MAX_CANDIDATES_PER_RUN - takingNow.length))) {
+        for (const candidate of candidates.slice(0, directoryBudget)) {
           if (await handle.stopped()) break;
           const result = await processCandidate(ctx, {
             url: candidate.url,
@@ -278,7 +318,9 @@ export const run = internalAction({
         return (
           `${prefix}${added} new lead${added === 1 ? "" : "s"} in ${location}, ` +
           `${discarded} discarded off-niche, ${skipped} already known ` +
-          `(${takingNow.length} of ${businesses.length} from the worker, ${candidates.length} from directories). ` +
+          `(${takingNow.length} of ${businesses.length} from the worker, ` +
+          `${Math.min(candidates.length, directoryBudget)} of ${candidates.length} new from directories` +
+          `${harvested > candidates.length ? `, ${harvested - candidates.length} already seen` : ""}). ` +
           `${businesses.length > takingNow.length ? `${businesses.length - takingNow.length} still waiting — run again for more. ` : ""}${worker}`
         );
       },
