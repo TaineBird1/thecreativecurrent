@@ -9,6 +9,7 @@ import {
   isOwnWebsite,
   isDirectoryOwnedSocial,
 } from "../packages/shared/tools/sources";
+import { scoreLead } from "../packages/shared/tools/faults";
 
 /**
  * Leads.
@@ -500,15 +501,22 @@ export const repairMisreadSites = authedMutation({
   handler: async (ctx) => {
     const rows = alive(await ctx.db.query("leads").collect());
     let repaired = 0;
+    // Counted separately, because a score can be stale without anything being
+    // structurally wrong: confirming an address, or finding there is none,
+    // changes how many ways there are to reach a business, and the score was
+    // written once at discovery and never revisited.
+    let rescoredCount = 0;
 
     for (const lead of rows) {
+      // A discarded lead is in no queue and is ranked against nothing. Giving
+      // it a fresh score would only contradict the "scored 0" in its own
+      // discard reason.
+      if (lead.status === "discarded") continue;
       const siteIsTheirs = !lead.hasWebsite || isOwnWebsite(lead.websiteUrl);
       const borrowedSocial = isDirectoryOwnedSocial(lead.facebookUrl);
       const borrowedEmail =
         lead.email.includes("@") &&
         (isDirectoryHost(lead.email.split("@")[1]) || isSocialHost(lead.email.split("@")[1]));
-      if (siteIsTheirs && !borrowedSocial && !borrowedEmail) continue;
-
       const patch: Record<string, unknown> = {};
       const changed: string[] = [];
 
@@ -539,18 +547,51 @@ export const repairMisreadSites = authedMutation({
         changed.push(`the address ${lead.email} was guessed from somebody else's domain`);
       }
 
+      // Re-score on the corrected facts. The old number was earned partly by
+      // faults that were never theirs — Musawakhe's 77 counted five findings
+      // about a WhatsApp catalogue — and the call list ranks by it, so leaving
+      // it puts repaired leads above ones that earned their place.
+      const after = { ...lead, ...patch } as typeof lead;
+      const rescored = scoreLead({
+        tier: after.tier,
+        hasWebsite: after.hasWebsite,
+        faults: after.faults,
+        reachableChannels: [
+          after.mobile,
+          after.landline,
+          after.emailStatus === "published" ? after.email : "not_found",
+          after.facebookUrl,
+        ].filter((f) => f && f !== "not_found").length,
+        facebookActive: Boolean(after.facebookActivity),
+      });
+      if (rescored !== lead.score) {
+        patch.score = rescored;
+        changed.push(`re-scored ${rescored}, was ${lead.score}`);
+        rescoredCount++;
+      }
+
+      if (Object.keys(patch).length === 0) continue;
+      const repairedThis = !siteIsTheirs || borrowedSocial || borrowedEmail;
+      if (repairedThis) repaired++;
+
+      // The status is deliberately left alone, even where the new score falls
+      // under the qualifying floor. The lead did not get worse; our record of
+      // it got more honest, and dropping a business out of the pipeline to
+      // settle our own mistake would be the wrong way round — particularly
+      // when "no website at all" is the whole reason to ring them.
       await ctx.db.patch(lead._id, { ...patch, ...touch() });
       await ctx.db.insert("leadEvents", {
         leadId: lead._id,
         type: "repaired",
-        detail: `Corrected what was read off their listing: ${changed.join("; ")}.`,
+        detail: repairedThis
+          ? `Corrected what was read off their listing: ${changed.join("; ")}.`
+          : `${changed.join("; ")}.`,
         botKey: "boss",
         ...stamps(),
       });
-      repaired++;
     }
 
-    return { repaired };
+    return { repaired, rescored: rescoredCount };
   },
 });
 

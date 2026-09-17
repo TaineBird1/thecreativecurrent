@@ -186,11 +186,12 @@ export default function LeadsPage() {
               onClick={async () => {
                 setBusy(true);
                 try {
-                  const { repaired } = await repairMisreadSites({});
+                  const { repaired, rescored } = await repairMisreadSites({});
                   setResult(
-                    repaired === 0
-                      ? "Nothing to repair — every lead's website is its own."
-                      : `Repaired ${repaired}. Their sites were a Facebook page or a directory listing, so the findings measured against them are gone and they are recorded as having no website.`,
+                    repaired === 0 && rescored === 0
+                      ? "Nothing to do — every lead's website is its own and every score matches its facts."
+                      : `${repaired} repaired — their sites were a Facebook page or a directory listing, so the findings measured against them are gone and they are recorded as having no website. ` +
+                        `${rescored} re-scored on what the lead actually says now. Nothing was discarded: the businesses did not get worse, our record of them got more honest.`,
                   );
                 } catch (err) {
                   setResult(err instanceof Error ? err.message : String(err));
