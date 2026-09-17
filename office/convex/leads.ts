@@ -3,6 +3,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { authedQuery, authedMutation } from "./lib/authed";
 import { stamps, touch, alive, getAlive, softDelete } from "./lib/soft";
 import { leadStatus } from "./schema";
+import { isDirectoryHost } from "../packages/shared/tools/sources";
 
 /**
  * Leads.
@@ -426,6 +427,28 @@ export const sourceHealth = authedQuery({
       .map((r) => ({ ...r, emailable: r.total === 0 ? 0 : Math.round((r.published / r.total) * 100) }))
       .sort((a, b) => b.total - a.total);
   },
+});
+
+/**
+ * Leads carrying a directory's own address instead of the business's.
+ *
+ * Until the filter in pickEmail existed, an email scraped off a listing page
+ * could be the directory's own — a Snupit listing has Snupit's address in its
+ * footer next to the plumber's — and it was stored as "published", which is the
+ * one status Outreach will write to without asking anyone.
+ *
+ * The filter stops new ones. This finds any already on the list, because the
+ * consequence is not a bad row in a table: it is an email about a plumber's
+ * website, addressed to the directory that listed them, sent from a real
+ * address of Taine's. Shows nothing once there are none, and then it is simply
+ * a check that keeps passing.
+ */
+export const directoryAddresses = authedQuery({
+  args: {},
+  handler: async (ctx) =>
+    alive(await ctx.db.query("leads").collect()).filter(
+      (l) => l.email.includes("@") && isDirectoryHost(l.email.split("@")[1]),
+    ),
 });
 
 /** Drafts written but never sent — waiting on sending being switched on. */

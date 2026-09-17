@@ -26,7 +26,7 @@ export default function LeadsPage() {
   const [tier, setTier] = useState<number>(0);
   const [search, setSearch] = useState("");
   // Either pile is otherwise a hunt through ninety-odd rows for six.
-  const [focus, setFocus] = useState<"" | "waiting" | "call">("");
+  const [focus, setFocus] = useState<"" | "waiting" | "call" | "directory">("");
   const [selected, setSelected] = useState<Id<"leads"> | null>(null);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,6 +42,7 @@ export default function LeadsPage() {
   const waitingOnAddress = useAuthedQuery(api.leads.waitingOnAddress);
   const callable = useAuthedQuery(api.leads.callable);
   const sourceHealth = useAuthedQuery(api.leads.sourceHealth);
+  const directoryAddresses = useAuthedQuery(api.leads.directoryAddresses);
   const [showSources, setShowSources] = useState(false);
   const addByUrl = useAuthedAction(api.agents.leadgen.addByUrl);
   const runNow = useAuthedAction(api.agents.leadgen.runNow);
@@ -152,6 +153,17 @@ export default function LeadsPage() {
                 {callable.length} to phone — no email to be found
               </FocusToggle>
             ) : null}
+            {directoryAddresses?.length ? (
+              <FocusToggle
+                on={focus === "directory"}
+                onClick={() => setFocus((f) => (f === "directory" ? "" : "directory"))}
+              >
+                <span className="text-rust">
+                  {directoryAddresses.length} carrying a directory&apos;s own address — check before
+                  sending
+                </span>
+              </FocusToggle>
+            ) : null}
             <FocusToggle
               on={showSources}
               onClick={() => setShowSources((v) => !v)}
@@ -186,7 +198,9 @@ export default function LeadsPage() {
             <tbody>
               {leads
                 ?.filter((lead) =>
-                  focus === "waiting"
+                  focus === "directory"
+                    ? directoryAddresses?.some((l) => l._id === lead._id) === true
+                    : focus === "waiting"
                     ? lead.emailStatus === "inferred"
                     : focus === "call"
                       ? lead.status === "qualified" &&
