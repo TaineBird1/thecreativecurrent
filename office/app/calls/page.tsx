@@ -33,10 +33,73 @@ const OUTCOMES = [
 
 type Queue = FunctionReturnType<typeof api.calls.queue>;
 
+/**
+ * The facts a demo site needs, in the shape demo/businesses.json wants.
+ *
+ * Every one of these is already in the database, and until now the way it
+ * reached the demo builder was a screenshot of this page, read back by eye.
+ * Phone numbers transcribed off an image is exactly the kind of quiet error
+ * that ends with a prospect opening a page whose call button rings someone
+ * else.
+ *
+ * Only the facts. The headline, the services and the reasons are writing, and
+ * writing them from a category name is how the first six ended up plausible
+ * rather than true — so this leaves those fields out entirely rather than
+ * filling them with something that looks finished.
+ */
+function demoDetails(rows: Queue): string {
+  return JSON.stringify(
+    rows.map((row) => {
+      const lead = row.lead;
+      return {
+        slug: lead.businessName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 40),
+        name: lead.businessName,
+        trade: lead.category,
+        suburb: lead.suburb,
+        phone: lead.mobile !== "not_found" ? lead.mobile : lead.landline,
+        secondNumber:
+          lead.mobile !== "not_found" && lead.landline !== "not_found" ? lead.landline : undefined,
+        score: lead.score,
+        website: lead.websiteUrl,
+        // What is true about their web presence, so the pitch on the page
+        // matches the pitch on the call.
+        situation: row.mention ?? undefined,
+      };
+    }),
+    null,
+    2,
+  );
+}
+
+
+
 export default function CallsPage() {
   const [includeDone, setIncludeDone] = useState(false);
   const queue = useAuthedQuery(api.calls.queue, { includeDone });
   const counts = useAuthedQuery(api.calls.counts);
+  const [copied, setCopied] = useState("");
+  // Shown when the clipboard is unavailable, which it is in a lot of mobile
+  // browsers. A button that silently does nothing is worse than no button.
+  const [fallback, setFallback] = useState("");
+
+  const copyDemoDetails = async (howMany: number) => {
+    const next = (queue ?? []).filter((r) => r.attempts === 0).slice(0, howMany);
+    if (next.length === 0) return;
+    const text = demoDetails(next);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(`${next.length} copied — paste it into the chat.`);
+      setFallback("");
+      setTimeout(() => setCopied(""), 4000);
+    } catch {
+      setFallback(text);
+      setCopied("Could not reach the clipboard — select the text below instead.");
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -73,6 +136,30 @@ export default function CallsPage() {
             </div>
           )}
         </Card>
+
+        <Card className="flex flex-wrap items-center gap-3 p-3 text-xs">
+          <span className="text-faint">Building demo sites for the next few?</span>
+          {[4, 8].map((n) => (
+            <Button key={n} tone={n === 4 ? "primary" : "default"} onClick={() => copyDemoDetails(n)}>
+              Copy the next {n}
+            </Button>
+          ))}
+          <span className="min-w-0 flex-1 leading-relaxed text-faint">
+            {copied || "Name, trade, suburb and number for the top never-rung leads, ready to paste. The facts only — what the page actually says still has to be written."}
+          </span>
+        </Card>
+
+        {fallback && (
+          <Card className="p-3">
+            <textarea
+              readOnly
+              value={fallback}
+              rows={12}
+              onFocus={(e) => e.currentTarget.select()}
+              className="w-full rounded-lg border border-edge bg-ink p-3 font-mono text-[11px] leading-relaxed outline-none"
+            />
+          </Card>
+        )}
 
         {queue?.length === 0 && (
           <Empty>
