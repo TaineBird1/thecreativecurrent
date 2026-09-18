@@ -360,6 +360,11 @@ export const run = internalAction({
             biz.name,
             guessSuburb(biz.cardText ?? "", location),
             biz.website ?? NOT_FOUND,
+            // Same source processBusiness reads it from, or the keys diverge
+            // and the free duplicate check silently stops matching anything.
+            (({ mobile, landline }) => mobile || landline)(
+              splitNumbers(findNumbers(biz.cardText ?? "")),
+            ),
           ),
         );
         const knownWorkerKeys =
@@ -720,16 +725,20 @@ async function processBusiness(
   const websiteUrl = hasWebsite ? listed : NOT_FOUND;
 
   const suburb = guessSuburb(cardText, args.location);
-  // These three lines are computed a second time in runNow, before the run
-  // spends a slot getting here. If this ever stops matching that, the run
-  // either skips businesses it has never seen or pays a slot to rediscover
-  // ones it has — so they move together or not at all.
-  const dedupe = makeDedupeKey(biz.name, suburb, websiteUrl);
+  // Phone and address come off the card; anything else needs their own site.
+  // Read before the dedupe check rather than after, because the number is now
+  // part of the key — it is what tells us a business found in two location
+  // searches is one business.
+  const { mobile: cardMobile, landline: cardLandline } = splitNumbers(findNumbers(cardText));
+
+  // These lines are computed a second time in runNow, before the run spends a
+  // slot getting here. If this ever stops matching that, the run either skips
+  // businesses it has never seen or pays a slot to rediscover ones it has — so
+  // they move together or not at all.
+  const dedupe = makeDedupeKey(biz.name, suburb, websiteUrl, cardMobile || cardLandline);
   const existing = await ctx.runQuery(api.leads.findByDedupeKey, { ...machineArgs(),  dedupeKey: dedupe });
   if (existing) return "skipped";
 
-  // Phone and address come off the card; anything else needs their own site.
-  const { mobile: cardMobile, landline: cardLandline } = splitNumbers(findNumbers(cardText));
   let mobile = cardMobile;
   let landline = cardLandline;
   let emailGuess = pickEmail([], websiteUrl);
@@ -909,7 +918,7 @@ async function processCandidate(
   const suburb = guessSuburb(text, args.location);
   const address = guessAddress(text);
 
-  const dedupe = makeDedupeKey(businessName, suburb, hasWebsite ? websiteUrl : args.url);
+  const dedupe = makeDedupeKey(businessName, suburb, hasWebsite ? websiteUrl : args.url, mobile || landline);
   const existing = await ctx.runQuery(api.leads.findByDedupeKey, { ...machineArgs(),  dedupeKey: dedupe });
   if (existing) {
     // A duplicate is not waste. The page is already fetched and paid for, and

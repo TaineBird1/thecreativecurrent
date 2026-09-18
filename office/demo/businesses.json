@@ -292,5 +292,201 @@
         "detail": "We are up the road, so a callout is not a three week wait."
       }
     ]
+  },
+  {
+    "slug": "erd-construction",
+    "name": "ERD Construction",
+    "trade": "Construction contractor",
+    "suburb": "Margate",
+    "area": "Margate, Ramsgate, Southbroom and the South Coast",
+    "phone": "+27813333654",
+    "headline": "Building work, done once and done right.",
+    "intro": "A South Coast building team taking on new work, alterations and repairs. One crew, one number, and a written quote before anybody lifts a trowel.",
+    "heroImage": "wide photograph of builders working on a brick house under construction in South Africa, scaffolding, blue sky, late afternoon light, professional photography",
+    "servicesHeading": "What we build",
+    "servicesSub": "Whole houses down to a single wall, and the repairs in between.",
+    "services": [
+      {
+        "title": "New builds",
+        "detail": "Managed from the foundation through to the final coat of paint.",
+        "image": "photograph of a newly finished modern brick house in South Africa with a paved driveway, sunny day, estate agent photography"
+      },
+      {
+        "title": "Alterations and extensions",
+        "detail": "More space, a second storey, or knocking two rooms into one.",
+        "image": "photograph of a house extension under construction with new brickwork and roof trusses going on, clear sky"
+      },
+      {
+        "title": "Repairs and maintenance",
+        "detail": "Cracked plaster, damp walls and the jobs that get worse if left.",
+        "image": "photograph of a builder repairing a cracked exterior wall with plaster and a trowel, bright daylight, documentary photography"
+      },
+      {
+        "title": "Paving and walls",
+        "detail": "Driveways, boundary walls, and drainage that copes with a coastal storm.",
+        "image": "photograph of freshly laid paving bricks on a driveway at a South African house with a new boundary wall, sunny day"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "One crew, start to finish",
+        "detail": "The same team is there on the last day as on the first."
+      },
+      {
+        "title": "Written quotes",
+        "detail": "Itemised, so you can see exactly what you are paying for."
+      },
+      {
+        "title": "We turn up",
+        "detail": "The hardest thing to find in this trade, and the easiest to promise."
+      }
+    ]
+  },
+  {
+    "slug": "kev-on-call",
+    "name": "Kev on Call",
+    "trade": "Handyman and tiling",
+    "suburb": "Margate",
+    "area": "Margate, Uvongo, Ramsgate and the South Coast",
+    "phone": "+27616123424",
+    "headline": "The jobs too small for a contractor, too big for a Saturday.",
+    "intro": "Tiling, repairs and the list on the fridge that never gets shorter. One call, one person, and the work actually finished.",
+    "heroImage": "wide photograph of a handyman with a toolbox working in a South African home, tiling tools and spirit level, natural daylight, documentary photography",
+    "servicesHeading": "What I take on",
+    "servicesSub": "If it is on your list and it is not a whole new house, it is probably this.",
+    "services": [
+      {
+        "title": "Tiling",
+        "detail": "Floors, walls, bathrooms and patios, set level and grouted properly.",
+        "image": "photograph of a tiler laying large format floor tiles with a spirit level and adhesive, natural light, documentary photography"
+      },
+      {
+        "title": "Repairs and odd jobs",
+        "detail": "Doors that stick, cupboards that sag, shelves that were never straight.",
+        "image": "photograph of a handyman repairing a wooden door hinge with a screwdriver in a South African home, warm daylight"
+      },
+      {
+        "title": "Painting and patching",
+        "detail": "Touch-ups, full rooms, and the cracks filled first rather than painted over.",
+        "image": "photograph of a painter cutting in a clean edge with a brush on an interior wall, bright natural light"
+      },
+      {
+        "title": "Maintenance",
+        "detail": "The quarterly list for a holiday house or a rental, done in one visit.",
+        "image": "photograph of a handyman checking and repairing a gutter on a ladder at a coastal house, blue sky"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "You get me, not a team",
+        "detail": "The person you speak to is the person who does the work."
+      },
+      {
+        "title": "I finish",
+        "detail": "No disappearing for three weeks with the bathroom half done."
+      },
+      {
+        "title": "Small jobs welcome",
+        "detail": "Most people will not come out for one afternoon's work. I will."
+      }
+    ]
+  },
+  {
+    "slug": "fm-waterproofing",
+    "name": "F&M Waterproofing & Maintenance",
+    "trade": "Waterproofing contractor",
+    "suburb": "Hillcrest",
+    "area": "Hillcrest, Kloof, Gillitts, Waterfall and Westville",
+    "phone": "+27829600951",
+    "headline": "Stop the leak. Then stop the next one.",
+    "intro": "Waterproofing and building maintenance across the Upper Highway. We find where the water is actually getting in, which is usually not where the stain is.",
+    "heroImage": "wide photograph of a worker applying waterproofing membrane to a flat roof of a South African house, roller and bucket, bright sunny day, documentary photography",
+    "servicesHeading": "What we seal",
+    "servicesSub": "Roofs, walls and balconies, and the damp that comes with them.",
+    "services": [
+      {
+        "title": "Roof waterproofing",
+        "detail": "Flat roofs, parapets and box gutters, stripped back and sealed properly.",
+        "image": "photograph of a freshly waterproofed flat concrete roof with a grey membrane coating, clean finish, sunny day"
+      },
+      {
+        "title": "Leak detection",
+        "detail": "Traced to the actual entry point before anything gets patched.",
+        "image": "photograph of a damp water stain on an interior ceiling being inspected by a worker with a torch, documentary photography"
+      },
+      {
+        "title": "Damp proofing",
+        "detail": "Rising damp and lateral damp in walls, treated rather than covered up.",
+        "image": "photograph of a worker treating a damp interior wall with sealant before plastering, work light, documentary photography"
+      },
+      {
+        "title": "Balconies and decks",
+        "detail": "Sealed and re-tiled so the room underneath stays dry.",
+        "image": "photograph of a newly waterproofed and tiled balcony on a South African house overlooking a green garden, sunny day"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "We find it first",
+        "detail": "A leak sealed in the wrong place is money spent twice."
+      },
+      {
+        "title": "Guaranteed work",
+        "detail": "If it leaks again in the same place, we come back to it."
+      },
+      {
+        "title": "Upper Highway based",
+        "detail": "Local, so a callout is not a three week wait."
+      }
+    ]
+  },
+  {
+    "slug": "bechoos-building",
+    "name": "Bechoos Building & Construction",
+    "trade": "Construction company",
+    "suburb": "Durban",
+    "area": "Durban, Westville, Pinetown and the surrounding suburbs",
+    "phone": "+27844378008",
+    "headline": "Straightforward building, properly run.",
+    "intro": "New builds, extensions and renovations around Durban. Clear quotes, a crew that is on site when it says it will be, and a job handed over clean.",
+    "heroImage": "wide photograph of a construction site for a new suburban home in Durban South Africa, brickwork going up, scaffolding, bright sky, architectural photography",
+    "servicesHeading": "What we do",
+    "servicesSub": "Residential building, from the slab to the handover.",
+    "services": [
+      {
+        "title": "New builds",
+        "detail": "From plans to handover, run by people who are on the site daily.",
+        "image": "photograph of a modern completed family home in South Africa with clean lines and a neat garden, sunny day, estate agent photography"
+      },
+      {
+        "title": "Extensions",
+        "detail": "An extra bedroom, a bigger kitchen, or closing in a patio.",
+        "image": "photograph of a home extension being built onto an existing South African house, new brickwork meeting old, clear sky"
+      },
+      {
+        "title": "Renovations",
+        "detail": "Kitchens, bathrooms and tired rooms brought back properly.",
+        "image": "photograph of a renovated modern kitchen with new cabinetry and stone countertops in a South African home, natural light, interior photography"
+      },
+      {
+        "title": "Concrete and slabs",
+        "detail": "Foundations, slabs and driveways, poured level and cured properly.",
+        "image": "photograph of workers pouring and levelling a concrete slab on a building site, bright daylight, documentary photography"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "Quoted in writing",
+        "detail": "Itemised before we start, so there are no conversations about it later."
+      },
+      {
+        "title": "On site daily",
+        "detail": "You always know who is coming and what they are doing that day."
+      },
+      {
+        "title": "Handed over clean",
+        "detail": "Rubble removed, site swept, nothing left for you to deal with."
+      }
+    ]
   }
 ]

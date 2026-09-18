@@ -206,3 +206,52 @@ test("a guess is never built from the directory we found them on", () => {
   // A real business domain still gets its guess.
   assert.equal(pickEmail([], "https://daveplumbing.co.za").status, "inferred");
 });
+
+// ── One business, found twice ────────────────────────────────────────────────
+// A trade that covers more than one suburb turns up in more than one location
+// search, and without the number in the key each appearance becomes its own
+// lead. Both pairs below are real rows that were sitting in the call list.
+const { dedupeKey } = await loadTs("packages/shared/tools/contacts.ts", {
+  "./sources": "packages/shared/tools/sources.ts",
+});
+
+test("the same number in two suburbs is one business", () => {
+  // ERD Construction: "construction contractor, Margate" and "construction
+  // company, Hillcrest", same phone. Two leads, one man.
+  assert.equal(
+    dedupeKey("ERD Construction", "Margate", "not_found", "+27813333654"),
+    dedupeKey("ERD Construction", "Hillcrest", "not_found", "+27813333654"),
+  );
+  // And it survives the number being written differently.
+  assert.equal(
+    dedupeKey("Kev on Call", "Margate", "not_found", "+27616123424"),
+    dedupeKey("KEV ON CALL", "Hillcrest", "not_found", "061 612 3424"),
+  );
+});
+
+test("two different businesses are still two", () => {
+  assert.notEqual(
+    dedupeKey("ERD Construction", "Margate", "not_found", "+27813333654"),
+    dedupeKey("Kev on Call", "Margate", "not_found", "+27616123424"),
+  );
+});
+
+test("a website still wins over the number", () => {
+  // Two branches sharing a switchboard are one website and one lead; the
+  // domain was always the strongest signal and stays first.
+  assert.equal(
+    dedupeKey("Hi-Tec Plumbing", "Durban", "https://hitec.co.za", "+27831111111"),
+    dedupeKey("Hi Tec Plumbing Durban", "Berea", "https://www.hitec.co.za/", "+27832222222"),
+  );
+});
+
+test("with no website and no number it falls back to name and suburb", () => {
+  assert.equal(
+    dedupeKey("Some Builder", "Margate", "not_found", "not_found"),
+    dedupeKey("Some Builder!", "margate", "not_found", undefined),
+  );
+  assert.notEqual(
+    dedupeKey("Some Builder", "Margate", "not_found"),
+    dedupeKey("Some Builder", "Hillcrest", "not_found"),
+  );
+});

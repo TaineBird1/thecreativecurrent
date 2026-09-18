@@ -120,13 +120,38 @@ export function extractDomain(url: string): string | null {
 }
 
 /**
- * The dedupe key. Domain when there is one (two directories listing the same
- * business will agree on the domain but not on the spelling of the name),
- * otherwise a normalised name + suburb.
+ * The dedupe key. Domain first, then phone number, then name and suburb.
+ *
+ * The domain is the strongest signal: two directories listing the same
+ * business will disagree about the spelling of its name and agree about its
+ * website.
+ *
+ * The phone number is the next strongest, and it was missing. Without it, a
+ * business with no website that turns up in two location searches becomes two
+ * leads — ERD Construction appeared once as a "construction contractor" in
+ * Margate and once as a "construction company" in Hillcrest, on the same
+ * number, and so did Kev on Call. The call list would have had Taine ring the
+ * same man twice, and two demo sites were nearly built for him.
+ *
+ * Which is not an edge case: it is what happens every time a trade covers more
+ * than one suburb, and covering more than one suburb is normal. Name and
+ * suburb only agree when the same directory describes the business the same
+ * way twice, and the reason for dedupe is the times it does not.
  */
-export function dedupeKey(businessName: string, suburb: string, websiteUrl: string): string {
+export function dedupeKey(
+  businessName: string,
+  suburb: string,
+  websiteUrl: string,
+  phone?: string,
+): string {
   const domain = extractDomain(websiteUrl);
   if (domain) return domain;
+
+  // Normalised to +27XXXXXXXXX, so "083 123 4567" and "+27831234567" are the
+  // same business rather than two.
+  const normalisedPhone = toWhatsApp(phone);
+  if (normalisedPhone !== NOT_FOUND) return `tel:${normalisedPhone}`;
+
   const norm = (s: string) =>
     s
       .toLowerCase()
