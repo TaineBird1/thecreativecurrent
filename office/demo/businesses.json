@@ -34,9 +34,18 @@
       }
     ],
     "reasons": [
-      { "title": "One number to call", "detail": "You speak to the person running the site, not an office that will phone you back." },
-      { "title": "Quoted properly", "detail": "A written quote with the materials listed, so you can see what changed if anything changes." },
-      { "title": "We clean up", "detail": "The site is swept at the end of every day. It matters more than people admit." }
+      {
+        "title": "One number to call",
+        "detail": "You speak to the person running the site, not an office that will phone you back."
+      },
+      {
+        "title": "Quoted properly",
+        "detail": "A written quote with the materials listed, so you can see what changed if anything changes."
+      },
+      {
+        "title": "We clean up",
+        "detail": "The site is swept at the end of every day. It matters more than people admit."
+      }
     ]
   },
   {
@@ -74,9 +83,18 @@
       }
     ],
     "reasons": [
-      { "title": "We climb up first", "detail": "No quote over the phone. We look at the roof, then tell you what it actually needs." },
-      { "title": "Honest about replacement", "detail": "A repair that will not last is not cheaper. If that is the answer, we will say so." },
-      { "title": "Insurance paperwork", "detail": "Photographs and a written report, ready for a storm damage claim." }
+      {
+        "title": "We climb up first",
+        "detail": "No quote over the phone. We look at the roof, then tell you what it actually needs."
+      },
+      {
+        "title": "Honest about replacement",
+        "detail": "A repair that will not last is not cheaper. If that is the answer, we will say so."
+      },
+      {
+        "title": "Insurance paperwork",
+        "detail": "Photographs and a written report, ready for a storm damage claim."
+      }
     ]
   },
   {
@@ -114,9 +132,165 @@
       }
     ],
     "reasons": [
-      { "title": "We answer the phone", "detail": "A plumber you cannot get hold of is not a plumber." },
-      { "title": "Priced before we start", "detail": "You know the number before any work begins, not afterwards." },
-      { "title": "Certificates issued", "detail": "Plumbing compliance certificates for a sale or an insurance claim." }
+      {
+        "title": "We answer the phone",
+        "detail": "A plumber you cannot get hold of is not a plumber."
+      },
+      {
+        "title": "Priced before we start",
+        "detail": "You know the number before any work begins, not afterwards."
+      },
+      {
+        "title": "Certificates issued",
+        "detail": "Plumbing compliance certificates for a sale or an insurance claim."
+      }
+    ]
+  },
+  {
+    "slug": "solar-primeg",
+    "name": "Solar Primeg",
+    "trade": "Solar installer",
+    "suburb": "Pinetown",
+    "area": "Pinetown, New Germany, Westville and the Upper Highway",
+    "phone": "+27661461790",
+    "headline": "Solar and backup power, installed properly.",
+    "intro": "Panels, inverters and batteries for homes and small businesses around Pinetown. Sized for the house you actually have, wired by people who will come back if something goes wrong.",
+    "heroImage": "wide photograph of solar panels being installed on the tiled roof of a South African suburban house, installer in safety gear, bright blue sky, professional photography",
+    "servicesHeading": "What we install",
+    "servicesSub": "A full system or the one piece you are missing.",
+    "services": [
+      {
+        "title": "Solar panel systems",
+        "detail": "Sized to your roof and your usage, not to a package on a price list.",
+        "image": "photograph of a neat array of black solar panels on a house roof in South Africa, clear sky, aerial view, professional photography"
+      },
+      {
+        "title": "Inverters and batteries",
+        "detail": "Backup that carries the lights, the wifi and the fridge through an outage.",
+        "image": "photograph of a wall mounted solar inverter and lithium battery neatly installed in a garage with tidy cabling, clean install, work light"
+      },
+      {
+        "title": "Solar geysers",
+        "detail": "The cheapest part of your bill to take off the grid first.",
+        "image": "photograph of a solar water heating geyser mounted on a house roof in South Africa, sunny day, clear sky"
+      },
+      {
+        "title": "Servicing and faults",
+        "detail": "Panels cleaned, connections checked, and faults traced on existing systems.",
+        "image": "photograph of a technician checking electrical connections on a solar inverter with a multimeter, close up, documentary photography"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "We size it first",
+        "detail": "We look at your bill and your roof before quoting anything, so the system fits the house."
+      },
+      {
+        "title": "Tidy installations",
+        "detail": "Cabling clipped and labelled. You can see the difference from the driveway."
+      },
+      {
+        "title": "We come back",
+        "detail": "If something stops working, the number you called still answers."
+      }
+    ]
+  },
+  {
+    "slug": "peramin-construction",
+    "name": "Peramin Construction & Maintenance",
+    "trade": "Construction contractor",
+    "suburb": "Margate",
+    "area": "Margate, Ramsgate, Uvongo and the South Coast",
+    "phone": "+27824987072",
+    "headline": "Building and maintenance, on the South Coast.",
+    "intro": "New work, alterations and the ongoing maintenance that coastal weather makes unavoidable. One team for the build and for everything afterwards.",
+    "heroImage": "wide photograph of a coastal South African house under construction with scaffolding, sea visible in the distance, sunny day, architectural photography",
+    "servicesHeading": "What we do",
+    "servicesSub": "From a new build to the annual list that never quite gets done.",
+    "services": [
+      {
+        "title": "New builds and extensions",
+        "detail": "Managed start to finish, with one person you deal with throughout.",
+        "image": "photograph of a newly completed modern coastal home in South Africa with white walls and large windows, sunny day, estate agent photography"
+      },
+      {
+        "title": "Property maintenance",
+        "detail": "Gutters, damp, cracked plaster and the salt damage that comes with living near the sea.",
+        "image": "photograph of a builder repairing exterior wall plaster on a coastal house, ladder and tools, bright daylight, documentary photography"
+      },
+      {
+        "title": "Renovations",
+        "detail": "Kitchens, bathrooms and opening up rooms that were built closed.",
+        "image": "photograph of a renovated open plan living room with new flooring and large windows, coastal light, interior photography"
+      },
+      {
+        "title": "Painting and waterproofing",
+        "detail": "Exterior work that survives more than one season on the coast.",
+        "image": "photograph of a painter rolling fresh white paint onto the exterior wall of a coastal house, blue sky, documentary photography"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "Local to the coast",
+        "detail": "We know what the salt air does, because we repair it every year."
+      },
+      {
+        "title": "Maintenance, not just builds",
+        "detail": "Most contractors disappear after handover. The small jobs are half of what we do."
+      },
+      {
+        "title": "Written quotes",
+        "detail": "Itemised, so you can see exactly what you are paying for and what you are not."
+      }
+    ]
+  },
+  {
+    "slug": "hillcrest-solar",
+    "name": "Hillcrest Solar Solutions",
+    "trade": "Solar installer",
+    "suburb": "Hillcrest",
+    "area": "Hillcrest, Kloof, Gillitts, Waterfall and Assagay",
+    "phone": "+27713305514",
+    "headline": "Solar that suits your house, not a package.",
+    "intro": "Solar, inverters and battery backup for homes around Hillcrest and the Upper Highway. We work out what you actually use before we tell you what you need.",
+    "heroImage": "wide photograph of a large suburban South African home with solar panels on the roof, green garden, golden hour light, architectural photography",
+    "servicesHeading": "What we install",
+    "servicesSub": "Sized properly, installed neatly, and supported afterwards.",
+    "services": [
+      {
+        "title": "Full solar systems",
+        "detail": "Panels, inverter and battery, designed around your usage and your roof.",
+        "image": "photograph of solar panels installed on a modern South African house roof with green trees around, clear sky, professional photography"
+      },
+      {
+        "title": "Backup power",
+        "detail": "Keeping the essentials running when the grid goes down, without the generator noise.",
+        "image": "photograph of a neatly installed home battery backup system on a garage wall with tidy cabling and labelled switches"
+      },
+      {
+        "title": "System upgrades",
+        "detail": "Adding panels or storage to a system that was undersized when it went in.",
+        "image": "photograph of an installer adding an extra solar panel to an existing roof array, safety harness, bright daylight"
+      },
+      {
+        "title": "Maintenance and repairs",
+        "detail": "Cleaning, fault finding and putting right an installation somebody rushed.",
+        "image": "photograph of a technician cleaning solar panels on a roof with a soft brush, sunny day, documentary photography"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "We work out the usage first",
+        "detail": "A system sized off a guess either costs too much or runs out at 8pm."
+      },
+      {
+        "title": "Neat work",
+        "detail": "Conduit run straight, switches labelled, nothing left hanging in the roof."
+      },
+      {
+        "title": "Upper Highway based",
+        "detail": "We are up the road, so a callout is not a three week wait."
+      }
     ]
   }
 ]
