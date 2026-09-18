@@ -90,7 +90,14 @@ export default function CallsPage() {
   useEffect(() => {
     fetch("/demo/built.json")
       .then((r) => (r.ok ? r.json() : []))
-      .then((slugs) => Array.isArray(slugs) && setBuilt(slugs))
+      .then((rows) => {
+        if (!Array.isArray(rows)) return;
+        // Phone numbers, digits only. Matching on a slug derived from the
+        // business name failed on every single one: "PTY/LTD" on the lead and
+        // not on the demo, "&" against "and", a stray capital. A number is a
+        // number.
+        setBuilt(rows.map((r) => String(r?.phone ?? "").replace(/\D/g, "")).filter(Boolean));
+      })
       .catch(() => {
         /* no demos deployed yet, or an old build — offer everything */
       });
@@ -99,12 +106,13 @@ export default function CallsPage() {
   // browsers. A button that silently does nothing is worse than no button.
   const [fallback, setFallback] = useState("");
 
-  const slugOf = (name: string) =>
-    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
-
-  const waitingForADemo = (queue ?? []).filter(
-    (r) => r.attempts === 0 && !built.includes(slugOf(r.lead.businessName)),
-  );
+  const waitingForADemo = (queue ?? []).filter((r) => {
+    if (r.attempts > 0) return false;
+    const numbers = [r.lead.mobile, r.lead.landline]
+      .filter((n) => n && n !== "not_found")
+      .map((n) => n.replace(/\D/g, ""));
+    return !numbers.some((n) => built.includes(n));
+  });
 
   const copyDemoDetails = async (howMany: number) => {
     const next = waitingForADemo.slice(0, howMany);

@@ -397,9 +397,24 @@ for (const biz of businesses) {
 // demos already, since a demo does not count as having rung anybody. Written
 // here rather than held in the database because this file is the truth about
 // what exists: if the page is not in this folder, there is no demo.
+// Keyed on the phone number, not the slug.
+//
+// The first version wrote slugs, and the call list generates a slug from the
+// business name to compare against — so a hand-written "nkosiyam-building"
+// never matched the generated "nkosiyam-building-contractors-pty-ltd", and the
+// button offered four businesses that already had pages. Names drift in every
+// direction here: "PTY/LTD" on one and not the other, "&" against "and", a
+// lower-case c in "contractors".
+//
+// The number does not drift. Same reason it became the dedupe key an hour
+// earlier, and the same mistake made twice in a day.
 writeFileSync(
   join(outRoot, "built.json"),
-  JSON.stringify(businesses.map((b) => b.slug), null, 2),
+  JSON.stringify(
+    businesses.map((b) => ({ slug: b.slug, phone: String(b.phone).replace(/\D/g, "") })),
+    null,
+    2,
+  ),
 );
 
 // Belt and braces alongside the per-page noindex: a crawler that ignores one
