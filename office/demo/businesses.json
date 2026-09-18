@@ -6,18 +6,36 @@
     "suburb": "Pinetown",
     "area": "Pinetown, Westville, Kloof and Hillcrest",
     "phone": "+27662276342",
-    "accent": "#b45309",
-    "tagline": "Built properly, finished on time.",
-    "intro": "A family-run building team working across the Upper Highway. New builds, extensions, alterations and the kind of finishing that still looks right in ten years.",
+    "headline": "Built properly. Finished when we said.",
+    "intro": "A family-run building team working across the Upper Highway. New builds, extensions, alterations, and the kind of finishing that still looks right in ten years.",
+    "heroImage": "wide photograph of a partly built double storey brick house in a leafy South African suburb, scaffolding up, late afternoon sun, blue sky, professional architectural photography",
+    "servicesHeading": "What we take on",
+    "servicesSub": "From a single wall to a whole house, run by the same team from first day to handover.",
     "services": [
-      { "title": "New builds", "detail": "From foundation to handover, managed by one team." },
-      { "title": "Extensions and alterations", "detail": "Extra room, second storey, opening up a kitchen." },
-      { "title": "Renovations", "detail": "Bathrooms, kitchens, and putting right what somebody else did." },
-      { "title": "Boundary walls and paving", "detail": "Walls, driveways, and drainage that works in a Durban storm." }
+      {
+        "title": "New builds",
+        "detail": "From foundation to handover, managed by one team who are on site every day.",
+        "image": "photograph of a newly completed modern face brick family home in South Africa, neat paved driveway, clear sky, estate agent photography"
+      },
+      {
+        "title": "Extensions and alterations",
+        "detail": "An extra room, a second storey, or opening a kitchen up into the living room.",
+        "image": "photograph of a bright open plan kitchen extension with large sliding doors onto a garden, South African home, natural daylight, interior photography"
+      },
+      {
+        "title": "Renovations",
+        "detail": "Bathrooms, kitchens, and putting right what somebody else left behind.",
+        "image": "photograph of a freshly renovated modern bathroom with large format tiles and a glass shower, warm lighting, interior photography"
+      },
+      {
+        "title": "Boundary walls and paving",
+        "detail": "Walls, driveways and drainage that still works after a Durban storm.",
+        "image": "photograph of a newly built plastered boundary wall and paved driveway at a suburban South African house, sunny day"
+      }
     ],
     "reasons": [
-      { "title": "One number to call", "detail": "You speak to the person running the site, not an office." },
-      { "title": "Quoted properly", "detail": "A written quote with the materials listed, so you know what changed if it changes." },
+      { "title": "One number to call", "detail": "You speak to the person running the site, not an office that will phone you back." },
+      { "title": "Quoted properly", "detail": "A written quote with the materials listed, so you can see what changed if anything changes." },
       { "title": "We clean up", "detail": "The site is swept at the end of every day. It matters more than people admit." }
     ]
   },
@@ -28,19 +46,37 @@
     "suburb": "Pinetown",
     "area": "Pinetown, New Germany, Westville and surrounds",
     "phone": "+27784976408",
-    "accent": "#0f766e",
-    "tagline": "A roof that holds, through a Durban summer.",
+    "headline": "A roof that holds, through a Durban summer.",
     "intro": "Roof repairs, replacements and waterproofing across the Pinetown area. If it is leaking, we will tell you honestly whether it needs fixing or replacing.",
+    "heroImage": "wide photograph of a roofer in safety harness working on a tiled roof of a South African house, dramatic sky with building storm clouds, late afternoon light, professional photography",
+    "servicesHeading": "What we fix",
+    "servicesSub": "Most of what we do starts with a leak. Some of it stops the next one.",
     "services": [
-      { "title": "Leak repairs", "detail": "Found, fixed, and tested with a hose before we leave." },
-      { "title": "Re-roofing", "detail": "Tile, IBR and corrugated, stripped and replaced properly." },
-      { "title": "Waterproofing", "detail": "Flat roofs, parapets, and the valleys where it always starts." },
-      { "title": "Gutters and downpipes", "detail": "Cleared, repaired or replaced before the rainy season." }
+      {
+        "title": "Leak repairs",
+        "detail": "Found, fixed, and tested with a hose before we pack up and leave.",
+        "image": "close up photograph of hands repairing a cracked roof tile with sealant, tools beside, bright daylight, documentary photography"
+      },
+      {
+        "title": "Re-roofing",
+        "detail": "Tile, IBR and corrugated, stripped back and replaced properly.",
+        "image": "photograph of a new charcoal grey metal IBR roof on a South African house seen from above, clean lines, sunny day, aerial photography"
+      },
+      {
+        "title": "Waterproofing",
+        "detail": "Flat roofs, parapets, and the valleys where it always starts.",
+        "image": "photograph of a worker applying waterproofing membrane with a roller to a flat concrete roof, bright sunlight, documentary photography"
+      },
+      {
+        "title": "Gutters and downpipes",
+        "detail": "Cleared, repaired or replaced before the rainy season arrives.",
+        "image": "photograph of clean new white gutters and downpipe on the edge of a house roof against a blue sky"
+      }
     ],
     "reasons": [
-      { "title": "We climb up first", "detail": "No quote over the phone. We look at the roof, then tell you what it needs." },
-      { "title": "Honest about replacement", "detail": "A repair that will not last is not cheaper. We will say so." },
-      { "title": "Insurance paperwork", "detail": "Photographs and a written report for a storm-damage claim." }
+      { "title": "We climb up first", "detail": "No quote over the phone. We look at the roof, then tell you what it actually needs." },
+      { "title": "Honest about replacement", "detail": "A repair that will not last is not cheaper. If that is the answer, we will say so." },
+      { "title": "Insurance paperwork", "detail": "Photographs and a written report, ready for a storm damage claim." }
     ]
   },
   {
@@ -50,18 +86,36 @@
     "suburb": "Durban",
     "area": "Durban, Berea, Glenwood and the Bluff",
     "phone": "+27822583354",
-    "accent": "#1d4ed8",
-    "tagline": "Blocked, burst or leaking — same day where we can.",
+    "headline": "Blocked, burst or leaking. Same day where we can.",
     "intro": "A Durban plumber for the jobs that cannot wait, and the ones that can. Geysers, drains, leaks and bathroom installations.",
+    "heroImage": "wide photograph of a professional plumber in uniform working under a kitchen sink with a wrench, clean modern South African home, natural light, documentary photography",
+    "servicesHeading": "What we get called for",
+    "servicesSub": "Most of it is urgent. All of it is quoted before we start.",
     "services": [
-      { "title": "Blocked drains", "detail": "Cleared with a machine, not a chemical that works for a week." },
-      { "title": "Geysers", "detail": "Repairs, replacements, and the compliance certificate afterwards." },
-      { "title": "Burst pipes and leaks", "detail": "Traced, exposed and repaired, including under a slab." },
-      { "title": "Bathroom installations", "detail": "New taps to a full refit, plumbed to code." }
+      {
+        "title": "Blocked drains",
+        "detail": "Cleared with a machine, not a chemical that works for a week.",
+        "image": "photograph of a plumber using a drain cleaning machine on an outdoor drain at a South African house, daylight, documentary photography"
+      },
+      {
+        "title": "Geysers",
+        "detail": "Repairs, replacements, and the compliance certificate afterwards.",
+        "image": "photograph of a newly installed white electric geyser water heater in a roof space with neat copper pipework, work light"
+      },
+      {
+        "title": "Burst pipes and leaks",
+        "detail": "Traced, exposed and repaired, including under a slab.",
+        "image": "close up photograph of a plumber repairing a copper water pipe joint with a wrench, water droplets, bright light"
+      },
+      {
+        "title": "Bathroom installations",
+        "detail": "New taps through to a full refit, plumbed to code.",
+        "image": "photograph of a modern renovated bathroom with a freestanding basin and chrome taps, soft daylight, interior photography"
+      }
     ],
     "reasons": [
-      { "title": "We answer the phone", "detail": "A plumber you cannot reach is not a plumber." },
-      { "title": "Priced before we start", "detail": "You know the number before any work begins." },
+      { "title": "We answer the phone", "detail": "A plumber you cannot get hold of is not a plumber." },
+      { "title": "Priced before we start", "detail": "You know the number before any work begins, not afterwards." },
       { "title": "Certificates issued", "detail": "Plumbing compliance certificates for a sale or an insurance claim." }
     ]
   }
