@@ -390,6 +390,18 @@ for (const biz of businesses) {
   writeFileSync(join(dir, "index.html"), page(biz, images));
 }
 
+// What has been built, for the call list to read.
+//
+// The "copy the next four" button had no way of knowing, so it kept handing
+// back the four businesses at the top of the queue — which are the ones with
+// demos already, since a demo does not count as having rung anybody. Written
+// here rather than held in the database because this file is the truth about
+// what exists: if the page is not in this folder, there is no demo.
+writeFileSync(
+  join(outRoot, "built.json"),
+  JSON.stringify(businesses.map((b) => b.slug), null, 2),
+);
+
 // Belt and braces alongside the per-page noindex: a crawler that ignores one
 // has to ignore both.
 writeFileSync(

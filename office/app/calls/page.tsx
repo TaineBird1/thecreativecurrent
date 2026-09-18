@@ -3,7 +3,7 @@
 import { useAuthedMutation, useAuthedQuery } from "@/app/lib/convexAuth";
 import { api } from "@/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "../components/Header";
 import { Button, Card, Empty, Pill, relativeTime } from "../components/ui";
 
@@ -82,13 +82,36 @@ export default function CallsPage() {
   const queue = useAuthedQuery(api.calls.queue, { includeDone });
   const counts = useAuthedQuery(api.calls.counts);
   const [copied, setCopied] = useState("");
+  // Which businesses already have a demo page, read from the demo folder
+  // itself. Without it the button kept offering the four at the top of the
+  // queue — which are the ones already built, since building a demo is not
+  // ringing anybody and the queue orders by who has not been rung.
+  const [built, setBuilt] = useState<string[]>([]);
+  useEffect(() => {
+    fetch("/demo/built.json")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((slugs) => Array.isArray(slugs) && setBuilt(slugs))
+      .catch(() => {
+        /* no demos deployed yet, or an old build — offer everything */
+      });
+  }, []);
   // Shown when the clipboard is unavailable, which it is in a lot of mobile
   // browsers. A button that silently does nothing is worse than no button.
   const [fallback, setFallback] = useState("");
 
+  const slugOf = (name: string) =>
+    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+
+  const waitingForADemo = (queue ?? []).filter(
+    (r) => r.attempts === 0 && !built.includes(slugOf(r.lead.businessName)),
+  );
+
   const copyDemoDetails = async (howMany: number) => {
-    const next = (queue ?? []).filter((r) => r.attempts === 0).slice(0, howMany);
-    if (next.length === 0) return;
+    const next = waitingForADemo.slice(0, howMany);
+    if (next.length === 0) {
+      setCopied("Every never-rung lead already has a demo page.");
+      return;
+    }
     const text = demoDetails(next);
     try {
       await navigator.clipboard.writeText(text);
@@ -145,7 +168,10 @@ export default function CallsPage() {
             </Button>
           ))}
           <span className="min-w-0 flex-1 leading-relaxed text-faint">
-            {copied || "Name, trade, suburb and number for the top never-rung leads, ready to paste. The facts only — what the page actually says still has to be written."}
+            {copied ||
+              `${waitingForADemo.length} never-rung lead${waitingForADemo.length === 1 ? "" : "s"} without a demo page${
+                built.length ? `, ${built.length} already built` : ""
+              }. The facts only — what the page actually says still has to be written.`}
           </span>
         </Card>
 
