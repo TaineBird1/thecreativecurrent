@@ -488,5 +488,201 @@
         "detail": "Rubble removed, site swept, nothing left for you to deal with."
       }
     ]
+  },
+  {
+    "slug": "pj-tiles",
+    "name": "PJ Tiles",
+    "trade": "Tiling contractor",
+    "suburb": "Margate",
+    "area": "Margate, Ramsgate, Uvongo, Southbroom and the lower South Coast",
+    "phone": "+27824634430",
+    "headline": "Tiled straight, grouted clean, finished once.",
+    "intro": "Wall and floor tiling across the South Coast. Bathrooms, patios, pool surrounds and whole-house floors — laid level, set properly, and left clean.",
+    "heroImage": "wide photograph of a newly tiled open plan living room with large format porcelain floor tiles in a South African coastal home, sliding doors open onto a sunlit patio, bright natural light, professional interior photography",
+    "servicesHeading": "What we tile",
+    "servicesSub": "Straight lines, level floors, and grout that still looks right in five years.",
+    "services": [
+      {
+        "title": "Bathrooms and showers",
+        "detail": "Waterproofed before a single tile goes down, because that is where bathrooms fail.",
+        "image": "photograph of a newly tiled modern bathroom with a large walk in shower and porcelain wall tiles, warm lighting, South African home, interior photography"
+      },
+      {
+        "title": "Floors throughout",
+        "detail": "Large format porcelain or ceramic, laid level right across the house.",
+        "image": "photograph of a tiler laying large format floor tiles across an open plan room, spirit level and spacers visible, bright daylight, documentary photography"
+      },
+      {
+        "title": "Patios and pool surrounds",
+        "detail": "Non-slip finishes that handle salt air and a South Coast summer.",
+        "image": "photograph of a tiled pool surround and patio at a South African coastal house, blue swimming pool, sunny day, architectural photography"
+      },
+      {
+        "title": "Repairs and re-grouting",
+        "detail": "Cracked tiles replaced and tired grout brought back, without redoing the whole room.",
+        "image": "photograph of close up hands re grouting ceramic wall tiles with a grout float, clean bathroom, natural light, detail photography"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "Level before we start",
+        "detail": "Floors are screeded and checked first. Tiles only look straight if what is under them is."
+      },
+      {
+        "title": "One price, in writing",
+        "detail": "Square metres, materials and labour listed, so nothing appears at the end."
+      },
+      {
+        "title": "Swept every evening",
+        "detail": "No tile dust through the rest of the house, and no offcuts left in the garden."
+      }
+    ]
+  },
+  {
+    "slug": "arnaldo-tiling-experts",
+    "name": "Arnaldo Tiling Experts",
+    "trade": "Tile contractor",
+    "suburb": "Durban",
+    "area": "Durban, Berea, Glenwood, Umhlanga and the northern suburbs",
+    "phone": "+27827530350",
+    "headline": "Tiling done by people who do only tiling.",
+    "intro": "A Durban tiling team for homes, flats and shopfronts. Careful setting out, proper waterproofing, and the finish people actually notice — the edges.",
+    "heroImage": "wide photograph of a modern Durban apartment interior with large format grey porcelain floor tiles, floor to ceiling windows and a city view, professional interior photography",
+    "servicesHeading": "What we take on",
+    "servicesSub": "Homes, flats and small commercial spaces, set out properly before anything is fixed down.",
+    "services": [
+      {
+        "title": "Bathroom and kitchen tiling",
+        "detail": "Full walls and floors, waterproofed underneath and sealed where it counts.",
+        "image": "photograph of a modern tiled kitchen splashback and floor in a South African apartment, stone countertop, natural daylight, interior photography"
+      },
+      {
+        "title": "Large format porcelain",
+        "detail": "Big slabs need a flat substrate and the right adhesive. We prepare for both.",
+        "image": "photograph of two tilers carefully positioning a very large format porcelain slab onto a prepared floor, suction lifters, bright interior, documentary photography"
+      },
+      {
+        "title": "Shop and office floors",
+        "detail": "Worked after hours where it is needed, so you open the next morning.",
+        "image": "photograph of a freshly tiled retail shop floor with polished porcelain tiles, shopfront glass, clean empty interior, architectural photography"
+      },
+      {
+        "title": "Mosaics, borders and feature walls",
+        "detail": "The fiddly work most teams would rather not quote on.",
+        "image": "photograph of a detailed mosaic tile feature wall in a modern bathroom, close up, warm accent lighting, interior detail photography"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "Set out first",
+        "detail": "We dry-lay and mark up before mixing adhesive, so the cuts land where they should."
+      },
+      {
+        "title": "Edges and trims",
+        "detail": "Proper trims on every external corner. It is the first thing a tiler gets judged on."
+      },
+      {
+        "title": "Quoted per square metre",
+        "detail": "Clear rates, so you can compare us against anyone else honestly."
+      }
+    ]
+  },
+  {
+    "slug": "abcon-maintenance",
+    "name": "ABcon Maintenance & Home Improvement",
+    "trade": "Maintenance and home improvement",
+    "suburb": "Durban",
+    "area": "Durban, Berea, Westville, Queensburgh and surrounds",
+    "phone": "+27743065507",
+    "headline": "The jobs that never quite get done.",
+    "intro": "General maintenance and home improvement across Durban. Leaks, damp, doors that stick, ceilings that sag — the list on the fridge, handled by one team.",
+    "heroImage": "wide photograph of a maintenance worker on a ladder repairing a ceiling inside a South African home, tools laid out neatly on a drop sheet, bright natural light, documentary photography",
+    "servicesHeading": "What we handle",
+    "servicesSub": "One call for the small jobs, and the same team when it turns out to be a bigger one.",
+    "services": [
+      {
+        "title": "General repairs",
+        "detail": "Doors, locks, ceilings, cupboards and the twenty other things that have been waiting.",
+        "image": "photograph of a handyman repairing a wooden interior door hinge with a cordless drill, tool bag beside him, South African home, natural light"
+      },
+      {
+        "title": "Damp and leak repairs",
+        "detail": "Finding where the water actually gets in, not painting over where it shows.",
+        "image": "photograph of a damp stained interior wall being inspected and repaired, moisture meter in hand, plaster patch, documentary photography"
+      },
+      {
+        "title": "Painting and plastering",
+        "detail": "Inside and out, prepared properly so it lasts past the first rainy season.",
+        "image": "photograph of a painter rolling fresh paint onto an exterior wall of a South African house, ladder and drop sheets, sunny day"
+      },
+      {
+        "title": "Bathroom and kitchen upgrades",
+        "detail": "Replacing what is tired without gutting the whole room.",
+        "image": "photograph of a partly upgraded bathroom with a new vanity and mirror being installed, tools on the floor, bright interior, documentary photography"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "We turn up",
+        "detail": "A time is agreed and kept. If we are running late, you hear it from us first."
+      },
+      {
+        "title": "Small jobs welcome",
+        "detail": "No minimum callout that makes a two-hour job not worth doing."
+      },
+      {
+        "title": "Priced before we start",
+        "detail": "You approve the number first. Nothing gets added to it quietly."
+      }
+    ]
+  },
+  {
+    "slug": "dlakela-developments",
+    "name": "Dlakela Developments",
+    "trade": "Construction company",
+    "suburb": "Durban",
+    "area": "Durban, Pinetown, Umhlanga and greater eThekwini",
+    "phone": "+27835160599",
+    "headline": "Built to programme. Handed over complete.",
+    "intro": "A Durban construction company taking on residential and light commercial work — new builds, extensions and refurbishments, run to a programme you can hold us to.",
+    "heroImage": "wide photograph of a modern multi storey building under construction in Durban South Africa, scaffolding and a crane, clear blue sky, professional construction photography",
+    "servicesHeading": "What we build",
+    "servicesSub": "Residential and light commercial work, managed end to end by one site team.",
+    "services": [
+      {
+        "title": "New builds",
+        "detail": "Houses and small commercial buildings, from foundations through to final handover.",
+        "image": "photograph of a newly completed modern face brick house in a South African suburb, neat landscaping and paved driveway, clear sky, architectural photography"
+      },
+      {
+        "title": "Extensions and additions",
+        "detail": "Extra rooms, second storeys and garages, tied properly into what is already there.",
+        "image": "photograph of a double storey extension being built onto an existing South African house, scaffolding up, new brickwork meeting old, sunny day"
+      },
+      {
+        "title": "Refurbishments",
+        "detail": "Offices, flats and older houses brought up to standard without starting again.",
+        "image": "photograph of a refurbished open plan office interior with new flooring and ceilings, large windows, clean empty space, architectural photography"
+      },
+      {
+        "title": "Civils and groundworks",
+        "detail": "Retaining walls, drainage and slabs — the parts nobody sees until they fail.",
+        "image": "photograph of a newly built concrete retaining wall and drainage channel on a sloping South African building site, excavator in background, bright daylight"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "A programme, not a promise",
+        "detail": "Dates in writing at the start, and a call from us the moment one is at risk."
+      },
+      {
+        "title": "One site manager",
+        "detail": "The same person on site and on the phone, for the whole of the job."
+      },
+      {
+        "title": "Everything in writing",
+        "detail": "Quotes, variations and the programme all on paper. Nothing agreed only in a phone call."
+      }
+    ]
   }
 ]
