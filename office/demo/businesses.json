@@ -684,5 +684,201 @@
         "detail": "Quotes, variations and the programme all on paper. Nothing agreed only in a phone call."
       }
     ]
+  },
+  {
+    "slug": "vsic-amalgamated",
+    "name": "Vsic Amalgamated",
+    "trade": "Construction and contracting",
+    "suburb": "Durban",
+    "area": "Durban, Pinetown, Amanzimtoti and greater eThekwini",
+    "phone": "+27630144213",
+    "headline": "One contractor. Every trade on the job.",
+    "intro": "A Durban contracting firm for residential and commercial work. Building, plumbing, electrical and finishing run from one office, so no trade is left standing while another catches up.",
+    "heroImage": "wide photograph of a commercial building under construction in Durban South Africa, scaffolding and workers in hard hats, steel and brickwork, clear sky, professional construction photography",
+    "servicesHeading": "What we take on",
+    "servicesSub": "Whole projects rather than single trades, scheduled so each one is ready when the last one finishes.",
+    "services": [
+      {
+        "title": "Residential builds and extensions",
+        "detail": "Houses, additions and alterations, with every trade booked around the others.",
+        "image": "photograph of a double storey house under construction in a South African suburb, bricklayers at work on scaffolding, sunny day, construction photography"
+      },
+      {
+        "title": "Commercial fit-outs",
+        "detail": "Offices, shops and warehouses turned around between one tenant and the next.",
+        "image": "photograph of an office interior being fitted out, new ceiling grid and partitions going up, workers on site, bright interior, documentary photography"
+      },
+      {
+        "title": "Building maintenance contracts",
+        "detail": "Standing arrangements for body corporates and property managers.",
+        "image": "photograph of maintenance workers repairing and painting the exterior walkways of a South African apartment block, ladders and scaffolding, daylight"
+      },
+      {
+        "title": "Renovations and refurbishments",
+        "detail": "Older buildings brought up to current standards without knocking them down.",
+        "image": "photograph of an older building interior mid refurbishment, stripped walls and new steelwork, natural light through large windows, documentary photography"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "One point of contact",
+        "detail": "You call one office, not six subcontractors who each blame the other."
+      },
+      {
+        "title": "Scheduled, not improvised",
+        "detail": "Trades booked in sequence, so the tiler is not standing on a wet screed."
+      },
+      {
+        "title": "Snagged before handover",
+        "detail": "We walk the job with you and clear the list before anyone asks you to sign."
+      }
+    ]
+  },
+  {
+    "slug": "rhino-worx-developments",
+    "name": "Rhino Worx Developments",
+    "trade": "Construction and development",
+    "suburb": "Durban",
+    "area": "Durban, Umhlanga, Ballito and the north coast",
+    "phone": "+27718816505",
+    "headline": "From an empty stand to keys in a hand.",
+    "intro": "A Durban development and building outfit. Single houses, cluster units and small developments taken from first site clearance through to occupation.",
+    "heroImage": "wide photograph of a small residential development of modern townhouses under construction in South Africa, several units at different stages, clear blue sky, aerial construction photography",
+    "servicesHeading": "What we build",
+    "servicesSub": "Development work from start to finish, and the building jobs that come before it.",
+    "services": [
+      {
+        "title": "Small developments",
+        "detail": "Cluster units and townhouse blocks, built and finished as one project.",
+        "image": "photograph of a row of newly completed modern townhouses in South Africa, neat paving and young landscaping, bright daylight, architectural photography"
+      },
+      {
+        "title": "New homes",
+        "detail": "Single residential builds, from the slab to the last door handle.",
+        "image": "photograph of a modern newly built family home in South Africa at dusk, warm interior lights on, clean driveway, architectural photography"
+      },
+      {
+        "title": "Site works and services",
+        "detail": "Clearing, levelling, retaining, and getting water and power onto the stand.",
+        "image": "photograph of an excavator levelling and clearing a sloped building site in South Africa, fresh earthworks and a retaining wall going in, bright daylight"
+      },
+      {
+        "title": "Alterations and additions",
+        "detail": "Adding to a house that is already lived in, with as little disruption as we can manage.",
+        "image": "photograph of a house extension under construction alongside an occupied South African home, dust sheeting separating new work from old, sunny day"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "Costed up front",
+        "detail": "A full breakdown before the first load of material arrives on site."
+      },
+      {
+        "title": "Progress you can see",
+        "detail": "Photographs and a written update at every stage, whether you can get to site or not."
+      },
+      {
+        "title": "Finished means finished",
+        "detail": "We do not ask for the last payment while there is still a list."
+      }
+    ]
+  },
+  {
+    "slug": "village-plumbers",
+    "name": "Village Plumbers",
+    "trade": "Plumber",
+    "suburb": "Durban",
+    "area": "Durban, Berea, Glenwood, Morningside and the older suburbs",
+    "phone": "+27837755900",
+    "headline": "Plumbing for houses that have been here a while.",
+    "intro": "A Durban plumbing team who spend most of the week in older homes — galvanised pipe, tired geysers, and drains laid before anyone thought about access.",
+    "heroImage": "wide photograph of a plumber working under the sink of an older South African home with vintage tiling, toolbox open, warm natural light, documentary photography",
+    "servicesHeading": "What we do",
+    "servicesSub": "Domestic plumbing, and the awkward jobs that come with a house built fifty years ago.",
+    "services": [
+      {
+        "title": "Repiping and pipe replacement",
+        "detail": "Replacing corroded galvanised pipe without opening up the whole house.",
+        "image": "photograph of new copper and pex water pipes being installed along an old brick wall inside a house, plumber working, natural light, documentary photography"
+      },
+      {
+        "title": "Drains and blockages",
+        "detail": "Cleared, and then looked at properly so it is not back next month.",
+        "image": "photograph of a plumber using drain rodding equipment at an outdoor drain inspection chamber of a South African house, daylight, documentary photography"
+      },
+      {
+        "title": "Geysers and hot water",
+        "detail": "Repairs, replacements, and moving one out of a ceiling that cannot carry it.",
+        "image": "photograph of a plumber installing a new electric geyser water heater in a roof space, tools and pipe fittings, work light, documentary photography"
+      },
+      {
+        "title": "Leaks and water damage",
+        "detail": "Tracing a leak back to where it starts, including under floors and behind walls.",
+        "image": "photograph of a damp stained wall with a small section of plaster opened up revealing a leaking pipe, torch light, detail documentary photography"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "We have seen it before",
+        "detail": "Old plumbing fails in predictable ways. We know where to look first."
+      },
+      {
+        "title": "Least damage possible",
+        "detail": "Opening a wall is a last resort, not the first move."
+      },
+      {
+        "title": "Told straight",
+        "detail": "If a repair will only buy you a year, you hear that now rather than in a year."
+      }
+    ]
+  },
+  {
+    "slug": "bonga-manzi-plumber",
+    "name": "Bonga Manzi Plumber",
+    "trade": "Plumber",
+    "suburb": "Durban",
+    "area": "Durban, Umlazi, Isipingo, Chatsworth and the south of the city",
+    "phone": "+27774435395",
+    "headline": "Shown the problem. Told the price. Then fixed.",
+    "intro": "A Durban plumber for household work — leaks, drains, geysers and installations. You see what is actually wrong before anything gets replaced.",
+    "heroImage": "wide photograph of a friendly plumber showing a homeowner a repaired pipe joint under a kitchen sink, both looking at the work, bright natural light, documentary photography",
+    "servicesHeading": "What we do",
+    "servicesSub": "Household and small commercial plumbing, quoted on the spot.",
+    "services": [
+      {
+        "title": "Leaks and burst pipes",
+        "detail": "Found, exposed and repaired, with the water back on the same day where we can.",
+        "image": "photograph of a plumber repairing a burst water pipe in a trench beside a South African house, wet soil and pipe fittings, bright daylight, documentary photography"
+      },
+      {
+        "title": "Blocked drains and toilets",
+        "detail": "Cleared properly, and the cause explained rather than left for next time.",
+        "image": "photograph of a plumber clearing a blocked drain with a drain snake machine outside a home, gloves and equipment, daylight, documentary photography"
+      },
+      {
+        "title": "Geyser work",
+        "detail": "Repairs, replacements, elements and thermostats, with a certificate where one is needed.",
+        "image": "photograph of a plumber replacing the element on an electric geyser water heater, tools and new parts laid out, work light, detail photography"
+      },
+      {
+        "title": "Taps, toilets and installations",
+        "detail": "The small jobs that get put off, done in one visit.",
+        "image": "photograph of a plumber fitting a new chrome mixer tap onto a bathroom basin, hands and wrench in frame, clean bathroom, detail photography"
+      }
+    ],
+    "reasons": [
+      {
+        "title": "You see it first",
+        "detail": "Photographs of the fault before anything is replaced, so you are not taking it on trust."
+      },
+      {
+        "title": "Send a photo first",
+        "detail": "WhatsApp a picture of the problem and get an idea of the cost before anyone drives out."
+      },
+      {
+        "title": "Cleaned up after",
+        "detail": "Old parts taken away and the floor left dry."
+      }
+    ]
   }
 ]
